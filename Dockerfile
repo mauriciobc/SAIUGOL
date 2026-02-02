@@ -14,8 +14,18 @@ RUN npm ci --only=production
 # Copy app source (respecting .dockerignore)
 COPY src/ ./src/
 
+# Create data directory for state persistence
+RUN mkdir -p /app/data && chown -R node:node /app/data
+
+# Volume for persistent state
+VOLUME ["/app/data"]
+
 # Use a non-root user for security
 USER node
+
+# Healthcheck - verify the process is still running
+HEALTHCHECK --interval=60s --timeout=5s --start-period=30s --retries=3 \
+  CMD pgrep -f "node.*index.js" || exit 1
 
 # Start the bot
 CMD ["npm", "start"]

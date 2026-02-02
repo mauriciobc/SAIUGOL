@@ -2,6 +2,9 @@
  * In-memory state management for tracking matches and events
  */
 
+import { loadState, saveState as persistState } from './persistence.js';
+import { config } from '../config.js';
+
 // Cached league ID
 let cachedLeagueId = null;
 
@@ -13,6 +16,71 @@ const postedEventIds = new Set();
 
 // Last known score per match: Map<matchId, { home: number, away: number }>
 const lastScores = new Map();
+
+// Periodic save timer
+let saveTimer = null;
+
+// Initialization flag to prevent multiple initializations
+let initialized = false;
+
+/**
+ * Initialize state from persistence
+ */
+async function initializeState() {
+    if (initialized) {
+        console.log('[State] Já inicializado, ignorando');
+        return;
+    }
+    initialized = true;
+
+    const state = await loadState();
+    if (state.postedEventIds && state.postedEventIds.size > 0) {
+        // Restore posted events
+        state.postedEventIds.forEach(id => postedEventIds.add(id));
+        console.log(`[State] ${postedEventIds.size} eventos restaurados do estado persistido`);
+    }
+
+    // Start periodic save timer
+    startPeriodicSave();
+}
+
+/**
+ * Start periodic state saving
+ */
+function startPeriodicSave() {
+    if (saveTimer) return;
+
+    const interval = config.delays.statePersistence;
+    saveTimer = setInterval(async () => {
+        await saveStateNow();
+    }, interval);
+
+    console.log(`[State] Auto-save iniciado (intervalo: ${interval}ms)`);
+}
+
+/**
+ * Save state immediately
+ * @returns {Promise<boolean>}
+ */
+export async function saveStateNow() {
+    return await persistState(postedEventIds);
+}
+
+/**
+ * Stop periodic saving (for shutdown)
+ */
+export function stopPeriodicSave() {
+    if (saveTimer) {
+        clearInterval(saveTimer);
+        saveTimer = null;
+        console.log('[State] Auto-save parado');
+    }
+}
+
+// Initialize on module load
+initializeState().catch(error => {
+    console.error('[State] Erro na inicialização:', error.message);
+});
 
 /**
  * Get or set the cached league ID
@@ -99,13 +167,33 @@ export function updateLastScore(matchId, home, away) {
 }
 
 /**
+ * Clean up posted event IDs for a finished match
+ * @param {number} matchId - Match ID
+ */
+function cleanupMatchEvents(matchId) {
+    const prefix = `${matchId}-`;
+    let cleanedCount = 0;
+
+    for (const eventId of postedEventIds) {
+        if (eventId.startsWith(prefix)) {
+            postedEventIds.delete(eventId);
+            cleanedCount++;
+        }
+    }
+
+    if (cleanedCount > 0) {
+        console.log(`[State] Removidos ${cleanedCount} eventos antigos da partida ${matchId}`);
+    }
+}
+
+/**
  * Clear all state for a match when it ends
  * @param {number} matchId - Match ID
  */
 export function clearMatchState(matchId) {
     activeMatches.delete(matchId);
     lastScores.delete(matchId);
-    // Note: We keep posted events to avoid re-posting if bot restarts
+    cleanupMatchEvents(matchId);
 }
 
 /**
@@ -118,4 +206,15 @@ export function getStateStats() {
         activeMatchCount: activeMatches.size,
         postedEventCount: postedEventIds.size,
     };
+}
+
+/**
+ * Graceful shutdown - save state and stop timers
+ * @returns {Promise<void>}
+ */
+export async function shutdown() {
+    console.log('[State] Encerrando e salvando estado...');
+    stopPeriodicSave();
+    await saveStateNow();
+    console.log('[State] Estado salvo com sucesso');
 }

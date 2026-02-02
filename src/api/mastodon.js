@@ -1,6 +1,9 @@
 import megalodon from 'megalodon';
 const generator = megalodon.default;
 import { config } from '../config.js';
+import { retryWithBackoff, isRetryableError } from '../utils/retry.js';
+import { mastodonLogger } from '../utils/logger.js';
+import { recordMastodonPost } from '../utils/metrics.js';
 
 let client = null;
 
@@ -33,23 +36,52 @@ export function __setClient(customClient) {
  */
 export async function postStatus(text, options = {}) {
     if (config.bot.dryRun) {
-        console.log('[Mastodon] [DRY RUN] Postaria:', text);
+        mastodonLogger.debug({ textLength: text.length }, '[DRY RUN] Postaria');
         return { id: 'dry-run', content: text };
     }
 
-    try {
-        const mastodon = getClient();
-        const response = await mastodon.postStatus(text, {
-            visibility: options.visibility || 'public',
-            in_reply_to_id: options.inReplyToId,
-        });
+    const startTime = Date.now();
 
-        console.log('[Mastodon] Status postado com sucesso:', response.data.id);
-        return response.data;
-    } catch (error) {
-        console.error('[Mastodon] Erro ao postar status:', error.message);
+    return await retryWithBackoff(
+        async () => {
+            try {
+                const mastodon = getClient();
+                const response = await mastodon.postStatus(text, {
+                    visibility: options.visibility || 'public',
+                    in_reply_to_id: options.inReplyToId,
+                });
+
+                const latencyMs = Date.now() - startTime;
+                recordMastodonPost(true, latencyMs);
+                mastodonLogger.info({ statusId: response.data.id, latencyMs }, 'Status postado com sucesso');
+                return response.data;
+            } catch (error) {
+                const latencyMs = Date.now() - startTime;
+                // Don't retry authentication errors
+                if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                    recordMastodonPost(false, latencyMs);
+                    mastodonLogger.error({ error: error.message }, 'Erro de autenticação');
+                    throw error;
+                }
+                recordMastodonPost(false, latencyMs);
+                mastodonLogger.error({ error: error.message }, 'Erro ao postar status');
+                throw error;
+            }
+        },
+        {
+            shouldRetry: (error) => {
+                // Don't retry auth errors
+                if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                    return false;
+                }
+                return isRetryableError(error);
+            },
+            operationName: 'Mastodon postStatus',
+        }
+    ).catch(error => {
+        mastodonLogger.error({ error: error.message }, 'Todas as tentativas falharam para postStatus');
         return null;
-    }
+    });
 }
 
 /**
@@ -68,7 +100,7 @@ export async function postThread(texts) {
             lastId = post.id;
         }
         // Small delay between posts to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, config.delays.betweenThreadPosts));
     }
 
     return posts;
@@ -82,10 +114,10 @@ export async function verifyCredentials() {
     try {
         const mastodon = getClient();
         const response = await mastodon.verifyAccountCredentials();
-        console.log('[Mastodon] Autenticado como:', response.data.username);
+        mastodonLogger.info({ username: response.data.username }, 'Autenticado');
         return true;
     } catch (error) {
-        console.error('[Mastodon] Erro de autenticação:', error.message);
+        mastodonLogger.error({ error: error.message }, 'Erro de autenticação');
         return false;
     }
 }

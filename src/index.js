@@ -2,64 +2,77 @@ import 'dotenv/config';
 import { config } from './config.js';
 import { verifyCredentials } from './api/mastodon.js';
 import { initialize, startMonitoring } from './bot/matchMonitor.js';
+import { shutdown as shutdownState } from './state/matchState.js';
+import { logger, botLogger } from './utils/logger.js';
 
 /**
  * Main entry point for the SAIUGOL bot
  */
 async function main() {
-    console.log('='.repeat(50));
-    console.log('⚽ SAIUGOL - Bot de Brasileirão para Mastodon');
-    console.log('='.repeat(50));
+    logger.info('Iniciando SAIUGOL Bot');
 
     // Check configuration
     if (!config.mastodon.accessToken) {
-        console.error('❌ MASTODON_ACCESS_TOKEN não configurado');
+        logger.error('MASTODON_ACCESS_TOKEN não configurado');
         process.exit(1);
     }
 
 
     if (config.bot.dryRun) {
-        console.log('🔧 Modo DRY RUN ativado - nenhum post será enviado');
+        botLogger.info('Modo DRY RUN ativado - nenhum post será enviado');
     }
 
     // Verify Mastodon credentials
-    console.log('\n📡 Verificando credenciais do Mastodon...');
+    botLogger.info('Verificando credenciais do Mastodon...');
     const credentialsOk = await verifyCredentials();
     if (!credentialsOk && !config.bot.dryRun) {
-        console.error('❌ Falha na autenticação do Mastodon');
+        logger.error('Falha na autenticação do Mastodon');
         process.exit(1);
     }
 
     // Initialize match monitor
-    console.log('\n🔍 Inicializando monitor de partidas...');
+    botLogger.info('Inicializando monitor de partidas...');
     const initOk = await initialize();
     if (!initOk) {
-        console.error('❌ Falha ao inicializar o monitor');
+        logger.error('Falha ao inicializar o monitor');
         process.exit(1);
     }
 
     // Start monitoring
-    console.log('\n✅ Bot iniciado com sucesso!');
-    console.log(`📊 Intervalo de polling: ${config.bot.pollIntervalMs}ms`);
-    console.log(`🏆 Liga: ${config.bot.leagueName} (${config.bot.countryCode})`);
-    console.log('-'.repeat(50));
+    botLogger.info({
+        pollIntervalMs: config.bot.pollIntervalMs,
+        league: config.bot.leagueName,
+        countryCode: config.bot.countryCode
+    }, 'Bot iniciado com sucesso');
 
     await startMonitoring();
 }
 
 // Handle graceful shutdown
-process.on('SIGINT', () => {
-    console.log('\n\n👋 Encerrando bot...');
-    process.exit(0);
-});
+let isShuttingDown = false;
 
-process.on('SIGTERM', () => {
-    console.log('\n\n👋 Encerrando bot...');
+async function gracefulShutdown(signal) {
+    if (isShuttingDown) {
+        botLogger.warn({ signal }, 'Shutdown já em progresso, ignorando');
+        return;
+    }
+
+    isShuttingDown = true;
+    botLogger.info({ signal }, 'Recebido sinal de shutdown, encerrando bot...');
+    try {
+        await shutdownState();
+        botLogger.info('Estado salvo com sucesso');
+    } catch (error) {
+        logger.error({ error: error.message }, 'Erro ao salvar estado');
+    }
     process.exit(0);
-});
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 // Run
 main().catch((error) => {
-    console.error('❌ Erro fatal:', error);
+    logger.error({ error: error.message }, 'Erro fatal');
     process.exit(1);
 });

@@ -55,7 +55,12 @@ function categorizeEvent(type) {
  * @returns {string} Unique event ID
  */
 function generateEventId(matchId, event) {
-    return `${matchId}-${event.type}-${event.minute}-${event.player?.id || event.team?.id || 'unknown'}`;
+    // Include ESPN event ID if available for better uniqueness
+    const espnId = event.id || '';
+    const playerId = event.player?.id || event.team?.id || 'unknown';
+    const timestamp = event.timestamp || Date.now();
+
+    return `${matchId}-${espnId}-${event.type}-${event.minute}-${playerId}-${timestamp}`;
 }
 
 /**
@@ -98,6 +103,7 @@ export async function processEvents(events, match) {
 
         // Skip if already posted
         if (isEventPosted(eventId)) {
+            console.log(`[EventProcessor] Evento duplicado ignorado: ${eventId}`);
             continue;
         }
 
@@ -116,7 +122,7 @@ export async function processEvents(events, match) {
             }
 
             // Small delay between posts
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
         }
     }
 
@@ -197,7 +203,7 @@ export async function handleMatchEnd(match) {
     console.log(`[EventProcessor] Partida ${match.id} finalizada`);
 
     // Wait a bit and then check for highlights
-    await new Promise((resolve) => setTimeout(resolve, 30000));
+    await new Promise((resolve) => setTimeout(resolve, config.delays.beforeHighlights));
 
     const highlights = await getHighlights(match.id);
     if (highlights.length > 0) {

@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  bot:
+    build: .
+    container_name: saiugol-bot
+    restart: unless-stopped
+    environment:
+      - MASTODON_INSTANCE=${MASTODON_INSTANCE:-https://mastodon.social}
+      - MASTODON_ACCESS_TOKEN=${MASTODON_ACCESS_TOKEN}
+      - POLL_INTERVAL_MS=${POLL_INTERVAL_MS:-60000}
+      - DRY_RUN=${DRY_RUN:-false}
+      - DELAY_BETWEEN_POSTS_MS=${DELAY_BETWEEN_POSTS_MS:-2000}
+      - DELAY_BETWEEN_THREAD_POSTS_MS=${DELAY_BETWEEN_THREAD_POSTS_MS:-1000}
+      - DELAY_BEFORE_HIGHLIGHTS_MS=${DELAY_BEFORE_HIGHLIGHTS_MS:-30000}
+      - STATE_SAVE_INTERVAL_MS=${STATE_SAVE_INTERVAL_MS:-300000}
+      - RETRY_MAX_ATTEMPTS=${RETRY_MAX_ATTEMPTS:-3}
+      - RETRY_INITIAL_DELAY_MS=${RETRY_INITIAL_DELAY_MS:-1000}
+      - RETRY_MAX_DELAY_MS=${RETRY_MAX_DELAY_MS:-10000}
+    volumes:
+      - saiugol-data:/app/data
+
+volumes:
+  saiugol-data:
