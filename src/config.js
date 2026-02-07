@@ -24,7 +24,11 @@ function validateConfig() {
     const errors = [];
 
     if (!process.env.MASTODON_ACCESS_TOKEN) {
-        errors.push('MASTODON_ACCESS_TOKEN environment variable is required');
+        errors.push(
+            'MASTODON_ACCESS_TOKEN environment variable is required. ' +
+            'Local: set it in .env (see .env.example). ' +
+            'Production/Docker: set it in your deployment platform\'s Environment Variables (e.g. Railway, Render).'
+        );
     } else if (process.env.MASTODON_ACCESS_TOKEN.length < 10) {
         errors.push('MASTODON_ACCESS_TOKEN appears to be invalid (too short)');
     }

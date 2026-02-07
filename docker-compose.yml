@@ -1,10 +1,17 @@
 version: '3.8'
 
+# Portainer: use "Load variables from .env file" when creating the stack.
+# Portainer generates stack.env from that file; the service uses it so the
+# container receives MASTODON_ACCESS_TOKEN etc. (Standalone/Podman only; Swarm
+# ignores env_file — then set variables in the stack's Environment form.)
+# Local: run once: cp .env stack.env (and add stack.env to .gitignore).
 services:
   bot:
     build: .
     container_name: saiugol-bot
     restart: unless-stopped
+    env_file:
+      - stack.env
     environment:
       - MASTODON_INSTANCE=${MASTODON_INSTANCE:-https://mastodon.social}
       - MASTODON_ACCESS_TOKEN=${MASTODON_ACCESS_TOKEN}
