@@ -1,10 +1,11 @@
 version: '3.8'
 
-# Portainer: use "Load variables from .env file" when creating the stack.
-# Portainer generates stack.env from that file; the service uses it so the
-# container receives MASTODON_ACCESS_TOKEN etc. (Standalone/Podman only; Swarm
-# ignores env_file — then set variables in the stack's Environment form.)
-# Local: run once: cp .env stack.env (and add stack.env to .gitignore).
+# Portainer: (1) Standalone: "Load variables from .env file" → stack.env is used via env_file.
+# (2) Swarm: env_file is ignored. Either set MASTODON_ACCESS_TOKEN in the stack's
+#     Environment variables (key-value), or create a secret and mount it: add under
+#     "secrets:" a secret "mastodon_access_token" (external, value = token only) and
+#     under bot service add "secrets: [mastodon_access_token]". The app reads it from
+#     /run/secrets/mastodon_access_token. Local: cp .env stack.env (stack.env in .gitignore).
 services:
   bot:
     build: .
@@ -14,7 +15,6 @@ services:
       - stack.env
     environment:
       - MASTODON_INSTANCE=${MASTODON_INSTANCE:-https://mastodon.social}
-      - MASTODON_ACCESS_TOKEN=${MASTODON_ACCESS_TOKEN}
       - POLL_INTERVAL_MS=${POLL_INTERVAL_MS:-60000}
       - DRY_RUN=${DRY_RUN:-false}
       - DELAY_BETWEEN_POSTS_MS=${DELAY_BETWEEN_POSTS_MS:-2000}

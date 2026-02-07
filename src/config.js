@@ -1,4 +1,36 @@
 import 'dotenv/config';
+import { readFileSync, existsSync } from 'node:fs';
+
+/**
+ * Resolve access token from env var, _FILE path, or Docker secret path.
+ * @returns {string|undefined} Token or undefined if not found
+ */
+function resolveAccessToken() {
+    const fromEnv = process.env.MASTODON_ACCESS_TOKEN;
+    if (fromEnv && fromEnv.length >= 10) return fromEnv;
+
+    const filePath = process.env.MASTODON_ACCESS_TOKEN_FILE;
+    if (filePath && existsSync(filePath)) {
+        try {
+            const value = readFileSync(filePath, 'utf8').trim();
+            if (value.length >= 10) return value;
+        } catch {
+            // fall through to secret path
+        }
+    }
+
+    const secretPath = '/run/secrets/mastodon_access_token';
+    if (existsSync(secretPath)) {
+        try {
+            const value = readFileSync(secretPath, 'utf8').trim();
+            if (value.length >= 10) return value;
+        } catch {
+            // fall through
+        }
+    }
+
+    return undefined;
+}
 
 /**
  * Parse and validate a numeric environment variable
@@ -16,6 +48,9 @@ function parseEnvInt(value, defaultValue, min = 0, max = Infinity) {
     return Math.max(min, Math.min(parsed, max));
 }
 
+/** Resolved token for config (validated once). */
+let resolvedToken;
+
 /**
  * Validate configuration
  * @throws {Error} If configuration is invalid
@@ -23,13 +58,13 @@ function parseEnvInt(value, defaultValue, min = 0, max = Infinity) {
 function validateConfig() {
     const errors = [];
 
-    if (!process.env.MASTODON_ACCESS_TOKEN) {
+    resolvedToken = resolveAccessToken();
+    if (!resolvedToken) {
         errors.push(
-            'MASTODON_ACCESS_TOKEN environment variable is required. ' +
-            'Local: set it in .env (see .env.example). ' +
-            'Production/Docker: set it in your deployment platform\'s Environment Variables (e.g. Railway, Render).'
+            'MASTODON_ACCESS_TOKEN is required. Set the env var, or MASTODON_ACCESS_TOKEN_FILE, ' +
+            'or add a Docker secret "mastodon_access_token". See .env.example for local dev.'
         );
-    } else if (process.env.MASTODON_ACCESS_TOKEN.length < 10) {
+    } else if (resolvedToken.length < 10) {
         errors.push('MASTODON_ACCESS_TOKEN appears to be invalid (too short)');
     }
 
@@ -58,7 +93,7 @@ validateConfig();
 export const config = {
     mastodon: {
         instance: process.env.MASTODON_INSTANCE || 'https://mastodon.social',
-        accessToken: process.env.MASTODON_ACCESS_TOKEN,
+        accessToken: resolvedToken,
     },
     // ESPN API configuration (No key required)
     // Note: Currently hardcoded to Brasileirão Serie A (bra.1)
