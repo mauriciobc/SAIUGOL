@@ -139,6 +139,10 @@ export const config = {
         matchStart: true,
         matchEnd: true,
     },
+    // Internationalization configuration
+    i18n: {
+        defaultLanguage: process.env.DEFAULT_LANGUAGE || 'pt-BR',
+    },
     // Hashtags for posts
     hashtags: ['#Brasileirão', '#SerieA', '#FutebolBrasileiro'],
 };

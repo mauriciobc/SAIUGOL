@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { translate } from '../services/i18n.js';
 
 /**
  * Format a goal event as a Mastodon post
@@ -8,18 +9,21 @@ import { config } from '../config.js';
  */
 export function formatGoal(event, match) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
-    const scorer = event.player?.name || 'Jogador desconhecido';
+    const scorer = event.player?.name || translate('common.unknown_player');
     const assist = event.assist?.name;
     const minute = event.minute || '?';
     const isOwnGoal = event.type?.toLowerCase().includes('own');
 
-    let text = `⚽ GOOOOL!${isOwnGoal ? ' (Contra)' : ''}\n\n`;
+    let text = isOwnGoal
+        ? translate('ui.own_goal_announcement')
+        : translate('ui.goal_announcement');
+    text += '\n\n';
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
     text += `⏱️ ${minute}'\n`;
     text += `👤 ${scorer}`;
 
     if (assist) {
-        text += ` (assist: ${assist})`;
+        text += ` (${translate('ui.assist')}: ${assist})`;
     }
 
     text += `\n\n${getTeamHashtag(event.team?.name || homeTeam.name)} ${config.hashtags.join(' ')}`;
@@ -37,12 +41,14 @@ export function formatCard(event, match) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
     const isRed = event.type?.toLowerCase().includes('red');
     const emoji = isRed ? '🟥' : '🟨';
-    const cardType = isRed ? 'CARTÃO VERMELHO' : 'CARTÃO AMARELO';
-    const player = event.player?.name || 'Jogador';
+    const cardType = isRed
+        ? translate('ui.red_card_announcement')
+        : translate('ui.yellow_card_announcement');
+    const player = event.player?.name || translate('common.unknown_player');
     const minute = event.minute || '?';
     const reason = event.reason || '';
 
-    let text = `${emoji} ${cardType}!\n\n`;
+    let text = `${emoji} ${cardType}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
     text += `⏱️ ${minute}'\n`;
     text += `👤 ${player}`;
@@ -64,15 +70,15 @@ export function formatCard(event, match) {
  */
 export function formatSubstitution(event, match) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
-    const playerIn = event.playerIn?.name || 'Jogador';
-    const playerOut = event.playerOut?.name || 'Jogador';
+    const playerIn = event.playerIn?.name || translate('common.unknown_player');
+    const playerOut = event.playerOut?.name || translate('common.unknown_player');
     const minute = event.minute || '?';
 
-    let text = `🔄 SUBSTITUIÇÃO\n\n`;
+    let text = `${translate('ui.substitution_announcement')}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
     text += `⏱️ ${minute}'\n`;
-    text += `⬆️ Entra: ${playerIn}\n`;
-    text += `⬇️ Sai: ${playerOut}`;
+    text += `⬆️ ${translate('ui.player_in')}: ${playerIn}\n`;
+    text += `⬇️ ${translate('ui.player_out')}: ${playerOut}`;
 
     text += `\n\n${config.hashtags.join(' ')}`;
 
@@ -88,9 +94,9 @@ export function formatSubstitution(event, match) {
 export function formatVAR(event, match) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
     const minute = event.minute || '?';
-    const decision = event.decision || event.result || 'Revisão em andamento';
+    const decision = event.decision || event.result || translate('ui.review_in_progress');
 
-    let text = `📺 VAR\n\n`;
+    let text = `${translate('ui.var_announcement')}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
     text += `⏱️ ${minute}'\n`;
     text += `📋 ${decision}`;
@@ -108,7 +114,7 @@ export function formatVAR(event, match) {
 export function formatMatchStart(match) {
     const { homeTeam, awayTeam, venue } = match;
 
-    let text = `🏁 COMEÇA O JOGO!\n\n`;
+    let text = `${translate('ui.match_start')}\n\n`;
     text += `🏟️ ${homeTeam.name} x ${awayTeam.name}\n`;
 
     if (venue) {
@@ -130,14 +136,14 @@ export function formatMatchEnd(match) {
 
     let result;
     if (homeScore > awayScore) {
-        result = `🏆 ${homeTeam.name} vence!`;
+        result = translate('ui.team_wins', { team: homeTeam.name });
     } else if (awayScore > homeScore) {
-        result = `🏆 ${awayTeam.name} vence!`;
+        result = translate('ui.team_wins', { team: awayTeam.name });
     } else {
-        result = '🤝 Empate!';
+        result = translate('ui.draw');
     }
 
-    let text = `🏁 FIM DE JOGO!\n\n`;
+    let text = `${translate('ui.match_end')}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n\n`;
     text += `${result}`;
 
@@ -155,7 +161,7 @@ export function formatMatchEnd(match) {
 export function formatHighlights(match, highlights) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
 
-    let text = `🎬 MELHORES MOMENTOS\n\n`;
+    let text = `${translate('ui.highlights')}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n\n`;
 
     // Add up to 3 highlight links

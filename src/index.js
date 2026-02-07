@@ -4,12 +4,17 @@ import { verifyCredentials } from './api/mastodon.js';
 import { initialize, startMonitoring } from './bot/matchMonitor.js';
 import { shutdown as shutdownState } from './state/matchState.js';
 import { logger, botLogger } from './utils/logger.js';
+import { initI18n } from './services/i18n.js';
 
 /**
  * Main entry point for the SAIUGOL bot
  */
 async function main() {
     logger.info('Iniciando SAIUGOL Bot');
+
+    // Initialize translation system
+    initI18n(config.i18n.defaultLanguage);
+    logger.info({ language: config.i18n.defaultLanguage }, 'Sistema de tradução inicializado');
 
     // Check configuration
     if (!config.mastodon.accessToken) {

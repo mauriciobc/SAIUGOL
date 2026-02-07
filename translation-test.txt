@@ -1,0 +1,292 @@
+================================================================================
+SAIUGOL BOT - TRANSLATION TEST RESULTS
+Language: pt-BR
+Match ID: 704797
+Generated: 07/02/2026, 18:05:53
+================================================================================
+
+--- MATCH START ---
+🏁 COMEÇA O JOGO!
+
+🏟️ Osasuna x Villarreal
+
+#Osasuna #Villarreal #Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- GOAL #1 ---
+⚽ GOOOOL!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 8''
+👤 Ante Budimir
+
+#Osasuna #Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- CARD #1 ---
+🟨 🟨 CARTÃO AMARELO!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 19''
+👤 Raúl Albiol
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- GOAL #2 ---
+⚽ GOOOOL!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 21''
+👤 Ante Budimir
+
+#Osasuna #Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- CARD #2 ---
+🟨 🟨 CARTÃO AMARELO!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 31''
+👤 Enzo Boyomo
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- CARD #3 ---
+🟨 🟨 CARTÃO AMARELO!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 39''
+👤 Santi Comesaña
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- CARD #4 ---
+🟨 🟨 CARTÃO AMARELO!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 45''
+👤 Álex Baena
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- CARD #5 ---
+🟨 🟨 CARTÃO AMARELO!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 45'+1''
+👤 Sergi Cardona
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- SUBSTITUTION #1 ---
+Raw: Substitution, Villarreal. Gerard Moreno replaces Ramon Terrats.
+🔄 SUBSTITUIÇÃO
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 45''
+⬆️ Entra: Gerard Moreno
+⬇️ Sai: Ramon Terrats
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- CARD #6 ---
+🟨 🟨 CARTÃO AMARELO!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 52''
+👤 Alejandro Catena
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- SUBSTITUTION #2 ---
+Raw: Substitution, Osasuna. Rubén Peña replaces Rubén García.
+🔄 SUBSTITUIÇÃO
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 66''
+⬆️ Entra: Rubén Peña
+⬇️ Sai: Rubén García
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- SUBSTITUTION #3 ---
+Raw: Substitution, Osasuna. Iker Muñoz replaces Jon Moncayola.
+🔄 SUBSTITUIÇÃO
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 66''
+⬆️ Entra: Iker Muñoz
+⬇️ Sai: Jon Moncayola
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- GOAL #3 ---
+⚽ GOOOOL!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 67''
+👤 Álex Baena
+
+#Osasuna #Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- SUBSTITUTION #4 ---
+Raw: Substitution, Villarreal. Denis Suárez replaces Santi Comesaña.
+🔄 SUBSTITUIÇÃO
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 72''
+⬆️ Entra: Denis Suárez
+⬇️ Sai: Santi Comesaña
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- CARD #7 ---
+🟨 🟨 CARTÃO AMARELO!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 75''
+👤 Aimar Oroz
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- SUBSTITUTION #5 ---
+Raw: Substitution, Villarreal. Juan Bernat replaces Sergi Cardona.
+🔄 SUBSTITUIÇÃO
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 77''
+⬆️ Entra: Juan Bernat
+⬇️ Sai: Sergi Cardona
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- SUBSTITUTION #6 ---
+Raw: Substitution, Osasuna. Moi Gómez replaces Bryan Zaragoza.
+🔄 SUBSTITUIÇÃO
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 78''
+⬆️ Entra: Moi Gómez
+⬇️ Sai: Bryan Zaragoza
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- CARD #8 ---
+🟨 🟨 CARTÃO AMARELO!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 84''
+👤 Jesús Areso
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- CARD #9 ---
+🟨 🟨 CARTÃO AMARELO!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 84''
+👤 Dani Parejo
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- SUBSTITUTION #7 ---
+Raw: Substitution, Villarreal. Pau Cabanes replaces Yeremy Pino.
+🔄 SUBSTITUIÇÃO
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 86''
+⬆️ Entra: Pau Cabanes
+⬇️ Sai: Yeremy Pino
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- SUBSTITUTION #8 ---
+Raw: Substitution, Osasuna. Abel Bretones replaces Aimar Oroz.
+🔄 SUBSTITUIÇÃO
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 87''
+⬆️ Entra: Abel Bretones
+⬇️ Sai: Aimar Oroz
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- SUBSTITUTION #9 ---
+Raw: Substitution, Osasuna. Raúl García replaces Ante Budimir.
+🔄 SUBSTITUIÇÃO
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 87''
+⬆️ Entra: Raúl García
+⬇️ Sai: Ante Budimir
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- CARD #10 ---
+🟨 🟨 CARTÃO AMARELO!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 90'+1''
+👤 Lucas Torró
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- CARD #11 ---
+🟨 🟨 CARTÃO AMARELO!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 90'+2''
+👤 Sergio Herrera
+
+#Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- GOAL #4 ---
+⚽ GOOOOL!
+
+🏟️ Osasuna 2 x 2 Villarreal
+⏱️ 90'+3''
+👤 Gerard Moreno
+
+#Osasuna #Brasileirão #SerieA #FutebolBrasileiro
+
+
+--- MATCH END ---
+🏁 FIM DE JOGO!
+
+🏟️ Osasuna 2 x 2 Villarreal
+
+🤝 Empate!
+
+#Osasuna #Villarreal #Brasileirão #SerieA #FutebolBrasileiro
+
+
+================================================================================
+EVENT SUMMARY
+================================================================================
+Goals:        4
+Cards:        11
+Substitutions: 9
+VAR Reviews:   0
+Total Events:  28
+================================================================================
