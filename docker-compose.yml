@@ -1,19 +1,18 @@
 version: '3.8'
 
-# Portainer: (1) Standalone: "Load variables from .env file" → stack.env is used via env_file.
-# (2) Swarm: env_file is ignored. Either set MASTODON_ACCESS_TOKEN in the stack's
-#     Environment variables (key-value), or create a secret and mount it: add under
-#     "secrets:" a secret "mastodon_access_token" (external, value = token only) and
-#     under bot service add "secrets: [mastodon_access_token]". The app reads it from
-#     /run/secrets/mastodon_access_token. Local: cp .env stack.env (stack.env in .gitignore).
+# Portainer (deploy from Git): set variables in the stack's "Environment variables" (Add stack
+# or Edit stack). See https://docs.portainer.io/user/docker/stacks/add#environment-variables
+# Using only "environment:" (no env_file) avoids "stack.env not found" when deploying from Git.
+# Optional: you can use env_file: stack.env if you define vars in Portainer (individually or
+# "Load variables from .env file"); Portainer creates stack.env. Swarm: env_file is not supported.
+# Local: create .env; Compose uses it for ${VAR} substitution.
 services:
   bot:
     build: .
     container_name: saiugol-bot
     restart: unless-stopped
-    env_file:
-      - stack.env
     environment:
+      - MASTODON_ACCESS_TOKEN=${MASTODON_ACCESS_TOKEN}
       - MASTODON_INSTANCE=${MASTODON_INSTANCE:-https://mastodon.social}
       - POLL_INTERVAL_MS=${POLL_INTERVAL_MS:-60000}
       - DRY_RUN=${DRY_RUN:-false}
