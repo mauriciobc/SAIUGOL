@@ -182,7 +182,7 @@ export async function getTodayMatches(leagueCode) {
  * @returns {Promise<Object|null>} Match details
  */
 export async function getMatchDetails(matchId, leagueCode) {
-    const cacheKey = `details:${matchId}`;
+    const cacheKey = `details:${leagueCode}:${matchId}`;
     const cached = detailsCache.get(cacheKey);
     if (cached !== undefined) {
         recordEspnRequest(true, 0, true);
@@ -273,7 +273,7 @@ export async function getMatchDetails(matchId, leagueCode) {
  * @returns {Promise<Array>} List of events
  */
 export async function getLiveEvents(matchId, leagueCode) {
-    const cacheKey = `events:${matchId}`;
+    const cacheKey = `events:${leagueCode}:${matchId}`;
     const cached = eventsCache.get(cacheKey);
     if (cached !== undefined) {
         recordEspnRequest(true, 0, true);
@@ -344,7 +344,7 @@ export async function getBrasileiraoLeagueId() {
  * @returns {Promise<Array>} List of highlight objects with URLs
  */
 export async function getHighlights(matchId, leagueCode) {
-    const cacheKey = `highlights:${matchId}`;
+    const cacheKey = `highlights:${leagueCode}:${matchId}`;
     const cached = highlightsCache.get(cacheKey);
     if (cached !== undefined) {
         recordEspnRequest(true, 0, true);

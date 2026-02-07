@@ -54,7 +54,8 @@ function isMatchFinished(status) {
  */
 export async function initialize() {
     console.log('[MatchMonitor] Inicializando...');
-    console.log(`[MatchMonitor] Ligas ativas: ${config.activeLeagues.map(l => l.name).join(', ')}`);
+    const activeLeagues = config.activeLeagues || [];
+    console.log(`[MatchMonitor] Ligas ativas: ${activeLeagues.map(l => l.name).join(', ')}`);
     return true;
 }
 

@@ -10,14 +10,16 @@ describe('ESPN API Response Validation', () => {
         resetAllBreakers();
     });
 
+    const TEST_LEAGUE = 'bra.1';
+
     describe('getTodayMatches', () => {
         it('should return an array', async () => {
-            const matches = await getTodayMatches();
+            const matches = await getTodayMatches(TEST_LEAGUE);
             assert.ok(Array.isArray(matches), 'Should return an array');
         });
 
         it('should return matches with required fields', async () => {
-            const matches = await getTodayMatches();
+            const matches = await getTodayMatches(TEST_LEAGUE);
 
             for (const match of matches) {
                 assert.ok(match.id, 'Match should have id');
@@ -35,21 +37,21 @@ describe('ESPN API Response Validation', () => {
         });
 
         it('should handle empty response gracefully', async () => {
-            const matches = await getTodayMatches();
+            const matches = await getTodayMatches(TEST_LEAGUE);
             assert.ok(Array.isArray(matches), 'Should always return an array');
         });
     });
 
     describe('getMatchDetails', () => {
         it('should return null for invalid match ID', async () => {
-            const details = await getMatchDetails('invalid-id-123456');
+            const details = await getMatchDetails('invalid-id-123456', TEST_LEAGUE);
             assert.strictEqual(details, null, 'Invalid match ID should return null');
         });
 
         it('should return match details with required fields for valid match', async () => {
-            const matches = await getTodayMatches();
+            const matches = await getTodayMatches(TEST_LEAGUE);
             if (matches.length > 0) {
-                const details = await getMatchDetails(matches[0].id);
+                const details = await getMatchDetails(matches[0].id, TEST_LEAGUE);
                 if (details) {
                     assert.ok(details.id, 'Match details should have id');
                     assert.ok(details.homeTeam, 'Match details should have homeTeam');
@@ -64,14 +66,14 @@ describe('ESPN API Response Validation', () => {
 
     describe('getLiveEvents', () => {
         it('should return an array', async () => {
-            const events = await getLiveEvents('invalid-id-123456');
+            const events = await getLiveEvents('invalid-id-123456', TEST_LEAGUE);
             assert.ok(Array.isArray(events), 'Should return an array');
         });
 
         it('should return events with required fields', async () => {
-            const matches = await getTodayMatches();
+            const matches = await getTodayMatches(TEST_LEAGUE);
             if (matches.length > 0) {
-                const events = await getLiveEvents(matches[0].id);
+                const events = await getLiveEvents(matches[0].id, TEST_LEAGUE);
 
                 for (const event of events) {
                     assert.ok(event.id, 'Event should have id');
@@ -84,14 +86,14 @@ describe('ESPN API Response Validation', () => {
 
     describe('getHighlights', () => {
         it('should return an array', async () => {
-            const highlights = await getHighlights('invalid-id-123456');
+            const highlights = await getHighlights('invalid-id-123456', TEST_LEAGUE);
             assert.ok(Array.isArray(highlights), 'Should return an array');
         });
 
         it('should return highlights with required fields when present', async () => {
-            const matches = await getTodayMatches();
+            const matches = await getTodayMatches(TEST_LEAGUE);
             if (matches.length > 0) {
-                const highlights = await getHighlights(matches[0].id);
+                const highlights = await getHighlights(matches[0].id, TEST_LEAGUE);
 
                 for (const highlight of highlights) {
                     assert.ok(highlight.url, 'Highlight should have url');

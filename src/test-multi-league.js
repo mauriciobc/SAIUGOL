@@ -13,7 +13,7 @@ if (activeLeagues.length === 0) {
 activeLeagues.forEach(league => {
     console.log(`\nLeague: ${league.name} (${league.code})`);
     console.log(`Country: ${league.countryCode}`);
-    console.log(`Hashtags: ${league.hashtags.join(', ')}`);
+    console.log(`Hashtags: ${(league.hashtags || []).join(', ') || 'no hashtags'}`);
 });
 
 console.log('\n--- Verification Successful ---');

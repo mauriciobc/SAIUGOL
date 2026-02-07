@@ -21,22 +21,28 @@ async function testPost() {
         process.exit(1);
     }
 
-    // Send test post
-    console.log('\n📝 Enviando post de teste...');
+    // Send test post for each active league
+    for (const league of config.activeLeagues) {
+        console.log(`\n📝 Enviando post de teste para ${league.name}...`);
 
-    const testText = `🧪 Teste do bot SAIUGOL
+        const testText = `🧪 Teste do bot SAIUGOL
+Liga: ${league.name}
 
 Este é um post de teste para verificar que o bot está funcionando corretamente.
 
-${config.hashtags.join(' ')}`;
+${league.hashtags.join(' ')}`;
 
-    const result = await postStatus(testText);
+        const result = await postStatus(testText);
 
-    if (result) {
-        console.log('\n✅ Post enviado com sucesso!');
-        console.log(`🔗 ID: ${result.id}`);
-    } else {
-        console.error('\n❌ Falha ao enviar post');
+        if (result) {
+            console.log(`\n✅ Post enviado com sucesso para ${league.name}!`);
+            console.log(`🔗 ID: ${result.id}`);
+        } else {
+            console.error(`\n❌ Falha ao enviar post para ${league.name}`);
+        }
+
+        // Wait a bit
+        await new Promise(resolve => setTimeout(resolve, 1000));
     }
 }
 

@@ -32,7 +32,7 @@ async function testTranslations() {
 
     console.log(`📥 Fetching match details for ID: ${matchId}...`);
 
-    const match = await getMatchDetails(matchId);
+    const match = await getMatchDetails(matchId, 'bra.1');
 
     if (!match) {
         console.error('❌ Failed to fetch match details');
@@ -47,7 +47,7 @@ async function testTranslations() {
     console.log(`📍 ${match.venue || 'Venue not available'}\n`);
 
     console.log('📥 Fetching match events...');
-    const events = await getLiveEvents(matchId);
+    const events = await getLiveEvents(matchId, 'bra.1');
     console.log(`✅ Found ${events.length} events\n`);
 
     // Create output

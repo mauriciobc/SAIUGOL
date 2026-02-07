@@ -96,15 +96,19 @@ const leagueCodes = leagueCodesStr.split(',').map(s => s.trim()).filter(Boolean)
 const activeLeagues = [];
 const configErrors = [];
 
-for (const code of leagueCodes) {
-    const leagueData = leagues[code];
-    if (!leagueData) {
-        configErrors.push(`Invalid league code: ${code}. Supported: ${Object.keys(leagues).join(', ')}`);
-    } else {
-        activeLeagues.push({
-            code: code,
-            ...leagueData
-        });
+if (leagueCodes.length === 0) {
+    configErrors.push(`LEAGUE_CODES must specify at least one valid league; supported: ${Object.keys(leagues).join(', ')}`);
+} else {
+    for (const code of leagueCodes) {
+        const leagueData = leagues[code];
+        if (!leagueData) {
+            configErrors.push(`Invalid league code: ${code}. Supported: ${Object.keys(leagues).join(', ')}`);
+        } else {
+            activeLeagues.push({
+                code: code,
+                ...leagueData
+            });
+        }
     }
 }
 

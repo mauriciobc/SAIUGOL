@@ -46,7 +46,6 @@ async function main() {
     // Start monitoring
     botLogger.info({
         pollIntervalMs: config.bot.pollIntervalMs,
-        pollIntervalMs: config.bot.pollIntervalMs,
         leagues: config.activeLeagues.map(l => l.name),
     }, 'Bot iniciado com sucesso');
 

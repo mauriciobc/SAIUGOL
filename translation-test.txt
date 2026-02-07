@@ -2,7 +2,7 @@
 SAIUGOL BOT - TRANSLATION TEST RESULTS
 Language: pt-BR
 Match ID: 704797
-Generated: 07/02/2026, 18:05:53
+Generated: 07/02/2026, 18:37:05
 ================================================================================
 
 --- MATCH START ---
@@ -10,7 +10,7 @@ Generated: 07/02/2026, 18:05:53
 
 🏟️ Osasuna x Villarreal
 
-#Osasuna #Villarreal #Brasileirão #SerieA #FutebolBrasileiro
+#Osasuna #Villarreal 
 
 
 --- GOAL #1 ---
@@ -20,7 +20,7 @@ Generated: 07/02/2026, 18:05:53
 ⏱️ 8''
 👤 Ante Budimir
 
-#Osasuna #Brasileirão #SerieA #FutebolBrasileiro
+#Osasuna 
 
 
 --- CARD #1 ---
@@ -30,7 +30,7 @@ Generated: 07/02/2026, 18:05:53
 ⏱️ 19''
 👤 Raúl Albiol
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- GOAL #2 ---
@@ -40,7 +40,7 @@ Generated: 07/02/2026, 18:05:53
 ⏱️ 21''
 👤 Ante Budimir
 
-#Osasuna #Brasileirão #SerieA #FutebolBrasileiro
+#Osasuna 
 
 
 --- CARD #2 ---
@@ -50,7 +50,7 @@ Generated: 07/02/2026, 18:05:53
 ⏱️ 31''
 👤 Enzo Boyomo
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- CARD #3 ---
@@ -60,7 +60,7 @@ Generated: 07/02/2026, 18:05:53
 ⏱️ 39''
 👤 Santi Comesaña
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- CARD #4 ---
@@ -70,7 +70,7 @@ Generated: 07/02/2026, 18:05:53
 ⏱️ 45''
 👤 Álex Baena
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- CARD #5 ---
@@ -80,7 +80,7 @@ Generated: 07/02/2026, 18:05:53
 ⏱️ 45'+1''
 👤 Sergi Cardona
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- SUBSTITUTION #1 ---
@@ -92,7 +92,7 @@ Raw: Substitution, Villarreal. Gerard Moreno replaces Ramon Terrats.
 ⬆️ Entra: Gerard Moreno
 ⬇️ Sai: Ramon Terrats
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- CARD #6 ---
@@ -102,7 +102,7 @@ Raw: Substitution, Villarreal. Gerard Moreno replaces Ramon Terrats.
 ⏱️ 52''
 👤 Alejandro Catena
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- SUBSTITUTION #2 ---
@@ -114,7 +114,7 @@ Raw: Substitution, Osasuna. Rubén Peña replaces Rubén García.
 ⬆️ Entra: Rubén Peña
 ⬇️ Sai: Rubén García
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- SUBSTITUTION #3 ---
@@ -126,7 +126,7 @@ Raw: Substitution, Osasuna. Iker Muñoz replaces Jon Moncayola.
 ⬆️ Entra: Iker Muñoz
 ⬇️ Sai: Jon Moncayola
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- GOAL #3 ---
@@ -136,7 +136,7 @@ Raw: Substitution, Osasuna. Iker Muñoz replaces Jon Moncayola.
 ⏱️ 67''
 👤 Álex Baena
 
-#Osasuna #Brasileirão #SerieA #FutebolBrasileiro
+#Osasuna 
 
 
 --- SUBSTITUTION #4 ---
@@ -148,7 +148,7 @@ Raw: Substitution, Villarreal. Denis Suárez replaces Santi Comesaña.
 ⬆️ Entra: Denis Suárez
 ⬇️ Sai: Santi Comesaña
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- CARD #7 ---
@@ -158,7 +158,7 @@ Raw: Substitution, Villarreal. Denis Suárez replaces Santi Comesaña.
 ⏱️ 75''
 👤 Aimar Oroz
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- SUBSTITUTION #5 ---
@@ -170,7 +170,7 @@ Raw: Substitution, Villarreal. Juan Bernat replaces Sergi Cardona.
 ⬆️ Entra: Juan Bernat
 ⬇️ Sai: Sergi Cardona
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- SUBSTITUTION #6 ---
@@ -182,7 +182,7 @@ Raw: Substitution, Osasuna. Moi Gómez replaces Bryan Zaragoza.
 ⬆️ Entra: Moi Gómez
 ⬇️ Sai: Bryan Zaragoza
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- CARD #8 ---
@@ -192,7 +192,7 @@ Raw: Substitution, Osasuna. Moi Gómez replaces Bryan Zaragoza.
 ⏱️ 84''
 👤 Jesús Areso
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- CARD #9 ---
@@ -202,7 +202,7 @@ Raw: Substitution, Osasuna. Moi Gómez replaces Bryan Zaragoza.
 ⏱️ 84''
 👤 Dani Parejo
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- SUBSTITUTION #7 ---
@@ -214,7 +214,7 @@ Raw: Substitution, Villarreal. Pau Cabanes replaces Yeremy Pino.
 ⬆️ Entra: Pau Cabanes
 ⬇️ Sai: Yeremy Pino
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- SUBSTITUTION #8 ---
@@ -226,7 +226,7 @@ Raw: Substitution, Osasuna. Abel Bretones replaces Aimar Oroz.
 ⬆️ Entra: Abel Bretones
 ⬇️ Sai: Aimar Oroz
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- SUBSTITUTION #9 ---
@@ -238,7 +238,7 @@ Raw: Substitution, Osasuna. Raúl García replaces Ante Budimir.
 ⬆️ Entra: Raúl García
 ⬇️ Sai: Ante Budimir
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- CARD #10 ---
@@ -248,7 +248,7 @@ Raw: Substitution, Osasuna. Raúl García replaces Ante Budimir.
 ⏱️ 90'+1''
 👤 Lucas Torró
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- CARD #11 ---
@@ -258,7 +258,7 @@ Raw: Substitution, Osasuna. Raúl García replaces Ante Budimir.
 ⏱️ 90'+2''
 👤 Sergio Herrera
 
-#Brasileirão #SerieA #FutebolBrasileiro
+
 
 
 --- GOAL #4 ---
@@ -268,7 +268,7 @@ Raw: Substitution, Osasuna. Raúl García replaces Ante Budimir.
 ⏱️ 90'+3''
 👤 Gerard Moreno
 
-#Osasuna #Brasileirão #SerieA #FutebolBrasileiro
+#Osasuna 
 
 
 --- MATCH END ---
@@ -278,7 +278,7 @@ Raw: Substitution, Osasuna. Raúl García replaces Ante Budimir.
 
 🤝 Empate!
 
-#Osasuna #Villarreal #Brasileirão #SerieA #FutebolBrasileiro
+#Osasuna #Villarreal 
 
 
 ================================================================================
