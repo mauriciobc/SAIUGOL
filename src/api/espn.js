@@ -7,7 +7,6 @@ import { recordEspnRequest } from '../utils/metrics.js';
 
 const BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
 const CDN_URL = 'https://cdn.espn.com/core/soccer';
-const LEAGUE = 'bra.1';
 const DEBUG_API = process.env.DEBUG_API === 'true';
 
 const ESPN_DOCUMENTED_ENDPOINTS = [
@@ -60,11 +59,12 @@ function hasProps(obj, props) {
 }
 
 /**
- * Get today's matches for Brasileirão Serie A from ESPN
+ * Get today's matches for a specific league from ESPN
+ * @param {string} leagueCode - League code (e.g. 'bra.1')
  * @returns {Promise<Array>} List of normalized matches
  */
-export async function getTodayMatches() {
-    const cacheKey = `scoreboard:${getTodayDateString()}`;
+export async function getTodayMatches(leagueCode) {
+    const cacheKey = `scoreboard:${leagueCode}:${getTodayDateString()}`;
     const cached = scoreboardCache.get(cacheKey);
     if (cached !== undefined) {
         recordEspnRequest(true, 0, true);
@@ -83,7 +83,7 @@ export async function getTodayMatches() {
                 let url, response;
 
                 if (useCdnFallback && cdnHealthy) {
-                    url = `${CDN_URL}/scoreboard?xhr=1&dates=${dateStr}&league=${LEAGUE}`;
+                    url = `${CDN_URL}/scoreboard?xhr=1&dates=${dateStr}&league=${leagueCode}`;
                     if (DEBUG_API) {
                         espnLogger.debug({ url }, 'ESPN CDN API request');
                     }
@@ -94,11 +94,11 @@ export async function getTodayMatches() {
                         espnLogger.warn({ error: cdnError.message }, 'CDN endpoint failed, falling back to main API');
                         cdnHealthy = false;
                         useCdnFallback = false;
-                        url = `${BASE_URL}/${LEAGUE}/scoreboard?dates=${dateStr}`;
+                        url = `${BASE_URL}/${leagueCode}/scoreboard?dates=${dateStr}`;
                         response = await httpClient.get(url);
                     }
                 } else {
-                    url = `${BASE_URL}/${LEAGUE}/scoreboard?dates=${dateStr}`;
+                    url = `${BASE_URL}/${leagueCode}/scoreboard?dates=${dateStr}`;
                     if (DEBUG_API) {
                         espnLogger.debug({ url }, 'ESPN API request');
                     }
@@ -178,9 +178,10 @@ export async function getTodayMatches() {
 /**
  * Get match details (equivalent to scoreboard for a single match or summary)
  * @param {string} matchId - The match ID
+ * @param {string} leagueCode - The league code
  * @returns {Promise<Object|null>} Match details
  */
-export async function getMatchDetails(matchId) {
+export async function getMatchDetails(matchId, leagueCode) {
     const cacheKey = `details:${matchId}`;
     const cached = detailsCache.get(cacheKey);
     if (cached !== undefined) {
@@ -196,7 +197,7 @@ export async function getMatchDetails(matchId) {
     return await retryWithBackoff(
         async () => {
             try {
-                const url = `${BASE_URL}/${LEAGUE}/summary?event=${matchId}`;
+                const url = `${BASE_URL}/${leagueCode}/summary?event=${matchId}`;
                 if (DEBUG_API) {
                     espnLogger.debug({ url }, 'ESPN API request');
                 }
@@ -268,9 +269,10 @@ export async function getMatchDetails(matchId) {
 /**
  * Get live events for a match (goals, cards, etc.)
  * @param {string} matchId - The match ID
+ * @param {string} leagueCode - The league code
  * @returns {Promise<Array>} List of events
  */
-export async function getLiveEvents(matchId) {
+export async function getLiveEvents(matchId, leagueCode) {
     const cacheKey = `events:${matchId}`;
     const cached = eventsCache.get(cacheKey);
     if (cached !== undefined) {
@@ -286,7 +288,7 @@ export async function getLiveEvents(matchId) {
     return await retryWithBackoff(
         async () => {
             try {
-                const url = `${BASE_URL}/${LEAGUE}/summary?event=${matchId}`;
+                const url = `${BASE_URL}/${leagueCode}/summary?event=${matchId}`;
                 if (DEBUG_API) {
                     espnLogger.debug({ url }, 'ESPN API request');
                 }
@@ -332,15 +334,16 @@ export async function getLiveEvents(matchId) {
  * Empty implementation as legacy support
  */
 export async function getBrasileiraoLeagueId() {
-    return LEAGUE;
+    return 'bra.1';
 }
 
 /**
  * Get highlights/videos for a match
  * @param {string} matchId - The match ID
+ * @param {string} leagueCode - The league code
  * @returns {Promise<Array>} List of highlight objects with URLs
  */
-export async function getHighlights(matchId) {
+export async function getHighlights(matchId, leagueCode) {
     const cacheKey = `highlights:${matchId}`;
     const cached = highlightsCache.get(cacheKey);
     if (cached !== undefined) {
@@ -356,7 +359,7 @@ export async function getHighlights(matchId) {
     return await retryWithBackoff(
         async () => {
             try {
-                const url = `${BASE_URL}/${LEAGUE}/summary?event=${matchId}`;
+                const url = `${BASE_URL}/${leagueCode}/summary?event=${matchId}`;
                 if (DEBUG_API) {
                     espnLogger.debug({ url }, 'ESPN API request');
                 }

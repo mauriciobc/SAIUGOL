@@ -205,7 +205,7 @@ export async function handleMatchEnd(match) {
     // Wait a bit and then check for highlights
     await new Promise((resolve) => setTimeout(resolve, config.delays.beforeHighlights));
 
-    const highlights = await getHighlights(match.id);
+    const highlights = await getHighlights(match.id, match.league?.code);
     if (highlights.length > 0) {
         const highlightsId = `${match.id}-highlights`;
         if (!isEventPosted(highlightsId)) {

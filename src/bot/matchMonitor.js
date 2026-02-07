@@ -6,7 +6,6 @@ import {
 } from '../api/espn.js';
 import { postStatus } from '../api/mastodon.js';
 import {
-    getLeagueId,
     isMatchActive,
     addActiveMatch,
     removeActiveMatch,
@@ -52,51 +51,41 @@ function isMatchFinished(status) {
 
 /**
  * Initialize the match monitor
- * Fetches and caches the Brasileirão league ID
  */
 export async function initialize() {
     console.log('[MatchMonitor] Inicializando...');
-
-    // Get and cache league ID
-    let leagueId = getLeagueId();
-    if (!leagueId) {
-        leagueId = await getBrasileiraoLeagueId();
-        if (leagueId) {
-            getLeagueId(leagueId);
-            console.log(`[MatchMonitor] Liga Brasileirão encontrada: ${leagueId}`);
-        } else {
-            console.error('[MatchMonitor] Não foi possível encontrar a liga Brasileirão');
-        }
-    }
-
-    return leagueId !== null;
+    console.log(`[MatchMonitor] Ligas ativas: ${config.activeLeagues.map(l => l.name).join(', ')}`);
+    return true;
 }
 
 /**
  * Main polling loop - check for matches and events
  */
 export async function poll() {
-    const leagueId = getLeagueId();
-    if (!leagueId) {
-        console.warn('[MatchMonitor] Liga não configurada, pulando poll');
+    if (!config.activeLeagues || config.activeLeagues.length === 0) {
+        console.warn('[MatchMonitor] Nenhuma liga configurada, pulando poll');
         return;
     }
 
-    try {
-        // Get today's matches
-        const matches = await getTodayMatches(leagueId);
-        console.log(`[MatchMonitor] ${matches.length} partidas encontradas para hoje`);
+    for (const league of config.activeLeagues) {
+        try {
+            // Get today's matches for this league
+            const matches = await getTodayMatches(league.code);
+            console.log(`[MatchMonitor] ${matches.length} partidas encontradas para ${league.name}`);
 
-        for (const match of matches) {
-            await processMatch(match);
+            for (const match of matches) {
+                // Inject league info into match object
+                match.league = league;
+                await processMatch(match);
+            }
+        } catch (error) {
+            console.error(`[MatchMonitor] Erro no poll da liga ${league.name}:`, error.message);
         }
-
-        // Log stats
-        const stats = getStateStats();
-        console.log(`[MatchMonitor] Stats: ${stats.activeMatchCount} partidas ativas, ${stats.postedEventCount} eventos postados`);
-    } catch (error) {
-        console.error('[MatchMonitor] Erro no poll:', error.message);
     }
+
+    // Log stats
+    const stats = getStateStats();
+    console.log(`[MatchMonitor] Stats: ${stats.activeMatchCount} partidas ativas, ${stats.postedEventCount} eventos postados`);
 }
 
 /**
@@ -109,11 +98,13 @@ async function processMatch(match) {
 
     // Check if match just started
     if (isMatchLive(status) && !isMatchActive(matchId)) {
-        console.log(`[MatchMonitor] Nova partida ao vivo: ${matchId}`);
+        console.log(`[MatchMonitor] Nova partida ao vivo: ${matchId} (${match.league.name})`);
 
         // Get full match details
-        const details = await getMatchDetails(matchId);
+        const details = await getMatchDetails(matchId, match.league.code);
         if (details) {
+            // Preserve league info
+            details.league = match.league;
             addActiveMatch(matchId, details);
 
             // Post match start
@@ -127,15 +118,16 @@ async function processMatch(match) {
 
     // Process live match
     if (isMatchActive(matchId)) {
-        await pollMatchEvents(matchId);
+        await pollMatchEvents(matchId, match.league);
     }
 
     // Check if match finished
     if (isMatchFinished(status) && isMatchActive(matchId)) {
         console.log(`[MatchMonitor] Partida finalizada: ${matchId}`);
 
-        const details = await getMatchDetails(matchId);
+        const details = await getMatchDetails(matchId, match.league.code);
         if (details) {
+            details.league = match.league;
             const matchData = normalizeMatchData(details);
             await handleMatchEnd(matchData);
         }
@@ -147,16 +139,18 @@ async function processMatch(match) {
 /**
  * Poll live events for a specific match
  * @param {number} matchId - Match ID
+ * @param {Object} league - League object
  */
-async function pollMatchEvents(matchId) {
-    const events = await getLiveEvents(matchId);
-    const details = await getMatchDetails(matchId);
+async function pollMatchEvents(matchId, league) {
+    const events = await getLiveEvents(matchId, league.code);
+    const details = await getMatchDetails(matchId, league.code);
 
     if (!details) {
         console.warn(`[MatchMonitor] Não foi possível obter detalhes da partida ${matchId}`);
         return;
     }
 
+    details.league = league;
     const matchData = normalizeMatchData(details);
 
     if (events.length > 0) {
@@ -189,6 +183,7 @@ function normalizeMatchData(apiMatch) {
         venue: apiMatch.venue?.name || apiMatch.stadium,
         minute: apiMatch.minute || apiMatch.clock,
         startTime: apiMatch.startTime || apiMatch.date,
+        league: apiMatch.league,
     };
 }
 

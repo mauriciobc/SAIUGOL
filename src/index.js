@@ -46,8 +46,8 @@ async function main() {
     // Start monitoring
     botLogger.info({
         pollIntervalMs: config.bot.pollIntervalMs,
-        league: config.bot.leagueName,
-        countryCode: config.bot.countryCode
+        pollIntervalMs: config.bot.pollIntervalMs,
+        leagues: config.activeLeagues.map(l => l.name),
     }, 'Bot iniciado com sucesso');
 
     await startMonitoring();

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { readFileSync, existsSync } from 'node:fs';
+import { leagues } from './data/leagues.js';
 
 /**
  * Resolve access token from env var, _FILE path, or Docker secret path.
@@ -88,6 +89,29 @@ function validateConfig() {
     }
 }
 
+// Resolve league configuration
+const leagueCodesStr = process.env.LEAGUE_CODES || process.env.LEAGUE_CODE || 'bra.1';
+const leagueCodes = leagueCodesStr.split(',').map(s => s.trim()).filter(Boolean);
+
+const activeLeagues = [];
+const configErrors = [];
+
+for (const code of leagueCodes) {
+    const leagueData = leagues[code];
+    if (!leagueData) {
+        configErrors.push(`Invalid league code: ${code}. Supported: ${Object.keys(leagues).join(', ')}`);
+    } else {
+        activeLeagues.push({
+            code: code,
+            ...leagueData
+        });
+    }
+}
+
+if (configErrors.length > 0) {
+    throw new Error(`Configuration Validation Failed:\n${configErrors.join('\n')}`);
+}
+
 validateConfig();
 
 export const config = {
@@ -95,13 +119,14 @@ export const config = {
         instance: process.env.MASTODON_INSTANCE || 'https://mastodon.social',
         accessToken: resolvedToken,
     },
-    // ESPN API configuration (No key required)
-    // Note: Currently hardcoded to Brasileirão Serie A (bra.1)
+    // ESPN API configuration
     espn: {
         baseUrl: 'https://site.api.espn.com/apis/site/v2/sports/soccer',
-        league: 'bra.1', // Brasileirão Serie A
         requestTimeoutMs: 10000, // Request timeout
     },
+    // Active leagues to monitor
+    activeLeagues: activeLeagues,
+
     // Response caching configuration
     cache: {
         scoreboardTtlMs: parseEnvInt(process.env.CACHE_SCOREBOARD_TTL_MS, 30000, 5000),
@@ -112,9 +137,6 @@ export const config = {
     bot: {
         pollIntervalMs: parseEnvInt(process.env.POLL_INTERVAL_MS, 60000, 10000),
         dryRun: process.env.DRY_RUN === 'true',
-        // Brasileirão Serie A identifiers
-        countryCode: 'BR',
-        leagueName: 'Serie A',
     },
     // Timing delays (milliseconds)
     delays: {
@@ -143,6 +165,4 @@ export const config = {
     i18n: {
         defaultLanguage: process.env.DEFAULT_LANGUAGE || 'pt-BR',
     },
-    // Hashtags for posts
-    hashtags: ['#Brasileirão', '#SerieA', '#FutebolBrasileiro'],
 };

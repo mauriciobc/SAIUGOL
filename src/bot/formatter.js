@@ -26,7 +26,7 @@ export function formatGoal(event, match) {
         text += ` (${translate('ui.assist')}: ${assist})`;
     }
 
-    text += `\n\n${getTeamHashtag(event.team?.name || homeTeam.name)} ${config.hashtags.join(' ')}`;
+    text += `\n\n${getTeamHashtag(event.team?.name || homeTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }
@@ -57,7 +57,7 @@ export function formatCard(event, match) {
         text += `\n📝 ${reason}`;
     }
 
-    text += `\n\n${config.hashtags.join(' ')}`;
+    text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }
@@ -80,7 +80,7 @@ export function formatSubstitution(event, match) {
     text += `⬆️ ${translate('ui.player_in')}: ${playerIn}\n`;
     text += `⬇️ ${translate('ui.player_out')}: ${playerOut}`;
 
-    text += `\n\n${config.hashtags.join(' ')}`;
+    text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }
@@ -101,7 +101,7 @@ export function formatVAR(event, match) {
     text += `⏱️ ${minute}'\n`;
     text += `📋 ${decision}`;
 
-    text += `\n\n${config.hashtags.join(' ')}`;
+    text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }
@@ -121,7 +121,7 @@ export function formatMatchStart(match) {
         text += `📍 ${venue}\n`;
     }
 
-    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${config.hashtags.join(' ')}`;
+    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }
@@ -147,7 +147,7 @@ export function formatMatchEnd(match) {
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n\n`;
     text += `${result}`;
 
-    text += `\n\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${config.hashtags.join(' ')}`;
+    text += `\n\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }
@@ -174,7 +174,7 @@ export function formatHighlights(match, highlights) {
         }
     }
 
-    text += `\n${config.hashtags.join(' ')}`;
+    text += `\n${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }
