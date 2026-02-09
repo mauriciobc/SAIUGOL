@@ -63,12 +63,15 @@ export async function poll() {
                     }
                 } else if (action.type === 'match_end') {
                     console.log(`[MatchMonitor] Partida finalizada: ${action.snapshot.id}`);
-                    const details = await getMatchDetails(action.snapshot.id, league.code);
-                    if (details) {
-                        details.league = league;
-                        await handleMatchEnd(normalizeMatchData(details));
+                    try {
+                        const details = await getMatchDetails(action.snapshot.id, league.code);
+                        if (details) {
+                            details.league = league;
+                            await handleMatchEnd(normalizeMatchData(details));
+                        }
+                    } finally {
+                        clearMatchState(action.snapshot.id);
                     }
-                    clearMatchState(action.snapshot.id);
                 }
             }
 
@@ -166,7 +169,13 @@ export async function startMonitoring() {
         });
     }
 
-    const result = await poll();
-    const firstDelay = result?.nextIntervalMs ?? config.bot.pollIntervalLiveMs;
+    let firstDelay = config.bot.pollIntervalLiveMs;
+    try {
+        const result = await poll();
+        firstDelay = result?.nextIntervalMs ?? config.bot.pollIntervalLiveMs;
+    } catch (err) {
+        console.error('[MatchMonitor] Erro no poll:', err.message);
+        firstDelay = config.bot.pollIntervalLiveMs;
+    }
     setTimeout(scheduleNext, firstDelay);
 }

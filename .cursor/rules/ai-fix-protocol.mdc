@@ -1,0 +1,45 @@
+---
+description: AI agent protocol for fixing broken code (detect, analyze, repair, validate)
+alwaysApply: true
+---
+
+# AI Agent Protocol for Fixing Broken Code
+
+When fixing broken code, follow this workflow. Keep the rule concise; use the phases as a checklist.
+
+## 1. Detection and context
+
+- **Trigger on:** failing tests, runtime exceptions, linter/static errors, user-reported bugs.
+- **Gather:** error logs, stack traces, failing test names, recent changes, and relevant files (code under fix, tests, config).
+- **Prioritize** by severity and impact.
+
+## 2. Analysis and diagnosis
+
+- **Root cause:** use failing test output, stack traces, and code flow (call hierarchy, data flow) to locate the fault.
+- **Hypotheses:** list 1–3 likely causes before editing (e.g. "null path", "wrong type", "off-by-one").
+
+## 3. Repair and application
+
+- **Strategy:** choose a minimal fix (e.g. null check, type/operator correction, error handling, revert of a bad change). Prefer small, targeted patches.
+- **Apply:** make the smallest code change that addresses the root cause. Avoid refactors or "improvements" outside the fix.
+
+## 4. Validation
+
+- **Run:** the previously failing test(s) and any related test suite to catch regressions.
+- **Success:** the original failure is fixed and no new failures appear. If not, iterate (revisit diagnosis and try another patch).
+
+## 5. Principles
+
+- **Test-driven:** every proposed fix must be validated by automated tests (run tests after applying the patch).
+- **Contextual:** use full context (callers, config, history) to decide the fix.
+- **Iterative:** if the first patch fails validation, refine the hypothesis and try again; do not add speculative changes.
+
+## Example
+
+```text
+1. Detect: test "poll returns nextIntervalMs" fails with undefined.
+2. Gather: matchMonitor.js poll(), startMonitoring(), test file.
+3. Hypotheses: poll() not returning in a code path; result not passed to scheduleNext.
+4. Fix: ensure poll() always returns { nextIntervalMs } (e.g. add return in early-exit branch).
+5. Validate: run test again; run full test suite.
+```

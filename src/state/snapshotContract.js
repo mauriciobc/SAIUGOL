@@ -27,7 +27,46 @@ const STATUS_IN = ['live', 'in play', '1h', '2h', 'ht', 'et', 'bt', 'pt', 'in'];
 const STATUS_POST = ['finished', 'ft', 'aet', 'pen', 'post'];
 
 /**
+ * Tokens from string (lowercase, non-empty, split on non-word chars).
+ * @param {string} str
+ * @returns {string[]}
+ */
+function getTokens(str) {
+    return String(str).toLowerCase().trim().split(/\W+/).filter(Boolean);
+}
+
+/**
+ * True if keyword appears as whole word in text (\b boundaries).
+ * @param {string} text
+ * @param {string} keyword
+ * @returns {boolean}
+ */
+function hasWord(text, keyword) {
+    if (!keyword) return false;
+    const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+}
+
+/**
+ * True if any status keyword matches: single-word as token, multi-word as \b phrase.
+ * @param {string[]} tokens - Union of tokens from name and state
+ * @param {string} name - Raw name
+ * @param {string} state - Raw state
+ * @param {string[]} statusKeywords
+ * @returns {boolean}
+ */
+function matchesStatus(tokens, name, state, statusKeywords) {
+    return statusKeywords.some((kw) => {
+        if (kw.includes(' ')) {
+            return hasWord(name, kw) || hasWord(state, kw);
+        }
+        return tokens.includes(kw);
+    });
+}
+
+/**
  * Normalize ESPN status/state to contract status.
+ * Uses token/word-boundary matching so e.g. "postponed" does not match "post".
  * @param {string} [espnStatusName] - competition.status.type.name from API
  * @param {string} [espnState] - competition.status.type.state from API
  * @returns {SnapshotStatus}
@@ -35,14 +74,15 @@ const STATUS_POST = ['finished', 'ft', 'aet', 'pen', 'post'];
 export function normalizeStatus(espnStatusName = '', espnState = '') {
     const name = String(espnStatusName).toLowerCase().trim();
     const state = String(espnState).toLowerCase().trim();
+    const tokens = [...new Set([...getTokens(name), ...getTokens(state)])];
 
-    if (STATUS_POST.some(s => name.includes(s) || state.includes(s))) {
+    if (matchesStatus(tokens, name, state, STATUS_POST)) {
         return 'post';
     }
-    if (STATUS_IN.some(s => name.includes(s) || state.includes(s))) {
+    if (matchesStatus(tokens, name, state, STATUS_IN)) {
         return 'in';
     }
-    if (STATUS_PRE.some(s => name.includes(s) || state.includes(s))) {
+    if (matchesStatus(tokens, name, state, STATUS_PRE)) {
         return 'pre';
     }
 
@@ -61,7 +101,8 @@ export function espnEventToSnapshot(event) {
     const home = parseInt(event?.homeScore, 10) || 0;
     const away = parseInt(event?.awayScore, 10) || 0;
     const status = normalizeStatus(event?.status, event?.state);
-    const gameTime = event?.minute != null ? String(event.minute).trim() : "0'";
+    const rawMinute = event?.minute != null ? String(event.minute).trim() : '';
+    const gameTime = status === 'pre' ? '-' : (rawMinute || "0'");
 
     return {
         id,
