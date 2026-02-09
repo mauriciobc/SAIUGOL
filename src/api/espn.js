@@ -428,7 +428,7 @@ export async function getHighlights(matchId, leagueCode) {
 
                 return videos
                     .map(v => {
-                        // Get best quality URL available (API: source.mezzanine | source.HD | source.href | mobile.source.href)
+                        // Get best quality URL available
                         const url = v.links?.source?.mezzanine?.href ||
                             v.links?.source?.HD?.href ||
                             v.links?.source?.href ||

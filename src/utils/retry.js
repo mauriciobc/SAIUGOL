@@ -50,7 +50,7 @@ export async function retryWithBackoff(fn, options = {}) {
                 throw error;
             }
 
-            // For 429 (rate limit), wait Retry-After or long delay; rapid retries make it worse
+            // 429: wait Retry-After or fallback delay
             let delay;
             if (error.response && error.response.status === 429) {
                 const retryAfter = error.response.headers?.['retry-after'];

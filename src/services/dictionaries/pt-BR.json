@@ -40,6 +40,7 @@
         "var_announcement": "📺 VAR",
         "match_start": "🏁 COMEÇA O JOGO!",
         "second_half_start": "🔄 INÍCIO DO 2º TEMPO!",
+        "half_time": "⏸️ INTERVALO!",
         "match_end": "🏁 FIM DE JOGO!",
         "highlights": "🎬 MELHORES MOMENTOS",
         "team_wins": "🏆 {{team}} vence!",

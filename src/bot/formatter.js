@@ -1,11 +1,16 @@
 import { config } from '../config.js';
 import { translate } from '../services/i18n.js';
 
-/** Player can be { name: string } or plain string (API may vary). */
 function playerName(player) {
     if (player == null) return undefined;
     if (typeof player === 'string') return player;
     return player?.name;
+}
+
+/** Normalize minute for display: trim and strip trailing apostrophes so we can append a single "'". */
+function displayMinute(value) {
+    const raw = (value != null ? String(value).trim() : '').replace(/'+$/, '');
+    return raw || '?';
 }
 
 /**
@@ -19,7 +24,7 @@ export function formatGoal(event, match, options = {}) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
     const scorer = playerName(event.player) || translate('common.unknown_player');
     const assist = playerName(event.assist);
-    const minute = event.minute || '?';
+    const minute = displayMinute(event.minute);
     const isOwnGoal = event.type?.toLowerCase().includes('own');
 
     let text = '';
@@ -57,7 +62,7 @@ export function formatCard(event, match, options = {}) {
         ? translate('ui.red_card_announcement')
         : translate('ui.yellow_card_announcement');
     const player = playerName(event.player) || translate('common.unknown_player');
-    const minute = event.minute || '?';
+    const minute = displayMinute(event.minute);
     const reason = event.reason || '';
 
     let text = '';
@@ -124,7 +129,7 @@ export function formatSubstitution(event, match) {
     }
     playerIn = playerIn || translate('common.unknown_player');
     playerOut = playerOut || translate('common.unknown_player');
-    const minute = event.minute || '?';
+    const minute = displayMinute(event.minute);
 
     let text = `${translate('ui.substitution_announcement')}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
@@ -145,7 +150,7 @@ export function formatSubstitution(event, match) {
  */
 export function formatVAR(event, match) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
-    const minute = event.minute || '?';
+    const minute = displayMinute(event.minute);
     const decision = event.decision || event.result || translate('ui.review_in_progress');
 
     let text = `${translate('ui.var_announcement')}\n\n`;
@@ -186,11 +191,27 @@ export function formatMatchStart(match) {
  */
 export function formatSecondHalfStart(match, event = {}) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
-    // Normalize minute: trim, strip trailing apostrophe(s), then append single "'" on display (same as other formatters)
-    const rawMinute = (event?.minute != null ? String(event.minute).trim() : '').replace(/'+$/, '');
-    const minute = rawMinute || '46';
+    const minute = displayMinute(event?.minute) || '46';
 
     let text = `${translate('ui.second_half_start')}\n\n`;
+    text += `🏟️ ${homeTeam.name} ${homeScore ?? 0} x ${awayScore ?? 0} ${awayTeam.name}\n`;
+    text += `⏱️ ${minute}'\n`;
+    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
+ * Format half time / interval announcement
+ * @param {Object} match - Match data
+ * @param {Object} event - Event data (optional, for minute)
+ * @returns {string} Formatted post text
+ */
+export function formatHalfTime(match, event = {}) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const minute = displayMinute(event?.minute) || '45';
+
+    let text = `${translate('ui.half_time')}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore ?? 0} x ${awayScore ?? 0} ${awayTeam.name}\n`;
     text += `⏱️ ${minute}'\n`;
     text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;

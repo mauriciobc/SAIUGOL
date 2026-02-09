@@ -331,15 +331,28 @@ https://{instance}/api/v1
 ---
 
 ### Rate Limiting
-Mastodon instances enforce rate limits. The implementation includes:
-- Configurable delays between posts
-- Built-in retry logic with exponential backoff
-- Non-retryable 401/403 errors (authentication failures)
-- Circuit breaker for failure isolation
 
-**Default Delays:**
-- Between individual posts: 2 seconds
-- Between thread posts: 1 second
+**Official docs:** [Mastodon API – Rate limits](https://docs.joinmastodon.org/api/rate-limits/)
+
+**Response headers (when rate limit applies):**
+| Header | Description |
+|--------|-------------|
+| `X-RateLimit-Limit` | Requests permitted per time period |
+| `X-RateLimit-Remaining` | Requests you can still make |
+| `X-RateLimit-Reset` | Timestamp when the limit resets |
+
+**Default limits (per instance):**
+- **Per account:** 300 requests per 5 minutes (all endpoints).
+- **Per account (media):** `POST /api/v1/media` — 30 requests per 30 minutes.
+- **Per account (delete/unreblog):** 30 requests per 30 minutes.
+- **Per IP:** 300 requests per 5 minutes (all endpoints).
+
+When the limit is exceeded, the server returns **HTTP 429 Too Many Requests** and may include a **`Retry-After`** header (seconds to wait before retrying).
+
+**This project’s behavior:**
+- Configurable delays between posts (`DELAY_BETWEEN_POSTS_MS`, default 2s) and a global throttle so no two posts are sent closer than that.
+- On 429: retry delay is taken from `Retry-After` when present, otherwise 60s (up to 5 min), then retry; other errors use exponential backoff.
+- 401/403 are not retried.
 
 ---
 

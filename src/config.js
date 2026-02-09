@@ -168,6 +168,7 @@ export const config = {
         substitutions: true,
         varReviews: true,
         matchStart: true,
+        interval: true,
         matchEnd: true,
     },
     // Internationalization configuration

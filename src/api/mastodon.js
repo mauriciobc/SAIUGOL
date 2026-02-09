@@ -6,7 +6,6 @@ import { mastodonLogger } from '../utils/logger.js';
 import { recordMastodonPost } from '../utils/metrics.js';
 
 let client = null;
-/** Timestamp of last successful post — used for global throttle to avoid 429. */
 let lastPostTime = 0;
 
 /**
@@ -37,16 +36,12 @@ export function __setClient(customClient) {
  * @returns {Promise<Object|null>} Posted status or null on error
  */
 export async function postStatus(text, options = {}) {
-    // Log content of each post try for debugging (avoid repeating same events)
-    const contentPreview = text.length > 120 ? `${text.slice(0, 120)}…` : text;
-    mastodonLogger.info({ postContent: contentPreview, length: text.length }, 'Post try');
-
     if (config.bot.dryRun) {
         mastodonLogger.debug({ textLength: text.length }, '[DRY RUN] Postaria');
         return { id: 'dry-run', content: text };
     }
 
-    const minIntervalMs = config.delays.betweenPosts;
+    const minIntervalMs = config.delays.betweenPosts ?? 0;
     const now = Date.now();
     if (lastPostTime > 0) {
         const elapsed = now - lastPostTime;

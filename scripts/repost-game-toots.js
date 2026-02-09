@@ -96,10 +96,9 @@ async function main() {
 
     const t1 = opts.team1.toLowerCase();
     const t2 = opts.team2.toLowerCase();
-    const repostPrefix = opts.prefix.replace(/\s+$/, '').trim(); // prefixo normalizado
+    const repostPrefix = opts.prefix.replace(/\s+$/, '').trim();
     const matching = statuses.filter((s) => {
         const text = stripHtml(s.content);
-        // Não republicar algo que já é republicação (evita duplicatas ao rodar o script de novo)
         if (text.trimStart().startsWith(repostPrefix)) return false;
         const textLower = text.toLowerCase();
         return textLower.includes(t1) && textLower.includes(t2);
