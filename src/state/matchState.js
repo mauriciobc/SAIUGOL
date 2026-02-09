@@ -17,6 +17,10 @@ const postedEventIds = new Set();
 // Last known score per match: Map<matchId, { home: number, away: number }>
 const lastScores = new Map();
 
+// Previous snapshot per match for diff: key = "leagueCode:matchId", value = MatchSnapshot
+/** @type {Map<string, import('./snapshotContract.js').MatchSnapshot>} */
+const previousSnapshots = new Map();
+
 // Periodic save timer
 let saveTimer = null;
 
@@ -38,6 +42,12 @@ async function initializeState() {
         // Restore posted events
         state.postedEventIds.forEach(id => postedEventIds.add(id));
         console.log(`[State] ${postedEventIds.size} eventos restaurados do estado persistido`);
+    }
+    if (state.matchSnapshots && typeof state.matchSnapshots === 'object') {
+        for (const [key, snap] of Object.entries(state.matchSnapshots)) {
+            if (snap && snap.id != null) previousSnapshots.set(key, snap);
+        }
+        console.log(`[State] ${previousSnapshots.size} snapshots restaurados`);
     }
 
     // Start periodic save timer
@@ -63,7 +73,7 @@ function startPeriodicSave() {
  * @returns {Promise<boolean>}
  */
 export async function saveStateNow() {
-    return await persistState(postedEventIds);
+    return await persistState(postedEventIds, previousSnapshots);
 }
 
 /**
@@ -197,6 +207,33 @@ export function clearMatchState(matchId) {
 }
 
 /**
+ * Get previous snapshot for a match (composite key: leagueCode:matchId).
+ * @param {string} compositeKey - "leagueCode:matchId"
+ * @returns {import('./snapshotContract.js').MatchSnapshot|undefined}
+ */
+export function getPreviousSnapshot(compositeKey) {
+    return previousSnapshots.get(compositeKey);
+}
+
+/**
+ * Merge snapshots into the previous-snapshot cache (e.g. after a poll).
+ * @param {Array<[string, import('./snapshotContract.js').MatchSnapshot]>} entries - Pairs of compositeKey, snapshot
+ */
+export function mergePreviousSnapshots(entries) {
+    for (const [key, snap] of entries) {
+        if (key && snap) previousSnapshots.set(key, snap);
+    }
+}
+
+/**
+ * Get all previous snapshots (for persistence).
+ * @returns {Map<string, import('./snapshotContract.js').MatchSnapshot>}
+ */
+export function getPreviousSnapshotsMap() {
+    return previousSnapshots;
+}
+
+/**
  * Get stats about current state
  * @returns {Object} State statistics
  */
@@ -205,6 +242,7 @@ export function getStateStats() {
         leagueId: cachedLeagueId,
         activeMatchCount: activeMatches.size,
         postedEventCount: postedEventIds.size,
+        snapshotCount: previousSnapshots.size,
     };
 }
 

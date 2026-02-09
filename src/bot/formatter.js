@@ -5,16 +5,21 @@ import { translate } from '../services/i18n.js';
  * Format a goal event as a Mastodon post
  * @param {Object} event - Goal event data
  * @param {Object} match - Match data
+ * @param {{ isFavoriteTeam?: boolean }} [options]
  * @returns {string} Formatted post text
  */
-export function formatGoal(event, match) {
+export function formatGoal(event, match, options = {}) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
     const scorer = event.player?.name || translate('common.unknown_player');
     const assist = event.assist?.name;
     const minute = event.minute || '?';
     const isOwnGoal = event.type?.toLowerCase().includes('own');
 
-    let text = isOwnGoal
+    let text = '';
+    if (options.isFavoriteTeam) {
+        text += '⚫🔴 Gol do Galo!\n\n';
+    }
+    text += isOwnGoal
         ? translate('ui.own_goal_announcement')
         : translate('ui.goal_announcement');
     text += '\n\n';
@@ -35,9 +40,10 @@ export function formatGoal(event, match) {
  * Format a card event as a Mastodon post
  * @param {Object} event - Card event data
  * @param {Object} match - Match data
+ * @param {{ isFavoriteTeam?: boolean }} [options]
  * @returns {string} Formatted post text
  */
-export function formatCard(event, match) {
+export function formatCard(event, match, options = {}) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
     const isRed = event.type?.toLowerCase().includes('red');
     const emoji = isRed ? '🟥' : '🟨';
@@ -48,7 +54,11 @@ export function formatCard(event, match) {
     const minute = event.minute || '?';
     const reason = event.reason || '';
 
-    let text = `${emoji} ${cardType}\n\n`;
+    let text = '';
+    if (isRed && options.isFavoriteTeam) {
+        text += '⚫🔴 Cartão vermelho - Galo!\n\n';
+    }
+    text += `${emoji} ${cardType}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
     text += `⏱️ ${minute}'\n`;
     text += `👤 ${player}`;

@@ -1,53 +1,18 @@
-import {
-    getBrasileiraoLeagueId,
-    getTodayMatches,
-    getMatchDetails,
-    getLiveEvents,
-} from '../api/espn.js';
+import { getTodayMatches, getMatchDetails, getLiveEvents } from '../api/espn.js';
 import { postStatus } from '../api/mastodon.js';
 import {
     isMatchActive,
     addActiveMatch,
-    removeActiveMatch,
-    getActiveMatches,
     clearMatchState,
     getStateStats,
+    getPreviousSnapshot,
+    mergePreviousSnapshots,
 } from '../state/matchState.js';
+import { matchesToSnapshotMap } from '../state/snapshotContract.js';
+import { computeDiff } from '../state/diffEngine.js';
 import { processEvents, handleMatchEnd } from './eventProcessor.js';
 import { formatMatchStart } from './formatter.js';
 import { config } from '../config.js';
-
-/**
- * Match status constants
- */
-const MATCH_STATUS = {
-    SCHEDULED: ['scheduled', 'not started', 'tbd'],
-    LIVE: ['live', 'in play', '1h', '2h', 'ht', 'et', 'bt', 'pt'],
-    FINISHED: ['finished', 'ft', 'aet', 'pen'],
-    POSTPONED: ['postponed', 'cancelled', 'suspended'],
-};
-
-/**
- * Check if match is live
- * @param {string} status - Match status string
- * @returns {boolean}
- */
-function isMatchLive(status) {
-    if (!status) return false;
-    const lowerStatus = status.toLowerCase();
-    return MATCH_STATUS.LIVE.some((s) => lowerStatus.includes(s));
-}
-
-/**
- * Check if match is finished
- * @param {string} status - Match status string
- * @returns {boolean}
- */
-function isMatchFinished(status) {
-    if (!status) return false;
-    const lowerStatus = status.toLowerCase();
-    return MATCH_STATUS.FINISHED.some((s) => lowerStatus.includes(s));
-}
 
 /**
  * Initialize the match monitor
@@ -60,81 +25,78 @@ export async function initialize() {
 }
 
 /**
- * Main polling loop - check for matches and events
+ * Main polling loop - build snapshots, compute diff, act only on changes, then poll events for live matches.
+ * @returns {{ nextIntervalMs: number }}
  */
 export async function poll() {
     if (!config.activeLeagues || config.activeLeagues.length === 0) {
         console.warn('[MatchMonitor] Nenhuma liga configurada, pulando poll');
-        return;
+        return { nextIntervalMs: config.bot.pollIntervalHibernationMs };
     }
+
+    const allSnapshotEntries = [];
 
     for (const league of config.activeLeagues) {
         try {
-            // Get today's matches for this league
             const matches = await getTodayMatches(league.code);
             console.log(`[MatchMonitor] ${matches.length} partidas encontradas para ${league.name}`);
 
+            const newSnapshotMap = matchesToSnapshotMap(matches);
+            const { actions, snapshotEntries } = computeDiff(
+                league.code,
+                newSnapshotMap,
+                (key) => getPreviousSnapshot(key)
+            );
+            allSnapshotEntries.push(...snapshotEntries);
+
+            for (const action of actions) {
+                if (action.type === 'match_start') {
+                    console.log(`[MatchMonitor] Partida iniciada: ${action.snapshot.id} (${league.name})`);
+                    const details = await getMatchDetails(action.snapshot.id, league.code);
+                    if (details) {
+                        details.league = league;
+                        addActiveMatch(action.snapshot.id, details);
+                        if (config.events.matchStart) {
+                            const matchData = normalizeMatchData(details);
+                            await postStatus(formatMatchStart(matchData));
+                        }
+                    }
+                } else if (action.type === 'match_end') {
+                    console.log(`[MatchMonitor] Partida finalizada: ${action.snapshot.id}`);
+                    const details = await getMatchDetails(action.snapshot.id, league.code);
+                    if (details) {
+                        details.league = league;
+                        await handleMatchEnd(normalizeMatchData(details));
+                    }
+                    clearMatchState(action.snapshot.id);
+                }
+            }
+
             for (const match of matches) {
-                // Inject league info into match object
-                match.league = league;
-                await processMatch(match);
+                const snap = newSnapshotMap.get(String(match.id));
+                if (snap?.status === 'in' && isMatchActive(match.id)) {
+                    await pollMatchEvents(match.id, league);
+                }
             }
         } catch (error) {
             console.error(`[MatchMonitor] Erro no poll da liga ${league.name}:`, error.message);
         }
     }
 
-    // Log stats
+    mergePreviousSnapshots(allSnapshotEntries);
+
+    const hasLive = allSnapshotEntries.some(([, s]) => s.status === 'in');
+    const hasPre = allSnapshotEntries.some(([, s]) => s.status === 'pre');
+    const nextIntervalMs = hasLive
+        ? config.bot.pollIntervalLiveMs
+        : hasPre
+            ? config.bot.pollIntervalAlertMs
+            : config.bot.pollIntervalHibernationMs;
+
     const stats = getStateStats();
-    console.log(`[MatchMonitor] Stats: ${stats.activeMatchCount} partidas ativas, ${stats.postedEventCount} eventos postados`);
-}
+    console.log(`[MatchMonitor] Stats: ${stats.activeMatchCount} partidas ativas, ${stats.postedEventCount} eventos postados (próximo poll em ${nextIntervalMs / 1000}s)`);
 
-/**
- * Process a single match
- * @param {Object} match - Match data from API
- */
-async function processMatch(match) {
-    const matchId = match.id;
-    const status = match.status || match.state;
-
-    // Check if match just started
-    if (isMatchLive(status) && !isMatchActive(matchId)) {
-        console.log(`[MatchMonitor] Nova partida ao vivo: ${matchId} (${match.league.name})`);
-
-        // Get full match details
-        const details = await getMatchDetails(matchId, match.league.code);
-        if (details) {
-            // Preserve league info
-            details.league = match.league;
-            addActiveMatch(matchId, details);
-
-            // Post match start
-            if (config.events.matchStart) {
-                const matchData = normalizeMatchData(details);
-                const startText = formatMatchStart(matchData);
-                await postStatus(startText);
-            }
-        }
-    }
-
-    // Process live match
-    if (isMatchActive(matchId)) {
-        await pollMatchEvents(matchId, match.league);
-    }
-
-    // Check if match finished
-    if (isMatchFinished(status) && isMatchActive(matchId)) {
-        console.log(`[MatchMonitor] Partida finalizada: ${matchId}`);
-
-        const details = await getMatchDetails(matchId, match.league.code);
-        if (details) {
-            details.league = match.league;
-            const matchData = normalizeMatchData(details);
-            await handleMatchEnd(matchData);
-        }
-
-        clearMatchState(matchId);
-    }
+    return { nextIntervalMs };
 }
 
 /**
@@ -189,17 +151,22 @@ function normalizeMatchData(apiMatch) {
 }
 
 /**
- * Start the continuous monitoring loop
- * @param {number} intervalMs - Polling interval in milliseconds
+ * Start the continuous monitoring loop with elastic polling (setTimeout rescheduled after each poll).
  */
-export async function startMonitoring(intervalMs = config.bot.pollIntervalMs) {
-    console.log(`[MatchMonitor] Iniciando monitoramento (intervalo: ${intervalMs}ms)`);
+export async function startMonitoring() {
+    console.log('[MatchMonitor] Iniciando monitoramento (polling elástico)');
 
-    // Initial poll
-    await poll();
+    function scheduleNext() {
+        poll().then((result) => {
+            const ms = result?.nextIntervalMs ?? config.bot.pollIntervalLiveMs;
+            setTimeout(scheduleNext, ms);
+        }).catch((err) => {
+            console.error('[MatchMonitor] Erro no poll:', err.message);
+            setTimeout(scheduleNext, config.bot.pollIntervalAlertMs);
+        });
+    }
 
-    // Set up interval
-    setInterval(async () => {
-        await poll();
-    }, intervalMs);
+    const result = await poll();
+    const firstDelay = result?.nextIntervalMs ?? config.bot.pollIntervalLiveMs;
+    setTimeout(scheduleNext, firstDelay);
 }

@@ -89,8 +89,27 @@ function shouldPostEvent(category) {
     }
 }
 
+const PRIORITY_HIGH = 0;  // GOAL, RED_CARD - process first
+const PRIORITY_NORMAL = 1;
+
+function eventPriority(category) {
+    if (category === 'GOAL' || category === 'RED_CARD') return PRIORITY_HIGH;
+    return PRIORITY_NORMAL;
+}
+
+function isFavoriteTeam(event, match) {
+    const ids = config.bot.favoriteTeamIds || [];
+    const names = config.bot.favoriteTeamNames || [];
+    if (!ids.length && !names.length) return false;
+    const teamId = event.teamId || event.team?.id;
+    const teamName = teamId === match.homeTeam?.id ? match.homeTeam?.name : (teamId === match.awayTeam?.id ? match.awayTeam?.name : event.team?.name || '');
+    if (teamId && ids.includes(String(teamId))) return true;
+    if (teamName && names.some(n => teamName.toLowerCase().includes(n.toLowerCase()))) return true;
+    return false;
+}
+
 /**
- * Process a list of events for a match
+ * Process a list of events for a match (goals and red cards first)
  * @param {Array} events - List of events from API
  * @param {Object} match - Match data
  * @returns {Promise<number>} Number of events posted
@@ -98,21 +117,15 @@ function shouldPostEvent(category) {
 export async function processEvents(events, match) {
     let postedCount = 0;
 
-    for (const event of events) {
-        const eventId = generateEventId(match.id, event);
+    const postable = events
+        .map((event) => ({ event, eventId: generateEventId(match.id, event), category: categorizeEvent(event.type) }))
+        .filter(({ eventId, category }) => !isEventPosted(eventId) && category && shouldPostEvent(category));
 
-        // Skip if already posted
-        if (isEventPosted(eventId)) {
-            console.log(`[EventProcessor] Evento duplicado ignorado: ${eventId}`);
-            continue;
-        }
+    postable.sort((a, b) => eventPriority(a.category) - eventPriority(b.category));
 
-        const category = categorizeEvent(event.type);
-        if (!category || !shouldPostEvent(category)) {
-            continue;
-        }
-
-        const text = formatEventPost(category, event, match);
+    for (const { event, eventId, category } of postable) {
+        const isFavorite = isFavoriteTeam(event, match);
+        const text = formatEventPost(category, event, match, { isFavoriteTeam: isFavorite });
         if (text) {
             const result = await postStatus(text);
             if (result) {
@@ -120,8 +133,6 @@ export async function processEvents(events, match) {
                 postedCount++;
                 console.log(`[EventProcessor] Postado evento ${category} para partida ${match.id}`);
             }
-
-            // Small delay between posts
             await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
         }
     }
@@ -134,15 +145,16 @@ export async function processEvents(events, match) {
  * @param {string} category - Event category
  * @param {Object} event - Event data
  * @param {Object} match - Match data
+ * @param {{ isFavoriteTeam?: boolean }} [options]
  * @returns {string|null} Formatted post text or null
  */
-function formatEventPost(category, event, match) {
+function formatEventPost(category, event, match, options = {}) {
     switch (category) {
         case 'GOAL':
-            return formatGoal(event, match);
+            return formatGoal(event, match, options);
         case 'YELLOW_CARD':
         case 'RED_CARD':
-            return formatCard(event, match);
+            return formatCard(event, match, options);
         case 'SUBSTITUTION':
             return formatSubstitution(event, match);
         case 'VAR':

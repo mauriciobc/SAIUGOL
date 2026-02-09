@@ -141,6 +141,11 @@ export const config = {
     bot: {
         pollIntervalMs: parseEnvInt(process.env.POLL_INTERVAL_MS, 60000, 10000),
         dryRun: process.env.DRY_RUN === 'true',
+        pollIntervalLiveMs: parseEnvInt(process.env.POLL_INTERVAL_LIVE_MS, 60000, 10000),
+        pollIntervalAlertMs: parseEnvInt(process.env.POLL_INTERVAL_ALERT_MS, 120000, 30000),
+        pollIntervalHibernationMs: parseEnvInt(process.env.POLL_INTERVAL_HIBERNATION_MS, 1800000, 300000),
+        favoriteTeamIds: (process.env.FAVORITE_TEAM_IDS || '').split(',').map(s => s.trim()).filter(Boolean),
+        favoriteTeamNames: (process.env.FAVORITE_TEAM_NAMES || '').split(',').map(s => s.trim()).filter(Boolean),
     },
     // Timing delays (milliseconds)
     delays: {
