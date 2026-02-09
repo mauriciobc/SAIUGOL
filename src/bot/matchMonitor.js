@@ -76,19 +76,20 @@ export async function poll() {
             }
 
             for (const match of matches) {
-                const snap = newSnapshotMap.get(String(match.id));
+                const matchId = match.id != null ? String(match.id) : '';
+                const snap = newSnapshotMap.get(matchId);
                 if (snap?.status !== 'in') continue;
 
                 // Catch-up: partida já ao vivo mas não estava no set ativo (ex.: bot iniciou com jogo em andamento)
-                if (!isMatchActive(match.id)) {
-                    const details = await getMatchDetails(match.id, league.code);
+                if (!isMatchActive(matchId)) {
+                    const details = await getMatchDetails(matchId, league.code);
                     if (details) {
                         details.league = league;
-                        addActiveMatch(match.id, details);
-                        console.log(`[MatchMonitor] Partida já em andamento adicionada: ${match.id} (${league.name})`);
+                        addActiveMatch(matchId, details);
+                        console.log(`[MatchMonitor] Partida já em andamento adicionada: ${matchId} (${league.name})`);
                     }
                 }
-                await pollMatchEvents(match.id, league);
+                await pollMatchEvents(matchId, league);
             }
         } catch (error) {
             console.error(`[MatchMonitor] Erro no poll da liga ${league.name}:`, error.message);
@@ -113,7 +114,7 @@ export async function poll() {
 
 /**
  * Poll live events for a specific match
- * @param {number} matchId - Match ID
+ * @param {string} matchId - Match ID (canonical string)
  * @param {Object} league - League object
  */
 async function pollMatchEvents(matchId, league) {

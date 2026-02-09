@@ -84,10 +84,15 @@ describe('snapshotContract', () => {
         });
 
         it('deve tratar event null/undefined de forma segura', () => {
-            const snap = espnEventToSnapshot(null);
-            assert.strictEqual(snap.id, '');
-            assert.deepStrictEqual(snap.score, { home: 0, away: 0 });
-            assert.strictEqual(snap.status, 'pre');
+            const snapNull = espnEventToSnapshot(null);
+            assert.strictEqual(snapNull.id, '');
+            assert.deepStrictEqual(snapNull.score, { home: 0, away: 0 });
+            assert.strictEqual(snapNull.status, 'pre');
+
+            const snapUndefined = espnEventToSnapshot(undefined);
+            assert.strictEqual(snapUndefined.id, '');
+            assert.deepStrictEqual(snapUndefined.score, { home: 0, away: 0 });
+            assert.strictEqual(snapUndefined.status, 'pre');
         });
     });
 

@@ -80,12 +80,15 @@ export function formatCard(event, match, options = {}) {
 function parseSubstitutionFromDescription(text) {
     if (!text || typeof text !== 'string') return null;
     const namePart = '[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\\s\'-]+?';
+    // Ordem: variantes por idioma primeiro; fallback genérico por último. O último padrão
+    // exige contexto de substituição ("on for" / "comes on for") para evitar falsos
+    // positivos com "for" solto (ex.: "Assist for X.").
     const patterns = [
         new RegExp(`(${namePart}) replaces (${namePart})\\.`),
         new RegExp(`(${namePart}) on for (${namePart})\\.`),
         new RegExp(`(${namePart}) sostituisce (${namePart})\\.`),
         new RegExp(`(${namePart}) in per (${namePart})\\.`),
-        new RegExp(`(${namePart}) for (${namePart})\\.`),
+        new RegExp(`(${namePart}) (?:comes )?on for (${namePart})\\.`),
     ];
     for (const re of patterns) {
         const m = text.match(re);
@@ -176,11 +179,13 @@ export function formatMatchStart(match) {
  */
 export function formatSecondHalfStart(match, event = {}) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
-    const minute = event.minute || "46'";
+    // Normalize minute: trim, strip trailing apostrophe(s), then append single "'" on display (same as other formatters)
+    const rawMinute = (event?.minute != null ? String(event.minute).trim() : '').replace(/'+$/, '');
+    const minute = rawMinute || '46';
 
     let text = `${translate('ui.second_half_start')}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore ?? 0} x ${awayScore ?? 0} ${awayTeam.name}\n`;
-    text += `⏱️ ${minute}\n`;
+    text += `⏱️ ${minute}'\n`;
     text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
     return text;

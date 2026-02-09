@@ -85,7 +85,7 @@ describe('Translation Service', () => {
 });
 
 describe('Formatter Integration', async () => {
-    const { formatGoal, formatCard, formatSubstitution, formatVAR, formatHighlights, formatMatchStart, formatMatchEnd } =
+    const { formatGoal, formatCard, formatSubstitution, formatVAR, formatHighlights, formatMatchStart, formatMatchEnd, formatSecondHalfStart } =
         await import('../src/bot/formatter.js');
 
     initI18n('pt-BR');
@@ -221,5 +221,14 @@ describe('Formatter Integration', async () => {
         assert.ok(result.includes('Gol'));
         assert.ok(result.includes('https://example.com/1'));
         assert.ok(result.includes('https://example.com/2'));
+    });
+
+    it('should format second half start with teams, score and minute', () => {
+        const result = formatSecondHalfStart(mockMatch, { minute: '46' });
+
+        assert.ok(result.includes('Flamengo'));
+        assert.ok(result.includes('Palmeiras'));
+        assert.ok(result.includes('2 x 1'));
+        assert.ok(result.includes('46'));
     });
 });

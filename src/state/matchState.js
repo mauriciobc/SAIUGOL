@@ -106,7 +106,10 @@ export function getLeagueId(id = undefined) {
 
 /** Normalize match id so Map lookups work whether callers pass string or number. */
 function mid(matchId) {
-    return matchId != null ? String(matchId) : '';
+    if (matchId == null) {
+        throw new Error('matchId cannot be null or undefined');
+    }
+    return String(matchId);
 }
 
 /**

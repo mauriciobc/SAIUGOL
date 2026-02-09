@@ -347,7 +347,7 @@ export async function getLiveEvents(matchId, leagueCode) {
                         minute: event.clock?.displayValue || "0'",
                         teamId: event.team?.id,
                         description,
-                        player: p0Name,
+                        player: p0Name != null ? { name: p0Name } : undefined,
                     };
                     if (type.includes('substitution') || type.includes('sub')) {
                         if (p0Name && p1Name) {

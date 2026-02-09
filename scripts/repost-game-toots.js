@@ -101,8 +101,14 @@ async function main() {
         return text.includes(t1) && text.includes(t2);
     });
 
-    // Oldest first (ascending id = chronological)
-    matching.sort((a, b) => (a.id < b.id ? -1 : 1));
+    // Oldest first (ascending id = chronological); BigInt for correct 64-bit Snowflake order
+    matching.sort((a, b) => {
+      const idA = BigInt(a.id);
+      const idB = BigInt(b.id);
+      if (idA < idB) return -1;
+      if (idA > idB) return 1;
+      return 0;
+    });
 
     console.log(`Found ${matching.length} toots mentioning "${opts.team1}" and "${opts.team2}".\n`);
     if (matching.length === 0) {

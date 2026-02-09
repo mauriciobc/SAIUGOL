@@ -131,7 +131,8 @@ export async function getAccountId() {
         const mastodon = getClient();
         const response = await mastodon.verifyAccountCredentials();
         return response.data?.id ?? null;
-    } catch {
+    } catch (error) {
+        mastodonLogger.error({ err: error }, 'Erro ao obter ID da conta');
         return null;
     }
 }

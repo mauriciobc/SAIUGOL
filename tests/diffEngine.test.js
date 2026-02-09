@@ -93,14 +93,14 @@ describe('diffEngine', () => {
             assert.deepStrictEqual(keys, ['bra.1:m1', 'bra.1:m2']);
         });
 
-        it('pode emitir score_changed para partida nova já in (sem previous)', () => {
+        it('emite score_changed para partida nova já in (sem previous)', () => {
             const newMap = new Map([['m1', snapshot('m1', { home: 1, away: 0 }, 'in', "20'")]]);
             const getPrevious = () => undefined;
 
             const { actions } = computeDiff(leagueCode, newMap, getPrevious);
 
-            assert.ok(actions.length >= 0);
-            if (actions.length === 1) assert.strictEqual(actions[0].type, 'score_changed');
+            assert.strictEqual(actions.length, 1);
+            assert.strictEqual(actions[0].type, 'score_changed');
         });
     });
 });
