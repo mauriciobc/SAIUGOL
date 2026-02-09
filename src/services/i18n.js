@@ -16,13 +16,25 @@ const dictionaries = new Map();
 let currentLanguage = 'pt-BR';
 
 /**
+ * Normalize locale for file name (e.g. pt-br -> pt-BR) so env vars work on case-sensitive filesystems.
+ * @param {string} lang - Language code (e.g., 'pt-BR' or 'pt-br')
+ * @returns {string} Normalized code for dictionary filename
+ */
+function normalizeLocaleForFile(lang) {
+    if (!lang || !lang.includes('-')) return lang;
+    const [part1, part2] = lang.split('-');
+    return `${part1.toLowerCase()}-${part2.toUpperCase()}`;
+}
+
+/**
  * Load a dictionary file for a specific language
  * @param {string} lang - Language code (e.g., 'pt-BR')
  * @returns {Object|null} Dictionary object or null if failed
  */
 function loadDictionary(lang) {
     try {
-        const dictionaryPath = path.join(__dirname, 'dictionaries', `${lang}.json`);
+        const fileLang = normalizeLocaleForFile(lang);
+        const dictionaryPath = path.join(__dirname, 'dictionaries', `${fileLang}.json`);
         const content = fs.readFileSync(dictionaryPath, 'utf8');
         const dictionary = JSON.parse(content);
         logger.info({ lang, path: dictionaryPath }, 'Dictionary loaded successfully');
