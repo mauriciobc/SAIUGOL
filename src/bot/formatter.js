@@ -191,7 +191,8 @@ export function formatMatchStart(match) {
  */
 export function formatSecondHalfStart(match, event = {}) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
-    const minute = displayMinute(event?.minute) || '46';
+    const rawMinute = displayMinute(event?.minute);
+    const minute = rawMinute === '?' ? '46' : rawMinute;
 
     let text = `${translate('ui.second_half_start')}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore ?? 0} x ${awayScore ?? 0} ${awayTeam.name}\n`;
@@ -209,7 +210,8 @@ export function formatSecondHalfStart(match, event = {}) {
  */
 export function formatHalfTime(match, event = {}) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
-    const minute = displayMinute(event?.minute) || '45';
+    const rawMinute = displayMinute(event?.minute);
+    const minute = rawMinute === '?' ? '45' : rawMinute;
 
     let text = `${translate('ui.half_time')}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore ?? 0} x ${awayScore ?? 0} ${awayTeam.name}\n`;
