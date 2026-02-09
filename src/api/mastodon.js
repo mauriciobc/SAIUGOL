@@ -6,6 +6,8 @@ import { mastodonLogger } from '../utils/logger.js';
 import { recordMastodonPost } from '../utils/metrics.js';
 
 let client = null;
+/** Timestamp of last successful post — used for global throttle to avoid 429. */
+let lastPostTime = 0;
 
 /**
  * Initialize or get the Mastodon client
@@ -35,14 +37,27 @@ export function __setClient(customClient) {
  * @returns {Promise<Object|null>} Posted status or null on error
  */
 export async function postStatus(text, options = {}) {
+    // Log content of each post try for debugging (avoid repeating same events)
+    const contentPreview = text.length > 120 ? `${text.slice(0, 120)}…` : text;
+    mastodonLogger.info({ postContent: contentPreview, length: text.length }, 'Post try');
+
     if (config.bot.dryRun) {
         mastodonLogger.debug({ textLength: text.length }, '[DRY RUN] Postaria');
         return { id: 'dry-run', content: text };
     }
 
+    const minIntervalMs = config.delays.betweenPosts;
+    const now = Date.now();
+    if (lastPostTime > 0) {
+        const elapsed = now - lastPostTime;
+        if (elapsed < minIntervalMs) {
+            await new Promise((r) => setTimeout(r, minIntervalMs - elapsed));
+        }
+    }
+
     const startTime = Date.now();
 
-    return await retryWithBackoff(
+    const result = await retryWithBackoff(
         async () => {
             try {
                 const mastodon = getClient();
@@ -51,6 +66,7 @@ export async function postStatus(text, options = {}) {
                     in_reply_to_id: options.inReplyToId,
                 });
 
+                lastPostTime = Date.now();
                 const latencyMs = Date.now() - startTime;
                 recordMastodonPost(true, latencyMs);
                 mastodonLogger.info({ statusId: response.data.id, latencyMs }, 'Status postado com sucesso');
@@ -78,10 +94,12 @@ export async function postStatus(text, options = {}) {
             },
             operationName: 'Mastodon postStatus',
         }
-    ).catch(error => {
+    ).catch((error) => {
         mastodonLogger.error({ error: error.message }, 'Todas as tentativas falharam para postStatus');
         return null;
     });
+
+    return result;
 }
 
 /**

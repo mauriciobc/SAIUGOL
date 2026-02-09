@@ -7,10 +7,12 @@ import {
     getStateStats,
     getPreviousSnapshot,
     mergePreviousSnapshots,
+    isEventPosted,
+    markEventPosted,
 } from '../state/matchState.js';
 import { matchesToSnapshotMap } from '../state/snapshotContract.js';
 import { computeDiff } from '../state/diffEngine.js';
-import { processEvents, handleMatchEnd } from './eventProcessor.js';
+import { processEvents, handleMatchEnd, markExistingEventsAsSeen } from './eventProcessor.js';
 import { formatMatchStart } from './formatter.js';
 import { config } from '../config.js';
 
@@ -51,14 +53,21 @@ export async function poll() {
 
             for (const action of actions) {
                 if (action.type === 'match_start') {
-                    console.log(`[MatchMonitor] Partida iniciada: ${action.snapshot.id} (${league.name})`);
+                    const matchId = String(action.snapshot.id);
+                    console.log(`[MatchMonitor] Partida iniciada: ${matchId} (${league.name})`);
                     const details = await getMatchDetails(action.snapshot.id, league.code);
                     if (details) {
                         details.league = league;
                         addActiveMatch(action.snapshot.id, details);
-                        if (config.events.matchStart) {
+                        const matchStartEventId = `${matchId}-match-start`;
+                        if (isEventPosted(matchStartEventId)) {
+                            console.log(`[MatchMonitor] Partida ${matchId} match-start já postado, ignorando re-post`);
+                        } else if (config.events.matchStart) {
                             const matchData = normalizeMatchData(details);
-                            await postStatus(formatMatchStart(matchData));
+                            const startText = formatMatchStart(matchData);
+                            console.log(`[MatchMonitor] Postando match-start partida=${matchId} content=${startText.slice(0, 80)}…`);
+                            await postStatus(startText);
+                            markEventPosted(matchStartEventId);
                         }
                     }
                 } else if (action.type === 'match_end') {
@@ -87,6 +96,11 @@ export async function poll() {
                         details.league = league;
                         addActiveMatch(matchId, details);
                         console.log(`[MatchMonitor] Partida já em andamento adicionada: ${matchId} (${league.name})`);
+                        // Marcar eventos atuais como vistos — postar apenas eventos futuros
+                        const currentEvents = await getLiveEvents(matchId, league.code);
+                        if (currentEvents.length > 0) {
+                            markExistingEventsAsSeen(matchId, currentEvents);
+                        }
                     }
                 }
                 await pollMatchEvents(matchId, league);

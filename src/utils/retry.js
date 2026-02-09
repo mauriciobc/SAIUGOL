@@ -50,11 +50,18 @@ export async function retryWithBackoff(fn, options = {}) {
                 throw error;
             }
 
-            // Calculate delay with exponential backoff
-            const delay = Math.min(
-                initialDelay * Math.pow(2, attempt - 1),
-                maxDelay
-            );
+            // For 429 (rate limit), wait Retry-After or long delay; rapid retries make it worse
+            let delay;
+            if (error.response && error.response.status === 429) {
+                const retryAfter = error.response.headers?.['retry-after'];
+                const seconds = retryAfter != null ? parseInt(retryAfter, 10) : 60;
+                delay = Number.isNaN(seconds) ? 60000 : Math.min(seconds * 1000, 300000);
+            } else {
+                delay = Math.min(
+                    initialDelay * Math.pow(2, attempt - 1),
+                    maxDelay
+                );
+            }
 
             retryLogger.warn(
                 { operationName, attempt, maxAttempts, delayMs: delay, error: error.message },

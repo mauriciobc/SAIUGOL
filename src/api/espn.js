@@ -428,10 +428,11 @@ export async function getHighlights(matchId, leagueCode) {
 
                 return videos
                     .map(v => {
-                        // Get best quality URL available
+                        // Get best quality URL available (API: source.mezzanine | source.HD | source.href | mobile.source.href)
                         const url = v.links?.source?.mezzanine?.href ||
                             v.links?.source?.HD?.href ||
-                            v.links?.mobile?.href;
+                            v.links?.source?.href ||
+                            v.links?.mobile?.source?.href;
 
                         if (!url) {
                             espnLogger.debug({ matchId }, 'Highlight sem URL válida');
@@ -441,6 +442,7 @@ export async function getHighlights(matchId, leagueCode) {
                         return {
                             url,
                             title: v.headline || 'Highlight',
+                            thumbnail: v.thumbnail || undefined,
                         };
                     })
                     .filter(h => h !== null);

@@ -1,6 +1,13 @@
 import { config } from '../config.js';
 import { translate } from '../services/i18n.js';
 
+/** Player can be { name: string } or plain string (API may vary). */
+function playerName(player) {
+    if (player == null) return undefined;
+    if (typeof player === 'string') return player;
+    return player?.name;
+}
+
 /**
  * Format a goal event as a Mastodon post
  * @param {Object} event - Goal event data
@@ -10,8 +17,8 @@ import { translate } from '../services/i18n.js';
  */
 export function formatGoal(event, match, options = {}) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
-    const scorer = event.player?.name || translate('common.unknown_player');
-    const assist = event.assist?.name;
+    const scorer = playerName(event.player) || translate('common.unknown_player');
+    const assist = playerName(event.assist);
     const minute = event.minute || '?';
     const isOwnGoal = event.type?.toLowerCase().includes('own');
 
@@ -49,7 +56,7 @@ export function formatCard(event, match, options = {}) {
     const cardType = isRed
         ? translate('ui.red_card_announcement')
         : translate('ui.yellow_card_announcement');
-    const player = event.player?.name || translate('common.unknown_player');
+    const player = playerName(event.player) || translate('common.unknown_player');
     const minute = event.minute || '?';
     const reason = event.reason || '';
 
@@ -105,8 +112,8 @@ function parseSubstitutionFromDescription(text) {
  */
 export function formatSubstitution(event, match) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
-    let playerIn = event.playerIn?.name;
-    let playerOut = event.playerOut?.name;
+    let playerIn = playerName(event.playerIn);
+    let playerOut = playerName(event.playerOut);
     if (!playerIn || !playerOut) {
         const description = event.description ?? event.text ?? '';
         const parsed = parseSubstitutionFromDescription(description);

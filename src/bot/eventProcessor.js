@@ -51,18 +51,30 @@ function categorizeEvent(type) {
 }
 
 /**
- * Generate a unique event ID
+ * Generate a stable event ID (same event must always yield same ID to avoid duplicate posts).
+ * Uses ESPN event.id when present; otherwise type+minute+player so IDs don't change between polls.
  * @param {number} matchId - Match ID
  * @param {Object} event - Event object
  * @returns {string} Unique event ID
  */
 function generateEventId(matchId, event) {
-    // Include ESPN event ID if available for better uniqueness
-    const espnId = event.id || '';
-    const playerId = event.player?.id || event.team?.id || 'unknown';
-    const timestamp = event.timestamp || Date.now();
+    if (event.id != null && event.id !== '') {
+        return `${matchId}-${event.id}`;
+    }
+    const playerId = event.player?.id ?? (typeof event.player === 'string' ? event.player : event.team?.id) ?? 'unknown';
+    return `${matchId}-${event.type}-${event.minute}-${playerId}`;
+}
 
-    return `${matchId}-${espnId}-${event.type}-${event.minute}-${playerId}-${timestamp}`;
+/**
+ * Mark current events as already seen so we only post future events (for matches joined in progress).
+ * @param {string} matchId - Match ID
+ * @param {Array<Object>} events - Current events from API
+ */
+export function markExistingEventsAsSeen(matchId, events) {
+    for (const event of events) {
+        const eventId = generateEventId(matchId, event);
+        markEventPosted(eventId);
+    }
 }
 
 /**
@@ -120,9 +132,29 @@ function isFavoriteTeam(event, match) {
 export async function processEvents(events, match) {
     let postedCount = 0;
 
-    const postable = events
-        .map((event) => ({ event, eventId: generateEventId(match.id, event), category: categorizeEvent(event.type) }))
-        .filter(({ eventId, category }) => !isEventPosted(eventId) && category && shouldPostEvent(category));
+    const withIds = events.map((event) => ({
+        event,
+        eventId: generateEventId(match.id, event),
+        category: categorizeEvent(event.type),
+    }));
+
+    const alreadyPosted = withIds.filter(({ eventId }) => isEventPosted(eventId));
+    const postable = withIds.filter(
+        ({ eventId, category }) => !isEventPosted(eventId) && category && shouldPostEvent(category)
+    );
+
+    if (alreadyPosted.length > 0) {
+        console.log(
+            `[EventProcessor] Partida ${match.id}: ${alreadyPosted.length} eventos já postados (ignorados), eventIds: ${alreadyPosted.slice(0, 5).map(({ eventId }) => eventId).join(', ')}${alreadyPosted.length > 5 ? '…' : ''}`
+        );
+    }
+    if (postable.length === 0 && events.length > 0) {
+        console.log(`[EventProcessor] Partida ${match.id}: ${events.length} eventos recebidos, 0 novos para postar`);
+        return 0;
+    }
+    if (postable.length > 0) {
+        console.log(`[EventProcessor] Partida ${match.id}: ${postable.length} eventos novos para postar (de ${events.length} totais)`);
+    }
 
     postable.sort((a, b) => eventPriority(a.category) - eventPriority(b.category));
 
@@ -130,11 +162,12 @@ export async function processEvents(events, match) {
         const isFavorite = isFavoriteTeam(event, match);
         const text = formatEventPost(category, event, match, { isFavoriteTeam: isFavorite });
         if (text) {
+            console.log(`[EventProcessor] Postando eventId=${eventId} category=${category} partida=${match.id}`);
             const result = await postStatus(text);
             if (result) {
                 markEventPosted(eventId);
                 postedCount++;
-                console.log(`[EventProcessor] Postado evento ${category} para partida ${match.id}`);
+                console.log(`[EventProcessor] Postado evento ${category} eventId=${eventId} para partida ${match.id}`);
             }
             await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
         }
@@ -209,11 +242,13 @@ export async function handleMatchEnd(match) {
     const matchEndId = `${match.id}-match-end`;
 
     if (isEventPosted(matchEndId)) {
+        console.log(`[EventProcessor] Partida ${match.id} match-end já postado, ignorando`);
         return;
     }
 
     // Post final score
     const endText = formatMatchEnd(match);
+    console.log(`[EventProcessor] Postando match-end partida=${match.id} content=${endText.slice(0, 80)}…`);
     await postStatus(endText);
     markEventPosted(matchEndId);
 
@@ -225,8 +260,11 @@ export async function handleMatchEnd(match) {
     const highlights = await getHighlights(match.id, match.league?.code);
     if (highlights.length > 0) {
         const highlightsId = `${match.id}-highlights`;
-        if (!isEventPosted(highlightsId)) {
+        if (isEventPosted(highlightsId)) {
+            console.log(`[EventProcessor] Partida ${match.id} highlights já postados, ignorando`);
+        } else {
             const highlightsText = formatHighlights(match, highlights);
+            console.log(`[EventProcessor] Postando highlights partida=${match.id} content=${highlightsText.slice(0, 80)}…`);
             await postStatus(highlightsText);
             markEventPosted(highlightsId);
             console.log(`[EventProcessor] Highlights postados para partida ${match.id}`);

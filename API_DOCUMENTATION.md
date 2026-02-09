@@ -192,11 +192,12 @@ The bot automatically falls back to the CDN endpoint if the main API fails.
 | `videos[].headline` | string | Video title |
 | `videos[].links.source.mezzanine.href` | string | Best quality video URL |
 | `videos[].links.source.HD.href` | string | HD quality video URL |
-| `videos[].links.mobile.href` | string | Mobile quality video URL |
-| `videos[].duration` | string | Video duration |
-| `videos[].thumbnail` | string | Thumbnail image URL |
+| `videos[].links.source.href` | string | Default quality video URL |
+| `videos[].links.mobile.source.href` | string | Mobile MP4 video URL |
+| `videos[].duration` | number | Duration in seconds |
+| `videos[].thumbnail` | string | Thumbnail image URL (verified in API) |
 
-**Priority Order:** mezzanine > HD > mobile
+**Priority Order:** mezzanine > HD > source.href > mobile.source.href
 
 **Sample Video:**
 ```json
@@ -214,7 +215,20 @@ The bot automatically falls back to the CDN endpoint if the main API fails.
 }
 ```
 
-**Usage in Code:** `src/api/espn.js:497` - `getHighlights()`
+**Usage in Code:** `src/api/espn.js` - `getHighlights()` returns `{ url, title, thumbnail? }`.
+
+---
+
+#### 1.4.1 Media disponível na API ESPN (verificado em respostas reais)
+
+| Fonte | Campo | Formato | Exemplo |
+|-------|--------|--------|--------|
+| **Scoreboard** (`/scoreboard`) | `event.competitions[0].competitors[].team.logo` | string | `https://a.espncdn.com/i/teamlogos/soccer/500/7635.png` |
+| **Summary** (header) | `header.competitions[0].competitors[].team.logos` | array | `[{ href, width, height, rel: ["full","default"] }, { rel: ["full","dark"] }]` |
+| **Summary** (videos) | `videos[].thumbnail` | string | `https://a.espncdn.com/media/motion/.../...jpg` |
+| **Summary** (videos) | `videos[].links.source` | object | `mezzanine.href`, `HD.href`, `href`, e `mobile.source.href` para MP4 |
+
+Os objetos normalizados em `getTodayMatches` / `getMatchDetails` atualmente **não** expõem `logo`/`logos`; apenas `id` e `name` dos times. Para usar logos em toots ou UI, é necessário estender o normalizador para incluir `homeTeam.logo` / `awayTeam.logo` a partir do scoreboard (`team.logo`) ou do summary (`team.logos[0].href`).
 
 ---
 
