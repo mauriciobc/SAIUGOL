@@ -5,16 +5,20 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// State file path - use data directory for Docker volume mounting
-const STATE_DIR = process.env.STATE_DIR || '/app/data';
-const STATE_FILE = `${STATE_DIR}/state.json`;
+// State file path - use data directory for Docker volume mounting (runtime so tests can override)
+function getStateDir() {
+    return process.env.STATE_DIR || '/app/data';
+}
+function getStateFile() {
+    return `${getStateDir()}/state.json`;
+}
 
 /**
  * Ensure state directory exists
  */
 async function ensureStateDir() {
     try {
-        await fs.mkdir(STATE_DIR, { recursive: true });
+        await fs.mkdir(getStateDir(), { recursive: true });
     } catch (error) {
         console.error('[Persistence] Erro ao criar diretório de estado:', error.message);
     }
@@ -27,7 +31,7 @@ async function ensureStateDir() {
 export async function loadState() {
     try {
         await ensureStateDir();
-        const data = await fs.readFile(STATE_FILE, 'utf-8');
+        const data = await fs.readFile(getStateFile(), 'utf-8');
         const state = JSON.parse(data);
         const snapshotCount = state.matchSnapshots ? Object.keys(state.matchSnapshots).length : 0;
         console.log(`[Persistence] Estado carregado: ${state.postedEventIds?.length || 0} eventos, ${snapshotCount} snapshots`);
@@ -66,9 +70,9 @@ export async function saveState(postedEventIds, matchSnapshots = null) {
         };
 
         // Write to temp file first, then rename for atomic write
-        const tempFile = `${STATE_FILE}.tmp`;
+        const tempFile = `${getStateFile()}.tmp`;
         await fs.writeFile(tempFile, JSON.stringify(state, null, 2), 'utf-8');
-        await fs.rename(tempFile, STATE_FILE);
+        await fs.rename(tempFile, getStateFile());
 
         const snapshotCount = Object.keys(snapshotObj).length;
         console.log(`[Persistence] Estado salvo: ${state.postedEventIds.length} eventos, ${snapshotCount} snapshots`);
@@ -85,7 +89,7 @@ export async function saveState(postedEventIds, matchSnapshots = null) {
  */
 export async function getStateStats() {
     try {
-        const stats = await fs.stat(STATE_FILE);
+        const stats = await fs.stat(getStateFile());
         return {
             exists: true,
             size: stats.size,

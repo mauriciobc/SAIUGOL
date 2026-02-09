@@ -121,3 +121,37 @@ export async function verifyCredentials() {
         return false;
     }
 }
+
+/**
+ * Get current account id (for scripts)
+ * @returns {Promise<string|null>} Account id or null
+ */
+export async function getAccountId() {
+    try {
+        const mastodon = getClient();
+        const response = await mastodon.verifyAccountCredentials();
+        return response.data?.id ?? null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Get statuses posted by the account
+ * @param {string} accountId - Account ID
+ * @param {Object} options - { limit?: number, max_id?: string }
+ * @returns {Promise<Array>} Array of status objects
+ */
+export async function getAccountStatuses(accountId, options = {}) {
+    try {
+        const mastodon = getClient();
+        const response = await mastodon.getAccountStatuses(accountId, {
+            limit: options.limit ?? 40,
+            max_id: options.max_id,
+        });
+        return response.data || [];
+    } catch (error) {
+        mastodonLogger.error({ error: error.message }, 'Erro ao buscar statuses');
+        return [];
+    }
+}

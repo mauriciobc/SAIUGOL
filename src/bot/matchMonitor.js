@@ -77,9 +77,18 @@ export async function poll() {
 
             for (const match of matches) {
                 const snap = newSnapshotMap.get(String(match.id));
-                if (snap?.status === 'in' && isMatchActive(match.id)) {
-                    await pollMatchEvents(match.id, league);
+                if (snap?.status !== 'in') continue;
+
+                // Catch-up: partida já ao vivo mas não estava no set ativo (ex.: bot iniciou com jogo em andamento)
+                if (!isMatchActive(match.id)) {
+                    const details = await getMatchDetails(match.id, league.code);
+                    if (details) {
+                        details.league = league;
+                        addActiveMatch(match.id, details);
+                        console.log(`[MatchMonitor] Partida já em andamento adicionada: ${match.id} (${league.name})`);
+                    }
                 }
+                await pollMatchEvents(match.id, league);
             }
         } catch (error) {
             console.error(`[MatchMonitor] Erro no poll da liga ${league.name}:`, error.message);

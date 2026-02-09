@@ -104,31 +104,37 @@ export function getLeagueId(id = undefined) {
     return cachedLeagueId;
 }
 
+/** Normalize match id so Map lookups work whether callers pass string or number. */
+function mid(matchId) {
+    return matchId != null ? String(matchId) : '';
+}
+
 /**
  * Check if a match is being monitored
- * @param {number} matchId - Match ID
+ * @param {number|string} matchId - Match ID
  * @returns {boolean}
  */
 export function isMatchActive(matchId) {
-    return activeMatches.has(matchId);
+    return activeMatches.has(mid(matchId));
 }
 
 /**
  * Add a match to active monitoring
- * @param {number} matchId - Match ID
+ * @param {number|string} matchId - Match ID
  * @param {Object} matchData - Match details
  */
 export function addActiveMatch(matchId, matchData) {
-    activeMatches.set(matchId, matchData);
-    console.log(`[State] Partida ${matchId} adicionada ao monitoramento`);
+    const key = mid(matchId);
+    activeMatches.set(key, matchData);
+    console.log(`[State] Partida ${key} adicionada ao monitoramento`);
 }
 
 /**
  * Remove a match from active monitoring
- * @param {number} matchId - Match ID
+ * @param {number|string} matchId - Match ID
  */
 export function removeActiveMatch(matchId) {
-    activeMatches.delete(matchId);
+    activeMatches.delete(mid(matchId));
     console.log(`[State] Partida ${matchId} removida do monitoramento`);
 }
 
@@ -159,29 +165,29 @@ export function markEventPosted(eventId) {
 
 /**
  * Get the last known score for a match
- * @param {number} matchId - Match ID
+ * @param {number|string} matchId - Match ID
  * @returns {Object|null} { home: number, away: number } or null
  */
 export function getLastScore(matchId) {
-    return lastScores.get(matchId) || null;
+    return lastScores.get(mid(matchId)) || null;
 }
 
 /**
  * Update the last known score for a match
- * @param {number} matchId - Match ID
+ * @param {number|string} matchId - Match ID
  * @param {number} home - Home team score
  * @param {number} away - Away team score
  */
 export function updateLastScore(matchId, home, away) {
-    lastScores.set(matchId, { home, away });
+    lastScores.set(mid(matchId), { home, away });
 }
 
 /**
  * Clean up posted event IDs for a finished match
- * @param {number} matchId - Match ID
+ * @param {number|string} matchId - Match ID
  */
 function cleanupMatchEvents(matchId) {
-    const prefix = `${matchId}-`;
+    const prefix = `${mid(matchId)}-`;
     let cleanedCount = 0;
 
     for (const eventId of postedEventIds) {
@@ -198,11 +204,12 @@ function cleanupMatchEvents(matchId) {
 
 /**
  * Clear all state for a match when it ends
- * @param {number} matchId - Match ID
+ * @param {number|string} matchId - Match ID
  */
 export function clearMatchState(matchId) {
-    activeMatches.delete(matchId);
-    lastScores.delete(matchId);
+    const key = mid(matchId);
+    activeMatches.delete(key);
+    lastScores.delete(key);
     cleanupMatchEvents(matchId);
 }
 

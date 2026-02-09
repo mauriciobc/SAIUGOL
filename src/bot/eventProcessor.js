@@ -13,6 +13,7 @@ import {
     formatSubstitution,
     formatVAR,
     formatMatchStart,
+    formatSecondHalfStart,
     formatMatchEnd,
     formatHighlights,
 } from './formatter.js';
@@ -26,6 +27,7 @@ const EVENT_TYPES = {
     RED_CARD: ['red card', 'redcard', 'second yellow'],
     SUBSTITUTION: ['substitution', 'sub'],
     VAR: ['var', 'video assistant referee'],
+    SECOND_HALF_START: ['start 2nd half', 'second half', '2nd half'],
     MATCH_START: ['kickoff', 'kick off', 'match start'],
     MATCH_END: ['full time', 'fulltime', 'match end'],
     HALF_TIME: ['half time', 'halftime'],
@@ -80,6 +82,7 @@ function shouldPostEvent(category) {
             return config.events.substitutions;
         case 'VAR':
             return config.events.varReviews;
+        case 'SECOND_HALF_START':
         case 'MATCH_START':
             return config.events.matchStart;
         case 'MATCH_END':
@@ -161,6 +164,8 @@ function formatEventPost(category, event, match, options = {}) {
             return formatVAR(event, match);
         case 'MATCH_START':
             return formatMatchStart(match);
+        case 'SECOND_HALF_START':
+            return formatSecondHalfStart(match, event);
         case 'MATCH_END':
             return formatMatchEnd(match);
         default:

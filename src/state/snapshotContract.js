@@ -23,7 +23,11 @@
  */
 
 const STATUS_PRE = ['scheduled', 'not started', 'tbd', 'pre'];
-const STATUS_IN = ['live', 'in play', '1h', '2h', 'ht', 'et', 'bt', 'pt', 'in'];
+// ESPN soccer uses "1st Half", "2nd Half", "Halftime" in status.type.name/description
+const STATUS_IN = [
+    'live', 'in play', '1h', '2h', 'ht', 'et', 'bt', 'pt', 'in',
+    'half', '1st', '2nd', 'halftime', 'first', 'second', 'progress',
+];
 const STATUS_POST = ['finished', 'ft', 'aet', 'pen', 'post'];
 
 /**

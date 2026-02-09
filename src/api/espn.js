@@ -267,6 +267,40 @@ export async function getMatchDetails(matchId, leagueCode) {
 }
 
 /**
+ * Get display name from a participant/athlete object (ESPN structure may vary by league).
+ * @param {Object} participant - Raw participant from keyEvents[].participants[i]
+ * @returns {string|undefined}
+ */
+function getParticipantDisplayName(participant) {
+    const athlete = participant?.athlete;
+    if (!athlete) return undefined;
+    return athlete.displayName || athlete.shortDisplayName || athlete.fullName;
+}
+
+/**
+ * Parse player in/out names from substitution description text.
+ * Supports English and other common formats (e.g. Italian "X sostituisce Y").
+ * @param {string} text - Event description
+ * @returns {{ playerIn: string, playerOut: string }|null}
+ */
+function parseSubstitutionFromText(text) {
+    if (!text || typeof text !== 'string') return null;
+    const namePart = '[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\\s\'-]+?';
+    const patterns = [
+        { re: new RegExp(`(${namePart}) replaces (${namePart})\\.`), playerIn: 1, playerOut: 2 },
+        { re: new RegExp(`(${namePart}) on for (${namePart})\\.`), playerIn: 1, playerOut: 2 },
+        { re: new RegExp(`(${namePart}) sostituisce (${namePart})\\.`), playerIn: 1, playerOut: 2 },
+        { re: new RegExp(`(${namePart}) in per (${namePart})\\.`), playerIn: 1, playerOut: 2 },
+        { re: new RegExp(`(${namePart}) for (${namePart})\\.`), playerIn: 1, playerOut: 2 },
+    ];
+    for (const { re, playerIn: i, playerOut: o } of patterns) {
+        const m = text.match(re);
+        if (m) return { playerIn: m[i].trim(), playerOut: m[o].trim() };
+    }
+    return null;
+}
+
+/**
  * Get live events for a match (goals, cards, etc.)
  * @param {string} matchId - The match ID
  * @param {string} leagueCode - The league code
@@ -295,20 +329,40 @@ export async function getLiveEvents(matchId, leagueCode) {
                 const response = await httpClient.get(url);
                 const latencyMs = Date.now() - startTime;
                 recordEspnRequest(true, latencyMs, false);
-                const keyEvents = response.data?.keyEvents || [];
+                const raw = response.data?.keyEvents;
+                const keyEvents = Array.isArray(raw) ? raw : [];
 
                 if (DEBUG_API) {
                     espnLogger.debug({ matchId, eventCount: keyEvents.length }, 'Live events response');
                 }
 
-                return keyEvents.map(event => ({
-                    id: event.id,
-                    type: event.type?.text?.toLowerCase() || 'event',
-                    minute: event.clock?.displayValue || "0'",
-                    teamId: event.team?.id,
-                    description: event.text,
-                    player: event.participants?.[0]?.athlete?.displayName,
-                }));
+                return keyEvents.map(event => {
+                    const type = event.type?.text?.toLowerCase() || 'event';
+                    const description = event.text;
+                    const p0Name = getParticipantDisplayName(event.participants?.[0]);
+                    const p1Name = getParticipantDisplayName(event.participants?.[1]);
+                    const base = {
+                        id: event.id,
+                        type,
+                        minute: event.clock?.displayValue || "0'",
+                        teamId: event.team?.id,
+                        description,
+                        player: p0Name,
+                    };
+                    if (type.includes('substitution') || type.includes('sub')) {
+                        if (p0Name && p1Name) {
+                            base.playerIn = { name: p0Name };
+                            base.playerOut = { name: p1Name };
+                        } else {
+                            const parsed = parseSubstitutionFromText(description);
+                            if (parsed) {
+                                base.playerIn = { name: parsed.playerIn };
+                                base.playerOut = { name: parsed.playerOut };
+                            }
+                        }
+                    }
+                    return base;
+                });
             } catch (error) {
                 const latencyMs = Date.now() - startTime;
                 recordEspnRequest(false, latencyMs, false);

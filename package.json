@@ -8,7 +8,8 @@
         "start": "node src/index.js",
         "dev": "node --watch src/index.js",
         "test": "node --test tests/**/*.test.js",
-        "test:post": "node src/test-post.js"
+        "test:post": "node src/test-post.js",
+        "repost-game": "node scripts/repost-game-toots.js"
     },
     "keywords": [
         "mastodon",

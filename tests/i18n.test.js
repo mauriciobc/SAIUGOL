@@ -85,7 +85,7 @@ describe('Translation Service', () => {
 });
 
 describe('Formatter Integration', async () => {
-    const { formatGoal, formatCard, formatSubstitution, formatMatchStart, formatMatchEnd } =
+    const { formatGoal, formatCard, formatSubstitution, formatVAR, formatHighlights, formatMatchStart, formatMatchEnd } =
         await import('../src/bot/formatter.js');
 
     initI18n('pt-BR');
@@ -155,6 +155,20 @@ describe('Formatter Integration', async () => {
         assert.ok(result.includes('Sai: Gabigol'));
     });
 
+    it('should parse substitution names from description when playerIn/playerOut missing', () => {
+        const event = {
+            minute: "59'",
+            description: 'Rafael Tolói sostituisce Berat Djimsiti.'
+        };
+
+        const result = formatSubstitution(event, mockMatch);
+
+        assert.ok(result.includes('🔄 SUBSTITUIÇÃO'));
+        assert.ok(result.includes('Rafael Tolói'), 'player in from Italian "sostituisce"');
+        assert.ok(result.includes('Berat Djimsiti'), 'player out from description');
+        assert.ok(!result.includes('Jogador desconhecido'));
+    });
+
     it('should format match start with Portuguese text', () => {
         const result = formatMatchStart(mockMatch);
 
@@ -180,5 +194,32 @@ describe('Formatter Integration', async () => {
         const result = formatGoal(event, mockMatch);
 
         assert.ok(result.includes('Jogador desconhecido'));
+    });
+
+    it('should format VAR event with Portuguese text', () => {
+        const event = {
+            minute: "70'",
+            decision: 'Penalty confirmed'
+        };
+
+        const result = formatVAR(event, mockMatch);
+
+        assert.ok(result.includes('VAR'));
+        assert.ok(result.includes('Flamengo'));
+        assert.ok(result.includes('Penalty confirmed'));
+    });
+
+    it('should format highlights with links', () => {
+        const highlights = [
+            { title: 'Gol', url: 'https://example.com/1' },
+            { title: 'Pênalti', embedUrl: 'https://example.com/2' },
+        ];
+
+        const result = formatHighlights(mockMatch, highlights);
+
+        assert.ok(result.includes('Flamengo'));
+        assert.ok(result.includes('Gol'));
+        assert.ok(result.includes('https://example.com/1'));
+        assert.ok(result.includes('https://example.com/2'));
     });
 });

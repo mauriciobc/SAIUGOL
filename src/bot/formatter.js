@@ -46,7 +46,6 @@ export function formatGoal(event, match, options = {}) {
 export function formatCard(event, match, options = {}) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
     const isRed = event.type?.toLowerCase().includes('red');
-    const emoji = isRed ? '🟥' : '🟨';
     const cardType = isRed
         ? translate('ui.red_card_announcement')
         : translate('ui.yellow_card_announcement');
@@ -58,7 +57,7 @@ export function formatCard(event, match, options = {}) {
     if (isRed && options.isFavoriteTeam) {
         text += '⚫🔴 Cartão vermelho - Galo!\n\n';
     }
-    text += `${emoji} ${cardType}\n\n`;
+    text += `${cardType}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
     text += `⏱️ ${minute}'\n`;
     text += `👤 ${player}`;
@@ -73,6 +72,29 @@ export function formatCard(event, match, options = {}) {
 }
 
 /**
+ * Parse player in/out from substitution description.
+ * Supports English ("X replaces Y." / "X on for Y.") and others (e.g. Italian "X sostituisce Y.").
+ * @param {string} text
+ * @returns {{ playerIn: string, playerOut: string }|null}
+ */
+function parseSubstitutionFromDescription(text) {
+    if (!text || typeof text !== 'string') return null;
+    const namePart = '[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\\s\'-]+?';
+    const patterns = [
+        new RegExp(`(${namePart}) replaces (${namePart})\\.`),
+        new RegExp(`(${namePart}) on for (${namePart})\\.`),
+        new RegExp(`(${namePart}) sostituisce (${namePart})\\.`),
+        new RegExp(`(${namePart}) in per (${namePart})\\.`),
+        new RegExp(`(${namePart}) for (${namePart})\\.`),
+    ];
+    for (const re of patterns) {
+        const m = text.match(re);
+        if (m) return { playerIn: m[1].trim(), playerOut: m[2].trim() };
+    }
+    return null;
+}
+
+/**
  * Format a substitution event as a Mastodon post
  * @param {Object} event - Substitution event data
  * @param {Object} match - Match data
@@ -80,8 +102,18 @@ export function formatCard(event, match, options = {}) {
  */
 export function formatSubstitution(event, match) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
-    const playerIn = event.playerIn?.name || translate('common.unknown_player');
-    const playerOut = event.playerOut?.name || translate('common.unknown_player');
+    let playerIn = event.playerIn?.name;
+    let playerOut = event.playerOut?.name;
+    if (!playerIn || !playerOut) {
+        const description = event.description ?? event.text ?? '';
+        const parsed = parseSubstitutionFromDescription(description);
+        if (parsed) {
+            playerIn = playerIn || parsed.playerIn;
+            playerOut = playerOut || parsed.playerOut;
+        }
+    }
+    playerIn = playerIn || translate('common.unknown_player');
+    playerOut = playerOut || translate('common.unknown_player');
     const minute = event.minute || '?';
 
     let text = `${translate('ui.substitution_announcement')}\n\n`;
@@ -131,6 +163,24 @@ export function formatMatchStart(match) {
         text += `📍 ${venue}\n`;
     }
 
+    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
+ * Format second half start announcement
+ * @param {Object} match - Match data
+ * @param {Object} event - Event data (optional, for minute)
+ * @returns {string} Formatted post text
+ */
+export function formatSecondHalfStart(match, event = {}) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const minute = event.minute || "46'";
+
+    let text = `${translate('ui.second_half_start')}\n\n`;
+    text += `🏟️ ${homeTeam.name} ${homeScore ?? 0} x ${awayScore ?? 0} ${awayTeam.name}\n`;
+    text += `⏱️ ${minute}\n`;
     text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
