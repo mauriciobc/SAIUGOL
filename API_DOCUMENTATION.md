@@ -470,6 +470,7 @@ The bot implements a circuit breaker pattern to prevent cascade failures when ex
 | `RETRY_INITIAL_DELAY_MS` | 1000 | Initial retry delay |
 | `RETRY_MAX_DELAY_MS` | 10000 | Maximum retry delay |
 | `REQUEST_TIMEOUT_MS` | 10000 | HTTP request timeout in ms |
+| `TIMEZONE` | UTC | IANA timezone for scoreboard date (e.g. `America/Sao_Paulo`). Use league local time to match ESPN API; recommended for Brasileirão. |
 | `LOG_LEVEL` | `info` | Logging level |
 | `DEBUG_API` | `false` | Enable API debugging |
 

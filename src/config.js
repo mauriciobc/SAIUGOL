@@ -34,6 +34,23 @@ function resolveAccessToken() {
 }
 
 /**
+ * Resolve and validate timezone from env (TIMEZONE or TZ).
+ * Falls back to UTC if unset, empty, or invalid IANA string.
+ * @returns {string} Valid IANA timezone (e.g. 'America/Sao_Paulo')
+ */
+function resolveTimezone() {
+    const raw = (process.env.TIMEZONE || process.env.TZ || 'UTC').trim();
+    if (!raw) return 'UTC';
+    try {
+        Intl.DateTimeFormat(undefined, { timeZone: raw });
+        return raw;
+    } catch {
+        console.warn(`Invalid TIMEZONE "${raw}", falling back to UTC`);
+        return 'UTC';
+    }
+}
+
+/**
  * Parse and validate a numeric environment variable
  * @param {string} value - The raw environment value
  * @param {number} defaultValue - Default value if parsing fails
@@ -119,6 +136,7 @@ if (configErrors.length > 0) {
 validateConfig();
 
 export const config = {
+    timezone: resolveTimezone(),
     mastodon: {
         instance: process.env.MASTODON_INSTANCE || 'https://mastodon.social',
         accessToken: resolvedToken,

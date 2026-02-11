@@ -31,11 +31,14 @@ const eventsCache = new NodeCache({ stdTTL: config.cache.eventsTtlMs / 1000 });
 const highlightsCache = new NodeCache({ stdTTL: config.cache.highlightsTtlMs / 1000 });
 
 function getTodayDateString() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}${month}${day}`;
+    const tz = config.timezone || 'UTC';
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: tz,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
+    return formatter.format(new Date()).replace(/-/g, '');
 }
 
 /**
