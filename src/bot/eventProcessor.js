@@ -154,9 +154,13 @@ export async function processEvents(events, match) {
         );
     }
 
-    const postable = withIds.filter(
-        ({ eventId, category }) => !isEventPosted(eventId) && category && shouldPostEvent(category)
-    );
+    // MATCH_START pode ser postado por dois caminhos: action match_start (ID {matchId}-match-start)
+    // ou evento kickoff da API (ID {matchId}-{event.id}). Evitar duplicata tratando o ID sintético.
+    const postable = withIds.filter(({ eventId, category }) => {
+        if (isEventPosted(eventId)) return false;
+        if (category === 'MATCH_START' && isEventPosted(`${match.id}-match-start`)) return false;
+        return category && shouldPostEvent(category);
+    });
 
     if (postable.length === 0 && events.length > 0) {
         const alreadyPosted = withIds.filter(({ eventId }) => isEventPosted(eventId)).length;
