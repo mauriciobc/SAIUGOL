@@ -31,13 +31,25 @@ const eventsCache = new NodeCache({ stdTTL: config.cache.eventsTtlMs / 1000 });
 const highlightsCache = new NodeCache({ stdTTL: config.cache.highlightsTtlMs / 1000 });
 
 function getTodayDateString() {
-    const tz = config.timezone || 'UTC';
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-        timeZone: tz,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    });
+    let tz = config.timezone || 'UTC';
+    let formatter;
+    try {
+        formatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone: tz,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        });
+    } catch (err) {
+        espnLogger.warn({ timezone: tz, error: err.message }, 'Invalid timezone, falling back to UTC');
+        tz = 'UTC';
+        formatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone: tz,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        });
+    }
     return formatter.format(new Date()).replace(/-/g, '');
 }
 
