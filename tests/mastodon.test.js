@@ -44,6 +44,16 @@ describe('Mastodon API', () => {
         assert.strictEqual(result.id, '123');
     });
 
+    test('postStatus should pass inReplyToId as in_reply_to_id for threading', async () => {
+        mockClient.postStatus = async (text, options) => {
+            assert.strictEqual(options.in_reply_to_id, 'parent-status-456');
+            return { data: { id: 'child-789', content: text } };
+        };
+
+        const result = await postStatus('Reply toot', { inReplyToId: 'parent-status-456' });
+        assert.strictEqual(result.id, 'child-789');
+    });
+
     test('postStatus should return null on error', async () => {
         mockClient.postStatus = async () => {
             throw new Error('Network error');

@@ -73,4 +73,21 @@ describe('persistence', () => {
         assert.ok(typeof stats.size === 'number');
         assert.ok(stats.size > 0);
     });
+
+    it('saveState deve gravar e loadState deve restaurar threadLastTootIds', async () => {
+        const postedIds = new Set();
+        const snapshots = new Map();
+        const threadLastTootIds = new Map([
+            ['match1', 'status-id-111'],
+            ['match2', 'status-id-222'],
+        ]);
+
+        const saved = await saveState(postedIds, snapshots, threadLastTootIds);
+        assert.strictEqual(saved, true);
+
+        const loaded = await loadState();
+        assert.ok(typeof loaded.threadLastTootIds === 'object');
+        assert.strictEqual(loaded.threadLastTootIds.match1, 'status-id-111');
+        assert.strictEqual(loaded.threadLastTootIds.match2, 'status-id-222');
+    });
 });

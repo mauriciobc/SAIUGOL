@@ -310,6 +310,8 @@ https://{instance}/api/v1
 
 **Usage in Code:** `src/api/mastodon.js:45` - `postStatus(text, options)`
 
+**Threading:** All toots for a given match (match start, events, final score, highlights) are posted as a single thread: the first toot is the root, each following toot is posted with `in_reply_to_id` set to the previous status id. The last status id per match is stored in state and persisted so the thread continues correctly after restarts.
+
 ---
 
 #### 2.2 Verify Account Credentials
@@ -464,7 +466,7 @@ The bot implements a circuit breaker pattern to prevent cascade failures when ex
 | `POLL_INTERVAL_MS` | 60000 | Match polling interval in milliseconds |
 | `DRY_RUN` | false | If true, don't actually post to Mastodon |
 | `DELAY_BETWEEN_POSTS_MS` | 2000 | Delay between posts |
-| `DELAY_BETWEEN_THREAD_POSTS_MS` | 1000 | Delay between thread posts |
+| `DELAY_BETWEEN_THREAD_POSTS_MS` | 1000 | Delay between thread posts. All toots from the same match are posted as one thread (each reply chained to the previous). |
 | `DELAY_BEFORE_HIGHLIGHTS_MS` | 30000 | Delay before fetching highlights |
 | `RETRY_MAX_ATTEMPTS` | 3 | Maximum retry attempts for failed API calls |
 | `RETRY_INITIAL_DELAY_MS` | 1000 | Initial retry delay |

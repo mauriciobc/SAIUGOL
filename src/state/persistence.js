@@ -26,7 +26,7 @@ async function ensureStateDir() {
 
 /**
  * Load state from disk
- * @returns {Promise<Object>} State object with postedEventIds and matchSnapshots
+ * @returns {Promise<Object>} State object with postedEventIds, matchSnapshots, threadLastTootIds
  */
 export async function loadState() {
     try {
@@ -34,19 +34,21 @@ export async function loadState() {
         const data = await fs.readFile(getStateFile(), 'utf-8');
         const state = JSON.parse(data);
         const snapshotCount = state.matchSnapshots ? Object.keys(state.matchSnapshots).length : 0;
-        console.log(`[Persistence] Estado carregado: ${state.postedEventIds?.length || 0} eventos, ${snapshotCount} snapshots`);
+        const threadCount = state.threadLastTootIds ? Object.keys(state.threadLastTootIds).length : 0;
+        console.log(`[Persistence] Estado carregado: ${state.postedEventIds?.length || 0} eventos, ${snapshotCount} snapshots, ${threadCount} thread last toots`);
         return {
             postedEventIds: new Set(state.postedEventIds || []),
             lastSaveTime: state.lastSaveTime,
             matchSnapshots: state.matchSnapshots || {},
+            threadLastTootIds: state.threadLastTootIds || {},
         };
     } catch (error) {
         if (error.code === 'ENOENT') {
             console.log('[Persistence] Nenhum estado anterior encontrado, iniciando novo');
-            return { postedEventIds: new Set(), matchSnapshots: {} };
+            return { postedEventIds: new Set(), matchSnapshots: {}, threadLastTootIds: {} };
         }
         console.error('[Persistence] Erro ao carregar estado:', error.message);
-        return { postedEventIds: new Set(), matchSnapshots: {} };
+        return { postedEventIds: new Set(), matchSnapshots: {}, threadLastTootIds: {} };
     }
 }
 
@@ -54,19 +56,24 @@ export async function loadState() {
  * Save state to disk
  * @param {Set<string>} postedEventIds - Set of posted event IDs
  * @param {Map<string, import('./snapshotContract.js').MatchSnapshot>} [matchSnapshots] - Snapshot cache (key: leagueCode:matchId)
+ * @param {Map<string, string>|Object} [threadLastTootIds] - Match ID to last toot (status) id for threading
  * @returns {Promise<boolean>} Success status
  */
-export async function saveState(postedEventIds, matchSnapshots = null) {
+export async function saveState(postedEventIds, matchSnapshots = null, threadLastTootIds = null) {
     try {
         await ensureStateDir();
         const snapshotObj = matchSnapshots instanceof Map
             ? Object.fromEntries(matchSnapshots)
             : (matchSnapshots && typeof matchSnapshots === 'object' ? matchSnapshots : {});
+        const threadObj = threadLastTootIds instanceof Map
+            ? Object.fromEntries(threadLastTootIds)
+            : (threadLastTootIds && typeof threadLastTootIds === 'object' ? threadLastTootIds : {});
         const state = {
             postedEventIds: Array.from(postedEventIds),
             lastSaveTime: new Date().toISOString(),
             version: '1.0',
             matchSnapshots: snapshotObj,
+            threadLastTootIds: threadObj,
         };
 
         // Write to temp file first, then rename for atomic write
@@ -75,7 +82,8 @@ export async function saveState(postedEventIds, matchSnapshots = null) {
         await fs.rename(tempFile, getStateFile());
 
         const snapshotCount = Object.keys(snapshotObj).length;
-        console.log(`[Persistence] Estado salvo: ${state.postedEventIds.length} eventos, ${snapshotCount} snapshots`);
+        const threadCount = Object.keys(threadObj).length;
+        console.log(`[Persistence] Estado salvo: ${state.postedEventIds.length} eventos, ${snapshotCount} snapshots, ${threadCount} thread last toots`);
         return true;
     } catch (error) {
         console.error('[Persistence] Erro ao salvar estado:', error.message);

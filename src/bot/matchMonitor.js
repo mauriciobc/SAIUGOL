@@ -9,6 +9,8 @@ import {
     mergePreviousSnapshots,
     isEventPosted,
     markEventPosted,
+    getLastTootId,
+    setLastTootId,
 } from '../state/matchState.js';
 import { matchesToSnapshotMap } from '../state/snapshotContract.js';
 import { computeDiff } from '../state/diffEngine.js';
@@ -62,7 +64,11 @@ export async function poll() {
                         const matchStartEventId = `${matchId}-match-start`;
                         if (!isEventPosted(matchStartEventId) && config.events.matchStart) {
                             const matchData = normalizeMatchData(details);
-                            await postStatus(formatMatchStart(matchData));
+                            const lastId = getLastTootId(matchId);
+                            const result = await postStatus(formatMatchStart(matchData), { inReplyToId: lastId ?? undefined });
+                            if (result?.id && result.id !== 'dry-run') {
+                                setLastTootId(matchId, result.id);
+                            }
                             markEventPosted(matchStartEventId);
                         }
                     }

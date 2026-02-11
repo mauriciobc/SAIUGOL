@@ -6,6 +6,8 @@ import {
     markEventPosted,
     getLastScore,
     updateLastScore,
+    getLastTootId,
+    setLastTootId,
 } from '../state/matchState.js';
 import {
     formatGoal,
@@ -183,9 +185,13 @@ export async function processEvents(events, match) {
         const isFavorite = isFavoriteTeam(event, match);
         const text = formatEventPost(category, event, match, { isFavoriteTeam: isFavorite });
         if (text) {
-            const result = await postStatus(text);
+            const lastId = getLastTootId(match.id);
+            const result = await postStatus(text, { inReplyToId: lastId ?? undefined });
             if (result) {
                 markEventPosted(eventId);
+                if (result.id && result.id !== 'dry-run') {
+                    setLastTootId(match.id, result.id);
+                }
                 postedCount++;
                 console.log(`[EventProcessor] Postado evento ${category} para partida ${match.id}`);
             }
@@ -267,9 +273,13 @@ export async function handleMatchEnd(match) {
         return;
     }
 
-    // Post final score
+    // Post final score (in thread)
     const endText = formatMatchEnd(match);
-    await postStatus(endText);
+    const lastId = getLastTootId(match.id);
+    const endResult = await postStatus(endText, { inReplyToId: lastId ?? undefined });
+    if (endResult?.id && endResult.id !== 'dry-run') {
+        setLastTootId(match.id, endResult.id);
+    }
     markEventPosted(matchEndId);
 
     console.log(`[EventProcessor] Partida ${match.id} finalizada`);
@@ -282,7 +292,11 @@ export async function handleMatchEnd(match) {
         const highlightsId = `${match.id}-highlights`;
         if (!isEventPosted(highlightsId)) {
             const highlightsText = formatHighlights(match, highlights);
-            await postStatus(highlightsText);
+            const highlightsLastId = getLastTootId(match.id);
+            const highlightsResult = await postStatus(highlightsText, { inReplyToId: highlightsLastId ?? undefined });
+            if (highlightsResult?.id && highlightsResult.id !== 'dry-run') {
+                setLastTootId(match.id, highlightsResult.id);
+            }
             markEventPosted(highlightsId);
             console.log(`[EventProcessor] Highlights postados para partida ${match.id}`);
         }

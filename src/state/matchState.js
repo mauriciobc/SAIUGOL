@@ -17,6 +17,9 @@ const postedEventIds = new Set();
 // Last known score per match: Map<matchId, { home: number, away: number }>
 const lastScores = new Map();
 
+// Last Mastodon status id per match (for threading): Map<matchId, statusId>
+const lastTootIdByMatch = new Map();
+
 // Previous snapshot per match for diff: key = "leagueCode:matchId", value = MatchSnapshot
 /** @type {Map<string, import('./snapshotContract.js').MatchSnapshot>} */
 const previousSnapshots = new Map();
@@ -49,6 +52,12 @@ async function initializeState() {
         }
         console.log(`[State] ${previousSnapshots.size} snapshots restaurados`);
     }
+    if (state.threadLastTootIds && typeof state.threadLastTootIds === 'object') {
+        for (const [key, statusId] of Object.entries(state.threadLastTootIds)) {
+            if (key && statusId) lastTootIdByMatch.set(key, statusId);
+        }
+        console.log(`[State] ${lastTootIdByMatch.size} thread last toots restaurados`);
+    }
 
     // Start periodic save timer
     startPeriodicSave();
@@ -73,7 +82,7 @@ function startPeriodicSave() {
  * @returns {Promise<boolean>}
  */
 export async function saveStateNow() {
-    return await persistState(postedEventIds, previousSnapshots);
+    return await persistState(postedEventIds, previousSnapshots, lastTootIdByMatch);
 }
 
 /**
@@ -87,10 +96,12 @@ export function stopPeriodicSave() {
     }
 }
 
-// Initialize on module load
-initializeState().catch(error => {
-    console.error('[State] Erro na inicialização:', error.message);
-});
+// Initialize on module load (skip in test to avoid pending promise / timer)
+if (process.env.NODE_ENV !== 'test') {
+    initializeState().catch(error => {
+        console.error('[State] Erro na inicialização:', error.message);
+    });
+}
 
 /**
  * Get or set the cached league ID
@@ -167,6 +178,24 @@ export function markEventPosted(eventId) {
 }
 
 /**
+ * Get the last posted toot (status) id for a match (for threading)
+ * @param {number|string} matchId - Match ID
+ * @returns {string|null} Mastodon status id or null
+ */
+export function getLastTootId(matchId) {
+    return lastTootIdByMatch.get(mid(matchId)) ?? null;
+}
+
+/**
+ * Set the last posted toot id for a match (after posting)
+ * @param {number|string} matchId - Match ID
+ * @param {string} statusId - Mastodon status id
+ */
+export function setLastTootId(matchId, statusId) {
+    lastTootIdByMatch.set(mid(matchId), statusId);
+}
+
+/**
  * Get the last known score for a match
  * @param {number|string} matchId - Match ID
  * @returns {Object|null} { home: number, away: number } or null
@@ -213,6 +242,7 @@ export function clearMatchState(matchId) {
     const key = mid(matchId);
     activeMatches.delete(key);
     lastScores.delete(key);
+    lastTootIdByMatch.delete(key);
     cleanupMatchEvents(matchId);
 }
 
