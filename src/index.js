@@ -11,6 +11,7 @@ import { initI18n } from './services/i18n.js';
  */
 async function main() {
     logger.info('Iniciando SAIUGOL Bot');
+    logger.info({ timezone: config.timezone }, 'Timezone configurado');
 
     // Initialize translation system
     initI18n(config.i18n.defaultLanguage);
