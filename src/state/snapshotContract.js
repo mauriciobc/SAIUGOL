@@ -78,6 +78,11 @@ function matchesStatus(tokens, name, state, statusKeywords) {
 export function normalizeStatus(espnStatusName = '', espnState = '') {
     const name = String(espnStatusName).toLowerCase().trim();
     const state = String(espnState).toLowerCase().trim();
+
+    // ESPN API uses status.type.state as canonical: "pre" | "in" | "post"
+    if (state === 'post') return 'post';
+    if (state === 'in') return 'in';
+
     const tokens = [...new Set([...getTokens(name), ...getTokens(state)])];
 
     if (matchesStatus(tokens, name, state, STATUS_POST)) {
