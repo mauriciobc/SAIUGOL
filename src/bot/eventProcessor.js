@@ -23,16 +23,22 @@ import {
  * Event type constants
  */
 const EVENT_TYPES = {
-    GOAL: ['goal', 'penalty', 'own goal'],
-    YELLOW_CARD: ['yellow card', 'yellowcard'],
-    RED_CARD: ['red card', 'redcard', 'second yellow'],
-    SUBSTITUTION: ['substitution', 'sub'],
+    GOAL: ['goal', 'gol', 'penalty', 'own goal', 'goal - header', 'gol de cabeça', 'penalty - scored', 'pênalti convertido'],
+    YELLOW_CARD: ['yellow card', 'yellowcard', 'cartão amarelo'],
+    RED_CARD: ['red card', 'redcard', 'second yellow', 'cartão vermelho'],
+    SUBSTITUTION: ['substitution', 'sub', 'substituição'],
     VAR: ['var', 'video assistant referee'],
-    SECOND_HALF_START: ['start 2nd half', 'second half', '2nd half'],
-    MATCH_START: ['kickoff', 'kick off', 'match start'],
-    MATCH_END: ['full time', 'fulltime', 'match end'],
-    HALF_TIME: ['half time', 'halftime'],
+    SECOND_HALF_START: ['start 2nd half', 'second half', '2nd half', 'começo do 2º tempo'],
+    MATCH_START: ['kickoff', 'kick off', 'match start', 'começo'],
+    MATCH_END: ['full time', 'fulltime', 'match end', 'fim de jogo'],
+    HALF_TIME: ['half time', 'halftime', 'meio tempo'],
 };
+
+/** Type substrings that mean the goal was disallowed/overturned — do not post as goal. */
+const DISALLOWED_GOAL_KEYWORDS = [
+    'disallowed', 'no goal', 'ruled out', 'overturned', 'not given', 'chalked off',
+    'annulado', 'não vale', 'cancelado', 'impedimento',
+];
 
 /**
  * Determine the event category from event type string
@@ -45,6 +51,9 @@ function categorizeEvent(type) {
 
     for (const [category, keywords] of Object.entries(EVENT_TYPES)) {
         if (keywords.some((kw) => lowerType.includes(kw))) {
+            if (category === 'GOAL' && DISALLOWED_GOAL_KEYWORDS.some((kw) => lowerType.includes(kw))) {
+                return null;
+            }
             return category;
         }
     }

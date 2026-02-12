@@ -144,6 +144,8 @@ export const config = {
     // ESPN API configuration
     espn: {
         baseUrl: 'https://site.api.espn.com/apis/site/v2/sports/soccer',
+        /** Use Brazilian Portuguese event descriptions (site.web.api.espn.com with lang=pt&region=br) */
+        usePortugueseDescriptions: process.env.ESPN_USE_PT_DESCRIPTIONS === 'true',
         requestTimeoutMs: 10000, // Request timeout
     },
     // Active leagues to monitor

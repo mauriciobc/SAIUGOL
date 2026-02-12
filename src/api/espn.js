@@ -6,6 +6,8 @@ import { espnLogger } from '../utils/logger.js';
 import { recordEspnRequest } from '../utils/metrics.js';
 
 const BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
+/** Web API with lang/region support (e.g. lang=pt&region=br for Brazilian Portuguese) */
+const WEB_BASE_URL = 'https://site.web.api.espn.com/apis/site/v2/sports/soccer';
 const CDN_URL = 'https://cdn.espn.com/core/soccer';
 const DEBUG_API = process.env.DEBUG_API === 'true';
 
@@ -29,6 +31,13 @@ const scoreboardCache = new NodeCache({ stdTTL: config.cache.scoreboardTtlMs / 1
 const detailsCache = new NodeCache({ stdTTL: config.cache.detailsTtlMs / 1000 });
 const eventsCache = new NodeCache({ stdTTL: config.cache.eventsTtlMs / 1000 });
 const highlightsCache = new NodeCache({ stdTTL: config.cache.highlightsTtlMs / 1000 });
+
+/** Base URL for summary when usePortugueseDescriptions: web API with lang=pt&region=br. */
+function getSummaryUrl(leagueCode, matchId) {
+    const base = config.espn.usePortugueseDescriptions ? WEB_BASE_URL : BASE_URL;
+    const qs = config.espn.usePortugueseDescriptions ? '&lang=pt&region=br' : '';
+    return `${base}/${leagueCode}/summary?event=${matchId}${qs}`;
+}
 
 function getTodayDateString() {
     let tz = config.timezone || 'UTC';
@@ -212,7 +221,7 @@ export async function getMatchDetails(matchId, leagueCode) {
     return await retryWithBackoff(
         async () => {
             try {
-                const url = `${BASE_URL}/${leagueCode}/summary?event=${matchId}`;
+                const url = getSummaryUrl(leagueCode, matchId);
                 if (DEBUG_API) {
                     espnLogger.debug({ url }, 'ESPN API request');
                 }
@@ -302,6 +311,8 @@ function parseSubstitutionFromText(text) {
     if (!text || typeof text !== 'string') return null;
     const namePart = '[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\\s\'-]+?';
     const patterns = [
+        { re: /entra em campo\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'-]+?)\s+substituindo\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'-]+?)\./, playerIn: 1, playerOut: 2 },
+        { re: new RegExp(`(${namePart}) replaces (${namePart})(?:\s+because|\\.)`), playerIn: 1, playerOut: 2 },
         { re: new RegExp(`(${namePart}) replaces (${namePart})\\.`), playerIn: 1, playerOut: 2 },
         { re: new RegExp(`(${namePart}) on for (${namePart})\\.`), playerIn: 1, playerOut: 2 },
         { re: new RegExp(`(${namePart}) sostituisce (${namePart})\\.`), playerIn: 1, playerOut: 2 },
@@ -313,6 +324,18 @@ function parseSubstitutionFromText(text) {
         if (m) return { playerIn: m[i].trim(), playerOut: m[o].trim() };
     }
     return null;
+}
+
+/**
+ * Parse scorer name from goal description.
+ * ESPN format: "Goal! TeamA N, TeamB M. Scorer Name (Team) right footed shot..."
+ * @param {string} text - Event description
+ * @returns {string|null} Scorer name or null
+ */
+function parseScorerFromGoalDescription(text) {
+    if (!text || typeof text !== 'string') return null;
+    const m = text.match(/(?:Goal|Gol)![^.]+\.\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'-]+?)\s*\(/);
+    return m ? m[1].trim() : null;
 }
 
 /**
@@ -337,7 +360,7 @@ export async function getLiveEvents(matchId, leagueCode) {
     return await retryWithBackoff(
         async () => {
             try {
-                const url = `${BASE_URL}/${leagueCode}/summary?event=${matchId}`;
+                const url = getSummaryUrl(leagueCode, matchId);
                 if (DEBUG_API) {
                     espnLogger.debug({ url }, 'ESPN API request');
                 }
@@ -364,16 +387,20 @@ export async function getLiveEvents(matchId, leagueCode) {
                         description,
                         player: p0Name != null ? { name: p0Name } : undefined,
                     };
-                    if (type.includes('substitution') || type.includes('sub')) {
-                        if (p0Name && p1Name) {
+                    if (type.includes('substitution') || type.includes('sub') || type.includes('substituição')) {
+                        const parsed = parseSubstitutionFromText(description);
+                        if (parsed) {
+                            base.playerIn = { name: parsed.playerIn };
+                            base.playerOut = { name: parsed.playerOut };
+                            base.player = { name: parsed.playerIn };
+                        } else if (p0Name && p1Name) {
                             base.playerIn = { name: p0Name };
                             base.playerOut = { name: p1Name };
-                        } else {
-                            const parsed = parseSubstitutionFromText(description);
-                            if (parsed) {
-                                base.playerIn = { name: parsed.playerIn };
-                                base.playerOut = { name: parsed.playerOut };
-                            }
+                        }
+                    } else if (type.includes('goal') || type.includes('gol') || type.includes('penalty') || type.includes('pênalti')) {
+                        const scorerFromText = parseScorerFromGoalDescription(description);
+                        if (scorerFromText) {
+                            base.player = { name: scorerFromText };
                         }
                     }
                     return base;
@@ -428,7 +455,7 @@ export async function getHighlights(matchId, leagueCode) {
     return await retryWithBackoff(
         async () => {
             try {
-                const url = `${BASE_URL}/${leagueCode}/summary?event=${matchId}`;
+                const url = getSummaryUrl(leagueCode, matchId);
                 if (DEBUG_API) {
                     espnLogger.debug({ url }, 'ESPN API request');
                 }

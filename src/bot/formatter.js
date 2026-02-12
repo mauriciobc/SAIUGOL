@@ -13,6 +13,12 @@ function displayMinute(value) {
     return raw || '?';
 }
 
+/** Raw event description from API (PT or EN) for inclusion in toot body. */
+function eventDescription(event) {
+    const d = event?.description ?? event?.text ?? '';
+    return typeof d === 'string' ? d.trim() : '';
+}
+
 /**
  * Format a goal event as a Mastodon post
  * @param {Object} event - Goal event data
@@ -25,7 +31,8 @@ export function formatGoal(event, match, options = {}) {
     const scorer = playerName(event.player) || translate('common.unknown_player');
     const assist = playerName(event.assist);
     const minute = displayMinute(event.minute);
-    const isOwnGoal = event.type?.toLowerCase().includes('own');
+    const typeLower = event.type?.toLowerCase() ?? '';
+    const isOwnGoal = typeLower.includes('own') || typeLower.includes('autogol') || typeLower.includes('gol contra');
 
     let text = '';
     if (options.isFavoriteTeam) {
@@ -43,6 +50,9 @@ export function formatGoal(event, match, options = {}) {
         text += ` (${translate('ui.assist')}: ${assist})`;
     }
 
+    const desc = eventDescription(event);
+    if (desc) text += `\n\n📝 ${desc}`;
+
     text += `\n\n${getTeamHashtag(event.team?.name || homeTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
@@ -57,7 +67,8 @@ export function formatGoal(event, match, options = {}) {
  */
 export function formatCard(event, match, options = {}) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
-    const isRed = event.type?.toLowerCase().includes('red');
+    const typeLower = event.type?.toLowerCase() ?? '';
+    const isRed = typeLower.includes('red') || typeLower.includes('vermelho');
     const cardType = isRed
         ? translate('ui.red_card_announcement')
         : translate('ui.yellow_card_announcement');
@@ -78,6 +89,9 @@ export function formatCard(event, match, options = {}) {
         text += `\n📝 ${reason}`;
     }
 
+    const desc = eventDescription(event);
+    if (desc) text += `\n\n📝 ${desc}`;
+
     text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
@@ -96,6 +110,7 @@ function parseSubstitutionFromDescription(text) {
     // exige contexto de substituição ("on for" / "comes on for") para evitar falsos
     // positivos com "for" solto (ex.: "Assist for X.").
     const patterns = [
+        /entra em campo\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'-]+?)\s+substituindo\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'-]+?)\./,
         new RegExp(`(${namePart}) replaces (${namePart})\\.`),
         new RegExp(`(${namePart}) on for (${namePart})\\.`),
         new RegExp(`(${namePart}) sostituisce (${namePart})\\.`),
@@ -137,6 +152,9 @@ export function formatSubstitution(event, match) {
     text += `⬆️ ${translate('ui.player_in')}: ${playerIn}\n`;
     text += `⬇️ ${translate('ui.player_out')}: ${playerOut}`;
 
+    const desc = eventDescription(event);
+    if (desc) text += `\n\n📝 ${desc}`;
+
     text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
@@ -157,6 +175,9 @@ export function formatVAR(event, match) {
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
     text += `⏱️ ${minute}'\n`;
     text += `📋 ${decision}`;
+
+    const desc = eventDescription(event);
+    if (desc) text += `\n\n📝 ${desc}`;
 
     text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
 
