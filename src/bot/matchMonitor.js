@@ -9,6 +9,7 @@ import {
     mergePreviousSnapshots,
     isEventPosted,
     markEventPosted,
+    isRecoveredActiveKey,
 } from '../state/matchState.js';
 import { matchesToSnapshotMap } from '../state/snapshotContract.js';
 import { computeDiff } from '../state/diffEngine.js';
@@ -37,6 +38,8 @@ export async function poll() {
     }
 
     const allSnapshotEntries = [];
+    /** Timestamps (ms) of scheduled start for matches with status 'pre' and valid startTime (all leagues). */
+    const preMatchStartTimestamps = [];
 
     for (const league of config.activeLeagues) {
         try {
@@ -44,6 +47,14 @@ export async function poll() {
             console.log(`[MatchMonitor] ${matches.length} partidas encontradas para ${league.name}`);
 
             const newSnapshotMap = matchesToSnapshotMap(matches);
+            for (const match of matches) {
+                const matchId = match.id != null ? String(match.id) : '';
+                const snap = newSnapshotMap.get(matchId);
+                if (snap?.status === 'pre' && match.startTime) {
+                    const t = new Date(match.startTime).getTime();
+                    if (!Number.isNaN(t)) preMatchStartTimestamps.push(t);
+                }
+            }
             const { actions, snapshotEntries } = computeDiff(
                 league.code,
                 newSnapshotMap,
@@ -85,13 +96,21 @@ export async function poll() {
                 const snap = newSnapshotMap.get(matchId);
                 if (snap?.status !== 'in') continue;
 
-                // Catch-up: partida já ao vivo mas não estava no set ativo (ex.: bot iniciou com jogo em andamento)
-                if (!isMatchActive(matchId)) {
+                const compositeKey = `${league.code}:${matchId}`;
+                const needCatchUp = !isMatchActive(matchId) || isRecoveredActiveKey(compositeKey);
+                // Catch-up: partida já ao vivo mas não estava no set ativo (ex.: bot reiniciou com jogo em andamento)
+                if (needCatchUp) {
                     const details = await getMatchDetails(matchId, league.code);
                     if (details) {
                         details.league = league;
                         addActiveMatch(matchId, details);
                         console.log(`[MatchMonitor] Partida já em andamento adicionada: ${matchId} (${league.name})`);
+                        const matchStartEventId = `${matchId}-match-start`;
+                        if (!isEventPosted(matchStartEventId) && config.events.matchStart) {
+                            const matchData = normalizeMatchData(details);
+                            await postStatus(formatMatchStart(matchData));
+                            markEventPosted(matchStartEventId);
+                        }
                         const currentEvents = await getLiveEvents(matchId, league.code);
                         if (currentEvents.length > 0) {
                             markExistingEventsAsSeen(matchId, currentEvents);
@@ -109,16 +128,59 @@ export async function poll() {
 
     const hasLive = allSnapshotEntries.some(([, s]) => s.status === 'in');
     const hasPre = allSnapshotEntries.some(([, s]) => s.status === 'pre');
-    const nextIntervalMs = hasLive
-        ? config.bot.pollIntervalLiveMs
-        : hasPre
-            ? config.bot.pollIntervalAlertMs
-            : config.bot.pollIntervalHibernationMs;
+    const nextIntervalMs = computeNextIntervalMs(
+        hasLive,
+        hasPre,
+        preMatchStartTimestamps,
+        Date.now(),
+        config.bot
+    );
 
     const stats = getStateStats();
-    console.log(`[MatchMonitor] Stats: ${stats.activeMatchCount} partidas ativas, ${stats.postedEventCount} eventos postados (próximo poll em ${nextIntervalMs / 1000}s)`);
+    let intervalReason = '';
+    if (hasLive) {
+        intervalReason = ' (ao vivo)';
+    } else if (hasPre && preMatchStartTimestamps.length > 0) {
+        const earliestStart = Math.min(...preMatchStartTimestamps);
+        const wakeAt = earliestStart - config.bot.pollWindowBeforeMatchMs;
+        const wakeInMs = wakeAt - Date.now();
+        if (wakeInMs > 0 && nextIntervalMs === config.bot.pollScheduleRefreshMaxMs) {
+            intervalReason = ' (refresh do schedule)';
+        } else if (wakeInMs > 0) {
+            intervalReason = ' (timeslot antes da partida)';
+        }
+    }
+    console.log(`[MatchMonitor] Stats: ${stats.activeMatchCount} partidas ativas, ${stats.postedEventCount} eventos postados (próximo poll em ${nextIntervalMs / 1000}s${intervalReason})`);
 
     return { nextIntervalMs };
+}
+
+/**
+ * Compute next poll interval from current state (pure, for testing).
+ * @param {boolean} hasLive
+ * @param {boolean} hasPre
+ * @param {number[]} preMatchStartTimestamps - Unix ms of scheduled start for 'pre' matches
+ * @param {number} nowMs - Current time (Unix ms)
+ * @param {{ pollIntervalLiveMs: number, pollIntervalAlertMs: number, pollIntervalHibernationMs: number, pollWindowBeforeMatchMs: number, pollScheduleRefreshMaxMs: number }} botConfig
+ * @returns {number}
+ */
+export function computeNextIntervalMs(hasLive, hasPre, preMatchStartTimestamps, nowMs, botConfig) {
+    if (hasLive) return botConfig.pollIntervalLiveMs;
+    if (hasPre && preMatchStartTimestamps.length > 0) {
+        const earliestStart = Math.min(...preMatchStartTimestamps);
+        const wakeAt = earliestStart - botConfig.pollWindowBeforeMatchMs;
+        const wakeInMs = wakeAt - nowMs;
+        if (wakeInMs > 0) {
+            return Math.min(
+                wakeInMs,
+                botConfig.pollIntervalHibernationMs,
+                botConfig.pollScheduleRefreshMaxMs
+            );
+        }
+        return botConfig.pollIntervalAlertMs;
+    }
+    if (hasPre) return botConfig.pollIntervalAlertMs;
+    return botConfig.pollIntervalHibernationMs;
 }
 
 /**

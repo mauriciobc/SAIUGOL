@@ -58,6 +58,21 @@ describe('persistence', () => {
         assert.strictEqual(loaded.matchSnapshots['league:1'].id, '1');
     });
 
+    it('saveState e loadState devem gravar e restaurar activeMatchKeys', async () => {
+        const postedIds = new Set();
+        const snapshots = new Map();
+        const activeMatchKeys = ['bra.1:123', 'bra.1:456'];
+
+        const saved = await saveState(postedIds, snapshots, activeMatchKeys);
+        assert.strictEqual(saved, true);
+
+        const loaded = await loadState();
+        assert.ok(Array.isArray(loaded.activeMatchKeys));
+        assert.strictEqual(loaded.activeMatchKeys.length, 2);
+        assert.ok(loaded.activeMatchKeys.includes('bra.1:123'));
+        assert.ok(loaded.activeMatchKeys.includes('bra.1:456'));
+    });
+
     it('getStateStats deve retornar exists: false quando arquivo não existe', async () => {
         const stateFile = join(testDir, 'state.json');
         if (existsSync(stateFile)) rmSync(stateFile);

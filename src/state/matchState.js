@@ -21,6 +21,10 @@ const lastScores = new Map();
 /** @type {Map<string, import('./snapshotContract.js').MatchSnapshot>} */
 const previousSnapshots = new Map();
 
+// After restart: keys (leagueCode:matchId) that were live at last save; consumed on first poll
+/** @type {Set<string>} */
+const recoveredActiveKeys = new Set();
+
 // Periodic save timer
 let saveTimer = null;
 
@@ -49,9 +53,15 @@ async function initializeState() {
         }
         console.log(`[State] ${previousSnapshots.size} snapshots restaurados`);
     }
+    if (state.activeMatchKeys && state.activeMatchKeys.length > 0) {
+        state.activeMatchKeys.forEach((k) => recoveredActiveKeys.add(k));
+        console.log(`[State] ${recoveredActiveKeys.size} chaves de partidas ativas restauradas`);
+    }
 
-    // Start periodic save timer
-    startPeriodicSave();
+    // Start periodic save timer (skip in test to avoid keeping process alive)
+    if (process.env.NODE_ENV !== 'test') {
+        startPeriodicSave();
+    }
 }
 
 /**
@@ -73,7 +83,11 @@ function startPeriodicSave() {
  * @returns {Promise<boolean>}
  */
 export async function saveStateNow() {
-    return await persistState(postedEventIds, previousSnapshots);
+    const activeMatchKeys = [];
+    for (const [key, snap] of previousSnapshots) {
+        if (snap && snap.status === 'in') activeMatchKeys.push(key);
+    }
+    return await persistState(postedEventIds, previousSnapshots, activeMatchKeys);
 }
 
 /**
@@ -87,10 +101,25 @@ export function stopPeriodicSave() {
     }
 }
 
-// Initialize on module load
-initializeState().catch(error => {
+// Promise resolved when state is loaded from persistence (used to avoid first poll before load)
+let initPromise = null;
+
+// Start loading on module load; callers must await whenReady() before first poll
+initPromise = initializeState().catch((error) => {
     console.error('[State] Erro na inicialização:', error.message);
+    throw error;
 });
+
+/**
+ * Returns a Promise that resolves when persisted state has been loaded. Must be awaited before
+ * starting monitoring so the first poll sees restored previousSnapshots (avoids race on restart).
+ * @returns {Promise<void>}
+ */
+export function whenReady() {
+    if (initialized) return Promise.resolve();
+    if (!initPromise) initPromise = initializeState();
+    return initPromise;
+}
 
 /**
  * Get or set the cached league ID
@@ -223,6 +252,18 @@ export function clearMatchState(matchId) {
  */
 export function getPreviousSnapshot(compositeKey) {
     return previousSnapshots.get(compositeKey);
+}
+
+/**
+ * True if this composite key was restored as "was live at save"; removes the key so it is only consumed once.
+ * Used by matchMonitor catch-up to treat the match as already live after restart.
+ * @param {string} compositeKey - "leagueCode:matchId"
+ * @returns {boolean}
+ */
+export function isRecoveredActiveKey(compositeKey) {
+    if (!recoveredActiveKeys.has(compositeKey)) return false;
+    recoveredActiveKeys.delete(compositeKey);
+    return true;
 }
 
 /**

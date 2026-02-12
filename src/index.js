@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { config } from './config.js';
 import { verifyCredentials } from './api/mastodon.js';
 import { initialize, startMonitoring } from './bot/matchMonitor.js';
-import { shutdown as shutdownState } from './state/matchState.js';
+import { whenReady, shutdown as shutdownState } from './state/matchState.js';
 import { logger, botLogger } from './utils/logger.js';
 import { initI18n } from './services/i18n.js';
 
@@ -43,6 +43,9 @@ async function main() {
         logger.error('Falha ao inicializar o monitor');
         process.exit(1);
     }
+
+    // Ensure persisted state is loaded before first poll (avoids race on restart)
+    await whenReady();
 
     // Start monitoring
     botLogger.info({

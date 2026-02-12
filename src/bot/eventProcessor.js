@@ -238,7 +238,9 @@ function formatEventPost(category, event, match, options = {}) {
 }
 
 /**
- * Check for score changes and post if there's a new goal
+ * Check for score changes and post if there's a new goal.
+ * Not used by matchMonitor (goals are driven by getLiveEvents + processEvents). lastScores is not
+ * persisted, so after a restart getLastScore is empty and this would just set lastScore without posting.
  * @param {Object} match - Match data with current score
  * @returns {Promise<boolean>} True if score change was posted
  */

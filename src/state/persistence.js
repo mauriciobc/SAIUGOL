@@ -39,14 +39,15 @@ export async function loadState() {
             postedEventIds: new Set(state.postedEventIds || []),
             lastSaveTime: state.lastSaveTime,
             matchSnapshots: state.matchSnapshots || {},
+            activeMatchKeys: Array.isArray(state.activeMatchKeys) ? state.activeMatchKeys : [],
         };
     } catch (error) {
         if (error.code === 'ENOENT') {
             console.log('[Persistence] Nenhum estado anterior encontrado, iniciando novo');
-            return { postedEventIds: new Set(), matchSnapshots: {} };
+            return { postedEventIds: new Set(), matchSnapshots: {}, activeMatchKeys: [] };
         }
         console.error('[Persistence] Erro ao carregar estado:', error.message);
-        return { postedEventIds: new Set(), matchSnapshots: {} };
+        return { postedEventIds: new Set(), matchSnapshots: {}, activeMatchKeys: [] };
     }
 }
 
@@ -54,9 +55,10 @@ export async function loadState() {
  * Save state to disk
  * @param {Set<string>} postedEventIds - Set of posted event IDs
  * @param {Map<string, import('./snapshotContract.js').MatchSnapshot>} [matchSnapshots] - Snapshot cache (key: leagueCode:matchId)
+ * @param {string[]} [activeMatchKeys] - Composite keys (leagueCode:matchId) of matches that were live at save
  * @returns {Promise<boolean>} Success status
  */
-export async function saveState(postedEventIds, matchSnapshots = null) {
+export async function saveState(postedEventIds, matchSnapshots = null, activeMatchKeys = null) {
     try {
         await ensureStateDir();
         const snapshotObj = matchSnapshots instanceof Map
@@ -65,8 +67,9 @@ export async function saveState(postedEventIds, matchSnapshots = null) {
         const state = {
             postedEventIds: Array.from(postedEventIds),
             lastSaveTime: new Date().toISOString(),
-            version: '1.0',
+            version: '1.1',
             matchSnapshots: snapshotObj,
+            activeMatchKeys: Array.isArray(activeMatchKeys) ? activeMatchKeys : [],
         };
 
         // Write to temp file first, then rename for atomic write

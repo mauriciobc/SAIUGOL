@@ -7,7 +7,7 @@
     "scripts": {
         "start": "node src/index.js",
         "dev": "node --watch src/index.js",
-        "test": "node --test tests/**/*.test.js",
+        "test": "NODE_ENV=test node --test tests/**/*.test.js",
         "test:post": "node src/test-post.js",
         "repost-game": "node scripts/repost-game-toots.js"
     },

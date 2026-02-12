@@ -4,13 +4,13 @@ import { getTodayMatches, getMatchDetails, getLiveEvents, getHighlights, parseSc
 import { resetMetrics } from '../src/utils/metrics.js';
 import { resetAllBreakers } from '../src/utils/circuitBreaker.js';
 
+const TEST_LEAGUE = 'bra.1';
+
 describe('ESPN API Response Validation', () => {
     beforeEach(() => {
         resetMetrics();
         resetAllBreakers();
     });
-
-    const TEST_LEAGUE = 'bra.1';
 
     describe('getTodayMatches', () => {
         it('should return an array', async () => {
@@ -140,8 +140,8 @@ describe('ESPN API Cache Behavior', () => {
     });
 
     it('should cache scoreboard responses', async () => {
-        const matches1 = await getTodayMatches();
-        const matches2 = await getTodayMatches();
+        const matches1 = await getTodayMatches(TEST_LEAGUE);
+        const matches2 = await getTodayMatches(TEST_LEAGUE);
         assert.deepStrictEqual(matches1, matches2, 'Cached responses should be identical');
     });
 });
@@ -153,7 +153,7 @@ describe('ESPN API Metrics', () => {
     });
 
     it('should track API requests in metrics', async () => {
-        await getTodayMatches();
+        await getTodayMatches(TEST_LEAGUE);
         const metrics = await import('../src/utils/metrics.js');
         const currentMetrics = metrics.getMetrics();
         assert.ok(currentMetrics.espn.requests >= 0, 'Should track requests');

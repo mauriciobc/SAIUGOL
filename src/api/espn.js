@@ -1,6 +1,7 @@
 import axios from 'axios';
 import NodeCache from 'node-cache';
 import { retryWithBackoff, isRetryableError } from '../utils/retry.js';
+import { getDateStringFor } from '../utils/dateUtils.js';
 import { config } from '../config.js';
 import { espnLogger } from '../utils/logger.js';
 import { recordEspnRequest } from '../utils/metrics.js';
@@ -40,26 +41,7 @@ function getSummaryUrl(leagueCode, matchId) {
 }
 
 function getTodayDateString() {
-    let tz = config.timezone || 'UTC';
-    let formatter;
-    try {
-        formatter = new Intl.DateTimeFormat('en-CA', {
-            timeZone: tz,
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-        });
-    } catch (err) {
-        espnLogger.warn({ timezone: tz, error: err.message }, 'Invalid timezone, falling back to UTC');
-        tz = 'UTC';
-        formatter = new Intl.DateTimeFormat('en-CA', {
-            timeZone: tz,
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-        });
-    }
-    return formatter.format(new Date()).replace(/-/g, '');
+    return getDateStringFor(new Date(), config.timezone || 'UTC');
 }
 
 /**

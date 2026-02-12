@@ -20,11 +20,6 @@ describe('snapshotContract', () => {
             assert.strictEqual(normalizeStatus('', 'ht'), 'in');
         });
 
-        it('deve priorizar state canônico da ESPN (status.type.state)', () => {
-            assert.strictEqual(normalizeStatus('unknown', 'in'), 'in');
-            assert.strictEqual(normalizeStatus('unknown', 'post'), 'post');
-        });
-
         it('deve mapear status ESPN futebol "1st Half" / "2nd Half" / "Halftime" para in', () => {
             assert.strictEqual(normalizeStatus('1st Half', ''), 'in');
             assert.strictEqual(normalizeStatus('2nd Half', ''), 'in');

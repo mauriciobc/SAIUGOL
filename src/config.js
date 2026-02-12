@@ -164,6 +164,10 @@ export const config = {
         pollIntervalLiveMs: parseEnvInt(process.env.POLL_INTERVAL_LIVE_MS, 60000, 10000),
         pollIntervalAlertMs: parseEnvInt(process.env.POLL_INTERVAL_ALERT_MS, 120000, 30000),
         pollIntervalHibernationMs: parseEnvInt(process.env.POLL_INTERVAL_HIBERNATION_MS, 1800000, 300000),
+        /** Start polling this many ms before scheduled match start (default 10 min). */
+        pollWindowBeforeMatchMs: parseEnvInt(process.env.POLL_WINDOW_BEFORE_MATCH_MS, 600000, 60000, 3600000),
+        /** Max ms between polls when only pre matches (schedule refresh cap, default 1h). */
+        pollScheduleRefreshMaxMs: parseEnvInt(process.env.POLL_SCHEDULE_REFRESH_MAX_MS, 3600000, 300000, 86400000),
         favoriteTeamIds: (process.env.FAVORITE_TEAM_IDS || '').split(',').map(s => s.trim()).filter(Boolean),
         favoriteTeamNames: (process.env.FAVORITE_TEAM_NAMES || '').split(',').map(s => s.trim()).filter(Boolean),
     },
