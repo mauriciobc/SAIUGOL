@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { saveState } from '../src/state/persistence.js';
+import { getMatchStartEventId } from '../src/bot/eventProcessor.js';
 
 const testDir = mkdtempSync(join(tmpdir(), 'saiugol-matchstate-init-'));
 const originalStateDir = process.env.STATE_DIR;
@@ -32,11 +33,10 @@ describe('matchState initialization and whenReady', () => {
         await readyPromise;
 
         const restored = getPreviousSnapshot('bra.1:1');
-        if (restored) {
-            assert.strictEqual(restored.id, '1');
-            assert.strictEqual(restored.status, 'in');
-            assert.deepStrictEqual(restored.score, { home: 0, away: 0 });
-        }
+        assert.ok(restored, 'expected previous snapshot to be restored');
+        assert.strictEqual(restored.id, '1');
+        assert.strictEqual(restored.status, 'in');
+        assert.deepStrictEqual(restored.score, { home: 0, away: 0 });
     });
 
     it('whenReady resolve imediatamente quando ja inicializado', async () => {
@@ -51,8 +51,6 @@ describe('matchState initialization and whenReady', () => {
 
 describe('catch-up match start event id', () => {
     it('usa mesmo formato de event id que o handler match_start (evita duplicata)', () => {
-        const matchId = '123';
-        const matchStartEventId = `${matchId}-match-start`;
-        assert.strictEqual(matchStartEventId, '123-match-start');
+        assert.strictEqual(getMatchStartEventId('123'), '123-match-start');
     });
 });

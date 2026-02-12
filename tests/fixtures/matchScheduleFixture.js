@@ -1,10 +1,14 @@
 /**
  * Fixture de partidas para testes de timezone e detecção de estado.
  * Estrutura normalizada idêntica à retornada por getTodayMatches (ESPN).
+ * leagueCode exposto para testes que chamem ESPN ou montem compositeKey (leagueCode:matchId).
  */
+export const LEAGUE_CODE = 'bra.1';
+
 export const matchScheduleFixture = [
     {
         id: '1',
+        league: { code: LEAGUE_CODE },
         homeTeam: { id: '100', name: 'Time A' },
         awayTeam: { id: '101', name: 'Time B' },
         homeScore: 0,
@@ -17,6 +21,7 @@ export const matchScheduleFixture = [
     },
     {
         id: '2',
+        league: { code: LEAGUE_CODE },
         homeTeam: { id: '102', name: 'Time C' },
         awayTeam: { id: '103', name: 'Time D' },
         homeScore: 1,
@@ -29,6 +34,7 @@ export const matchScheduleFixture = [
     },
     {
         id: '3',
+        league: { code: LEAGUE_CODE },
         homeTeam: { id: '104', name: 'Time E' },
         awayTeam: { id: '105', name: 'Time F' },
         homeScore: 2,

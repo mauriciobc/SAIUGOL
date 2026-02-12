@@ -13,7 +13,7 @@ import {
 } from '../state/matchState.js';
 import { matchesToSnapshotMap } from '../state/snapshotContract.js';
 import { computeDiff } from '../state/diffEngine.js';
-import { processEvents, handleMatchEnd, markExistingEventsAsSeen } from './eventProcessor.js';
+import { processEvents, handleMatchEnd, markExistingEventsAsSeen, getMatchStartEventId } from './eventProcessor.js';
 import { formatMatchStart } from './formatter.js';
 import { config } from '../config.js';
 
@@ -70,7 +70,7 @@ export async function poll() {
                     if (details) {
                         details.league = league;
                         addActiveMatch(action.snapshot.id, details);
-                        const matchStartEventId = `${matchId}-match-start`;
+                        const matchStartEventId = getMatchStartEventId(matchId);
                         if (!isEventPosted(matchStartEventId) && config.events.matchStart) {
                             const matchData = normalizeMatchData(details);
                             await postStatus(formatMatchStart(matchData));
@@ -105,7 +105,7 @@ export async function poll() {
                         details.league = league;
                         addActiveMatch(matchId, details);
                         console.log(`[MatchMonitor] Partida já em andamento adicionada: ${matchId} (${league.name})`);
-                        const matchStartEventId = `${matchId}-match-start`;
+                        const matchStartEventId = getMatchStartEventId(matchId);
                         if (!isEventPosted(matchStartEventId) && config.events.matchStart) {
                             const matchData = normalizeMatchData(details);
                             await postStatus(formatMatchStart(matchData));

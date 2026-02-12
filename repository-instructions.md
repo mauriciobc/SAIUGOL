@@ -55,7 +55,7 @@ Não inventar variáveis: as que afetam comportamento vêm de `config.js` e de p
 - **Scripts:** `npm start`, `npm run dev` (node --watch), `npm test` (NODE_ENV=test + node --test).
 - **Testes:** `node:test` em `tests/*.test.js`. Para persistência/state: setar **STATE_DIR** para dir temporário antes de importar matchState/persistence e restaurar no afterEach (ex.: persistence.test.js, matchState.init.test.js).
 - **Um arquivo:** `NODE_ENV=test node --test tests/persistence.test.js`.
-- **Integração:** `tests/integration.test.js` chama ESPN e Mastodon reais. **Problema conhecido:** o teste chama `getTodayMatches()` e `getMatchDetails(matchId)` / `getLiveEvents(matchId)` / `getHighlights(matchId)` **sem leagueCode**; no código de produção todas essas funções exigem leagueCode. Ou o teste está incorreto (deveria usar uma liga de config) ou a API tinha assinatura antiga; ao alterar ESPN, manter consistência: sempre passar leagueCode.
+- **Integração:** `tests/integration.test.js` chama ESPN e Mastodon reais. O teste usa uma liga de teste (`TEST_LEAGUE`, ex.: `'bra.1'`) e **passa leagueCode em todas as chamadas ESPN**: `getTodayMatches(leagueCode)`, `getMatchDetails(matchId, leagueCode)`, `getLiveEvents(matchId, leagueCode)`, `getHighlights(matchId, leagueCode)`, mantendo as assinaturas alinhadas com produção.
 - **Fixtures:** `tests/fixtures/` (ex.: matchScheduleFixture.js) para dados reutilizáveis em testes.
 - **Dry-run:** `DRY_RUN=true` para testar sem postar; credencial ainda é validada, mas falha não derruba o processo.
 

@@ -75,6 +75,15 @@ function generateEventId(matchId, event) {
 }
 
 /**
+ * Event ID usado pelo handler match_start e pelo catch-up (formato único para evitar duplicata).
+ * @param {string|number} matchId - Match ID
+ * @returns {string}
+ */
+export function getMatchStartEventId(matchId) {
+    return `${String(matchId)}-match-start`;
+}
+
+/**
  * Mark current events as already seen (for matches joined in progress).
  * @param {string} matchId - Match ID
  * @param {Array<Object>} events - Current events from API
@@ -167,7 +176,7 @@ export async function processEvents(events, match) {
     // ou evento kickoff da API (ID {matchId}-{event.id}). Evitar duplicata tratando o ID sintético.
     const postable = withIds.filter(({ eventId, category }) => {
         if (isEventPosted(eventId)) return false;
-        if (category === 'MATCH_START' && isEventPosted(`${match.id}-match-start`)) return false;
+        if (category === 'MATCH_START' && isEventPosted(getMatchStartEventId(match.id))) return false;
         return category && shouldPostEvent(category);
     });
 
