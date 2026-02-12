@@ -26,6 +26,8 @@ services:
       - RETRY_MAX_DELAY_MS=${RETRY_MAX_DELAY_MS:-10000}
       - REQUEST_TIMEOUT_MS=${REQUEST_TIMEOUT_MS:-10000}
       - DEFAULT_LANGUAGE=${DEFAULT_LANGUAGE:-pt-BR}
+      - TIMEZONE=${TIMEZONE:-America/Sao_Paulo}
+      - ESPN_USE_PT_DESCRIPTIONS=${ESPN_USE_PT_DESCRIPTIONS:-true}
     volumes:
       - saiugol-data:/app/data
 

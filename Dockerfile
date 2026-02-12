@@ -20,6 +20,19 @@ RUN mkdir -p /app/data && chown -R node:node /app/data
 # Volume for persistent state
 VOLUME ["/app/data"]
 
+# All env vars (defaults); override at runtime for secrets and per-environment.
+# See repository-instructions.md and .env.example.
+ENV MASTODON_INSTANCE=https://mastodon.social
+ENV MASTODON_ACCESS_TOKEN=
+ENV DEFAULT_LANGUAGE=pt-BR
+ENV LEAGUE_CODES=bra.1
+ENV POLL_INTERVAL_MS=60000
+ENV DRY_RUN=false
+ENV SPORTDB_API_KEY=
+ENV STATE_DIR=/app/data
+ENV TIMEZONE=America/Sao_Paulo
+ENV ESPN_USE_PT_DESCRIPTIONS=true
+
 # Use a non-root user for security
 USER node
 

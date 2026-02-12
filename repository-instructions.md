@@ -29,6 +29,7 @@ Bot Mastodon que monitora partidas de futebol (ESPN) e posta eventos ao vivo (go
 
 ## Variáveis de ambiente e uso em código
 
+- **Listagem única:** Todas as variáveis de ambiente usadas pelo bot estão declaradas no **Dockerfile** com valores padrão. O Dockerfile é a referência de quais env existem; para desenvolvimento local use `.env` (copie de `.env.example`); em produção sobrescreva no runtime (ex.: `docker run -e`, `env_file` no docker-compose) — em especial **MASTODON_ACCESS_TOKEN** e **SPORTDB_API_KEY**, que não devem ser fixados na imagem.
 - **STATE_DIR:** Onde fica `state.json`. Default `/app/data`. Testes **devem** setar para diretório temporário (ex.: mkdtempSync) e restaurar no afterEach para não poluir estado real.
 - **NODE_ENV=test:** Desliga o timer de save periódico em matchState; logger em nível silent. Sem isso, testes de state podem deixar timers ativos.
 - **DRY_RUN=true:** Nenhum post é enviado; `verifyCredentials` ainda é chamado, mas falha de credencial **não** encerra o processo (só encerra quando `!config.bot.dryRun`).
