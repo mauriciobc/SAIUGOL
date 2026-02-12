@@ -1,6 +1,6 @@
 import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
-import { getTodayMatches, getMatchDetails, getLiveEvents, getHighlights } from '../src/api/espn.js';
+import { getTodayMatches, getMatchDetails, getLiveEvents, getHighlights, parseScorerFromGoalDescription } from '../src/api/espn.js';
 import { resetMetrics } from '../src/utils/metrics.js';
 import { resetAllBreakers } from '../src/utils/circuitBreaker.js';
 
@@ -101,6 +101,35 @@ describe('ESPN API Response Validation', () => {
                 }
             }
         });
+    });
+});
+
+describe('parseScorerFromGoalDescription', () => {
+    it('should extract scorer when description uses Goal! and simple name', () => {
+        const text = 'Goal! Chapecoense 0, Coritiba 1. Breno Lopes (Coritiba) right footed shot from the centre of the box.';
+        assert.strictEqual(parseScorerFromGoalDescription(text), 'Breno Lopes');
+    });
+
+    it('should extract scorer with initials (e.g. J. Smith)', () => {
+        const text = 'Goal! Team 0, Team 1. J. Smith (Team) right footed shot to the bottom left corner.';
+        assert.strictEqual(parseScorerFromGoalDescription(text), 'J. Smith');
+    });
+
+    it('should extract scorer with initials for Gol! (PT)', () => {
+        const text = 'Gol! Atlético Mineiro 1, Remo 0. A. Martínez (Atlético Mineiro) finalização com o pé direito.';
+        assert.strictEqual(parseScorerFromGoalDescription(text), 'A. Martínez');
+    });
+
+    it('should return null for empty or non-string input', () => {
+        assert.strictEqual(parseScorerFromGoalDescription(''), null);
+        assert.strictEqual(parseScorerFromGoalDescription(null), null);
+        assert.strictEqual(parseScorerFromGoalDescription(undefined), null);
+        assert.strictEqual(parseScorerFromGoalDescription(123), null);
+    });
+
+    it('should return null when text does not match goal description format', () => {
+        assert.strictEqual(parseScorerFromGoalDescription('No goal here.'), null);
+        assert.strictEqual(parseScorerFromGoalDescription('Goal! No parenthesis'), null);
     });
 });
 

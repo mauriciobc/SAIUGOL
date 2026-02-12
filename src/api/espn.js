@@ -329,12 +329,13 @@ function parseSubstitutionFromText(text) {
 /**
  * Parse scorer name from goal description.
  * ESPN format: "Goal! TeamA N, TeamB M. Scorer Name (Team) right footed shot..."
+ * Supports names with initials (e.g. "J. Smith").
  * @param {string} text - Event description
  * @returns {string|null} Scorer name or null
  */
-function parseScorerFromGoalDescription(text) {
+export function parseScorerFromGoalDescription(text) {
     if (!text || typeof text !== 'string') return null;
-    const m = text.match(/(?:Goal|Gol)![^.]+\.\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'-]+?)\s*\(/);
+    const m = text.match(/(?:Goal|Gol)![\s\S]*?\.\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.\s'-]+?)\s*\(/);
     return m ? m[1].trim() : null;
 }
 
