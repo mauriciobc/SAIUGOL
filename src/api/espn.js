@@ -65,7 +65,9 @@ function hasProps(obj, props) {
 }
 
 /**
- * Get today's matches for a specific league from ESPN
+ * Get today's matches for a specific league from ESPN.
+ * Uses scoreboard endpoint only; does NOT support lang=pt. Returned data (match list, scores, status)
+ * is never used as event description in toot body — only summary (getLiveEvents/getMatchDetails) is.
  * @param {string} leagueCode - League code (e.g. 'bra.1')
  * @returns {Promise<Array>} List of normalized matches
  */

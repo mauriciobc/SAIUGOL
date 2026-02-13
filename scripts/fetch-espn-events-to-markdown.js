@@ -13,9 +13,21 @@ import axios from 'axios';
 import { leagues } from '../src/data/leagues.js';
 
 const BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
+const WEB_BASE_URL = 'https://site.web.api.espn.com/apis/site/v2/sports/soccer';
 const OUTPUT_FILE = 'espn-events-report.md';
 
-function getTodayDateString() {
+function getSummaryUrl(leagueCode, eventId) {
+    const usePt = process.env.ESPN_USE_PT_DESCRIPTIONS === 'true';
+    const base = usePt ? WEB_BASE_URL : BASE_URL;
+    const qs = usePt ? '&lang=pt&region=br' : '';
+    return `${base}/${leagueCode}/summary?event=${eventId}${qs}`;
+}
+
+function getDateString() {
+    const envDate = process.env.DATE;
+    if (envDate && /^\d{8}$/.test(envDate.trim())) {
+        return envDate.trim();
+    }
     const tz = process.env.TIMEZONE || process.env.TZ || 'UTC';
     try {
         const formatter = new Intl.DateTimeFormat('en-CA', {
@@ -31,14 +43,14 @@ function getTodayDateString() {
 }
 
 async function getScoreboard(leagueCode) {
-    const dateStr = getTodayDateString();
+    const dateStr = getDateString();
     const url = `${BASE_URL}/${leagueCode}/scoreboard?dates=${dateStr}`;
     const { data } = await axios.get(url, { timeout: 15000 });
     return data.events || [];
 }
 
 async function getSummary(leagueCode, eventId) {
-    const url = `${BASE_URL}/${leagueCode}/summary?event=${eventId}`;
+    const url = getSummaryUrl(leagueCode, eventId);
     const { data } = await axios.get(url, { timeout: 15000 });
     return data;
 }
@@ -72,7 +84,7 @@ async function run(leagueCodes) {
     report.push('# Relatório de eventos ESPN');
     report.push('');
     report.push(`Gerado em: ${new Date().toISOString()}`);
-    report.push(`Data da grade (YYYYMMDD): ${getTodayDateString()}`);
+    report.push(`Data da grade (YYYYMMDD): ${getDateString()}`);
     report.push(`Ligas: ${leagueCodes.join(', ')}`);
     report.push('');
     report.push('---');

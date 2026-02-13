@@ -60,7 +60,7 @@ para extrair “entra” e “sai” quando a descrição está em português.
 ## PT descriptions vs. dicionário (i18n)
 
 - **Descrições em PT (API):** usadas para **parsing** (nome do artilheiro, quem entra/sai na substituição) e para campos opcionais como o motivo do cartão (`event.reason`). O texto bruto da API não substitui o texto do post.
-- **Dicionário (i18n):** continua a definir os **títulos e rótulos** dos posts (ex.: "Gol!", "Substituição", "Entra:", "Sai:"). O idioma do post é controlado por `DEFAULT_LANGUAGE` (pt-BR, en). Ativar PT descriptions não desativa o i18n.
+- **Dicionário (i18n):** continua a definir os **títulos e rótulos** dos posts (ex.: "Gol!", "Substituição", "Entra:", "Sai:"). O idioma do post é controlado por `DEFAULT_LANGUAGE`. Atualmente só **pt-BR** tem dicionário incluído; ver `docs/linguagens-validas.md`. Ativar PT descriptions não desativa o i18n.
 
 ## Resumo
 

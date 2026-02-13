@@ -195,7 +195,7 @@ export const config = {
         interval: true,
         matchEnd: true,
     },
-    // Internationalization configuration
+    // Internationalization configuration (valid values: docs/linguagens-validas.md)
     i18n: {
         defaultLanguage: process.env.DEFAULT_LANGUAGE || 'pt-BR',
     },
