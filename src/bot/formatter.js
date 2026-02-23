@@ -152,8 +152,7 @@ export function formatSubstitution(event, match) {
     text += `⬆️ ${translate('ui.player_in')}: ${playerIn}\n`;
     text += `⬇️ ${translate('ui.player_out')}: ${playerOut}`;
 
-    const desc = eventDescription(event);
-    if (desc) text += `\n\n📝 ${desc}`;
+    // Note: description removed to avoid repetition with structured substitution info
 
     text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
 
