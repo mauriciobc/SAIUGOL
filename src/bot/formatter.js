@@ -105,17 +105,17 @@ export function formatCard(event, match, options = {}) {
  */
 function parseSubstitutionFromDescription(text) {
     if (!text || typeof text !== 'string') return null;
-    const namePart = '[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\\s\'-]+?';
+    const namePart = '[\\p{L}\\p{M}][\\p{L}\\p{M}\\s\'-]+';
     // Ordem: variantes por idioma primeiro; fallback genérico por último. O último padrão
     // exige contexto de substituição ("on for" / "comes on for") para evitar falsos
     // positivos com "for" solto (ex.: "Assist for X.").
     const patterns = [
-        /entra em campo\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'-]+?)\s+substituindo\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'-]+?)\./,
-        new RegExp(`(${namePart}) replaces (${namePart})\\.`),
-        new RegExp(`(${namePart}) on for (${namePart})\\.`),
-        new RegExp(`(${namePart}) sostituisce (${namePart})\\.`),
-        new RegExp(`(${namePart}) in per (${namePart})\\.`),
-        new RegExp(`(${namePart}) (?:comes )?on for (${namePart})\\.`),
+        /entra em campo\s+([\p{L}\p{M}][\p{L}\p{M}\s'-]+)\s+substituindo\s+([\p{L}\p{M}][\p{L}\p{M}\s'-]+)\./u,
+        new RegExp(`(${namePart}) replaces (${namePart})\\.`, 'u'),
+        new RegExp(`(${namePart}) on for (${namePart})\\.`, 'u'),
+        new RegExp(`(${namePart}) sostituisce (${namePart})\\.`, 'u'),
+        new RegExp(`(${namePart}) in per (${namePart})\\.`, 'u'),
+        new RegExp(`(${namePart}) (?:comes )?on for (${namePart})\\.`, 'u'),
     ];
     for (const re of patterns) {
         const m = text.match(re);
