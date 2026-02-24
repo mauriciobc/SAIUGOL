@@ -1,4 +1,5 @@
 import { getTodayMatches, getMatchDetails, getLiveEvents } from '../api/espn.js';
+import { getAllMatchStatuses as getHeaderStatuses, checkForChanges } from '../api/fastcast.js';
 import { postStatus } from '../api/mastodon.js';
 import {
     isMatchActive,
@@ -17,6 +18,13 @@ import { processEvents, handleMatchEnd, markExistingEventsAsSeen, getMatchStartE
 import { formatMatchStart } from './formatter.js';
 import { config } from '../config.js';
 
+/** Map to store previous header states: key = "leagueCode:matchId", value = header status object */
+const previousHeaderStates = new Map();
+
+/** Counter for API calls saved by header-first strategy */
+let headerChecks = 0;
+let summaryCallsSaved = 0;
+
 /**
  * Initialize the match monitor
  */
@@ -29,6 +37,7 @@ export async function initialize() {
 
 /**
  * Main polling loop - build snapshots, compute diff, act only on changes, then poll events for live matches.
+ * Uses Header API as pre-check to reduce Summary API calls.
  * @returns {{ nextIntervalMs: number }}
  */
 export async function poll() {
@@ -91,6 +100,15 @@ export async function poll() {
                 }
             }
 
+            const useHeaderFirst = config.bot.useHeaderFirstStrategy !== false;
+            let headerMap = new Map();
+
+            if (useHeaderFirst) {
+                headerChecks++;
+                const headerMatches = await getHeaderStatuses(league.code);
+                headerMap = new Map(headerMatches.map(m => [m.id, m]));
+            }
+
             for (const match of matches) {
                 const matchId = match.id != null ? String(match.id) : '';
                 const snap = newSnapshotMap.get(matchId);
@@ -98,7 +116,7 @@ export async function poll() {
 
                 const compositeKey = `${league.code}:${matchId}`;
                 const needCatchUp = !isMatchActive(matchId) || isRecoveredActiveKey(compositeKey);
-                // Catch-up: partida já ao vivo mas não estava no set ativo (ex.: bot reiniciou com jogo em andamento)
+
                 if (needCatchUp) {
                     const details = await getMatchDetails(matchId, league.code);
                     if (details) {
@@ -116,8 +134,43 @@ export async function poll() {
                             markExistingEventsAsSeen(matchId, currentEvents);
                         }
                     }
+                    if (useHeaderFirst) {
+                        const headerMatch = headerMap.get(matchId);
+                        if (headerMatch) {
+                            previousHeaderStates.set(compositeKey, { ...headerMatch });
+                        }
+                    }
+                    continue;
                 }
-                await pollMatchEvents(matchId, league);
+
+                if (!useHeaderFirst) {
+                    await pollMatchEvents(matchId, league);
+                    continue;
+                }
+
+                const headerMatch = headerMap.get(matchId);
+                const previousHeader = previousHeaderStates.get(compositeKey);
+
+                const headerChange = !previousHeader || (
+                    previousHeader.status !== (headerMatch?.status || snap.status) ||
+                    previousHeader.homeScore !== headerMatch?.homeScore ||
+                    previousHeader.awayScore !== headerMatch?.awayScore ||
+                    previousHeader.clock !== headerMatch?.clock ||
+                    previousHeader.lastPlay !== headerMatch?.lastPlay
+                );
+
+                if (!previousHeader || headerChange) {
+                    if (previousHeader && headerMatch) {
+                        console.log(`[MatchMonitor] Header change for ${matchId}: ${previousHeader.status}->${headerMatch.status}, ${previousHeader.clock}->${headerMatch.clock}, lastPlay: ${previousHeader.lastPlay?.slice(0, 30)} -> ${headerMatch.lastPlay?.slice(0, 30)}`);
+                    }
+                    await pollMatchEvents(matchId, league);
+                } else {
+                    summaryCallsSaved++;
+                }
+
+                if (headerMatch) {
+                    previousHeaderStates.set(compositeKey, { ...headerMatch });
+                }
             }
         } catch (error) {
             console.error(`[MatchMonitor] Erro no poll da liga ${league.name}:`, error.message);
@@ -150,7 +203,7 @@ export async function poll() {
             intervalReason = ' (timeslot antes da partida)';
         }
     }
-    console.log(`[MatchMonitor] Stats: ${stats.activeMatchCount} partidas ativas, ${stats.postedEventCount} eventos postados (próximo poll em ${nextIntervalMs / 1000}s${intervalReason})`);
+    console.log(`[MatchMonitor] Stats: ${stats.activeMatchCount} partidas ativas, ${stats.postedEventCount} eventos postados, Header checks: ${headerChecks}, Summary saved: ${summaryCallsSaved} (próximo poll em ${nextIntervalMs / 1000}s${intervalReason})`);
 
     return { nextIntervalMs };
 }
