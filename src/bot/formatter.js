@@ -110,7 +110,7 @@ function parseSubstitutionFromDescription(text) {
     // exige contexto de substituição ("on for" / "comes on for") para evitar falsos
     // positivos com "for" solto (ex.: "Assist for X.").
     const patterns = [
-        /entra em campo\s+([\p{L}\p{M}][\p{L}\p{M}\s'-]+)\s+substituindo\s+([\p{L}\p{M}][\p{L}\p{M}\s'-]+)\./u,
+        new RegExp(`(${namePart})\\s+entra em campo\\s+substituindo\\s+(${namePart})\\.`, 'u'),
         new RegExp(`(${namePart}) replaces (${namePart})\\.`, 'u'),
         new RegExp(`(${namePart}) on for (${namePart})\\.`, 'u'),
         new RegExp(`(${namePart}) sostituisce (${namePart})\\.`, 'u'),

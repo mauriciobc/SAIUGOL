@@ -169,6 +169,34 @@ describe('Formatter Integration', async () => {
         assert.ok(!result.includes('Jogador desconhecido'));
     });
 
+    it('should parse Portuguese names with accents from substitution descriptions', () => {
+        const event = {
+            minute: "65'",
+            description: 'João Silva entra em campo substituindo Pedro Álvares.'
+        };
+
+        const result = formatSubstitution(event, mockMatch);
+
+        assert.ok(result.includes('🔄 SUBSTITUIÇÃO'));
+        assert.ok(result.includes('João Silva'), 'player in with Portuguese accents');
+        assert.ok(result.includes('Pedro Álvares'), 'player out with Portuguese accents');
+        assert.ok(!result.includes('Jogador desconhecido'));
+    });
+
+    it('should handle multiple accented characters in substitution names', () => {
+        const event = {
+            minute: "72'",
+            description: 'Sérgio Oliveira replaces Luiz Fernando.'
+        };
+
+        const result = formatSubstitution(event, mockMatch);
+
+        assert.ok(result.includes('🔄 SUBSTITUIÇÃO'));
+        assert.ok(result.includes('Sérgio Oliveira'), 'player in with multiple accents');
+        assert.ok(result.includes('Luiz Fernando'), 'player out');
+        assert.ok(!result.includes('Jogador desconhecido'));
+    });
+
     it('should format match start with Portuguese text', () => {
         const result = formatMatchStart(mockMatch);
 
