@@ -105,17 +105,17 @@ export function formatCard(event, match, options = {}) {
  */
 function parseSubstitutionFromDescription(text) {
     if (!text || typeof text !== 'string') return null;
-    const namePart = '[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\\s\'-]+?';
+    const namePart = '[\\p{L}\\p{M}][\\p{L}\\p{M}\\s\'-]+';
     // Ordem: variantes por idioma primeiro; fallback genérico por último. O último padrão
     // exige contexto de substituição ("on for" / "comes on for") para evitar falsos
     // positivos com "for" solto (ex.: "Assist for X.").
     const patterns = [
-        /entra em campo\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'-]+?)\s+substituindo\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'-]+?)\./,
-        new RegExp(`(${namePart}) replaces (${namePart})\\.`),
-        new RegExp(`(${namePart}) on for (${namePart})\\.`),
-        new RegExp(`(${namePart}) sostituisce (${namePart})\\.`),
-        new RegExp(`(${namePart}) in per (${namePart})\\.`),
-        new RegExp(`(${namePart}) (?:comes )?on for (${namePart})\\.`),
+        new RegExp(`(${namePart})\\s+entra em campo\\s+substituindo\\s+(${namePart})\\.`, 'u'),
+        new RegExp(`(${namePart}) replaces (${namePart})\\.`, 'u'),
+        new RegExp(`(${namePart}) on for (${namePart})\\.`, 'u'),
+        new RegExp(`(${namePart}) sostituisce (${namePart})\\.`, 'u'),
+        new RegExp(`(${namePart}) in per (${namePart})\\.`, 'u'),
+        new RegExp(`(${namePart}) (?:comes )?on for (${namePart})\\.`, 'u'),
     ];
     for (const re of patterns) {
         const m = text.match(re);
@@ -152,8 +152,7 @@ export function formatSubstitution(event, match) {
     text += `⬆️ ${translate('ui.player_in')}: ${playerIn}\n`;
     text += `⬇️ ${translate('ui.player_out')}: ${playerOut}`;
 
-    const desc = eventDescription(event);
-    if (desc) text += `\n\n📝 ${desc}`;
+    // Note: description removed to avoid repetition with structured substitution info
 
     text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
 

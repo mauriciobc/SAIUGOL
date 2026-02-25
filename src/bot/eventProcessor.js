@@ -1,5 +1,5 @@
 import { config } from '../config.js';
-import { postStatus } from '../api/mastodon.js';
+import { postStatus, uploadMediaFromUrl } from '../api/mastodon.js';
 import { getHighlights } from '../api/espn.js';
 import {
     isEventPosted,
@@ -301,8 +301,35 @@ export async function handleMatchEnd(match) {
     if (highlights.length > 0) {
         const highlightsId = `${match.id}-highlights`;
         if (!isEventPosted(highlightsId)) {
+            // formatHighlights includes video URLs as text fallback
             const highlightsText = formatHighlights(match, highlights);
-            await postStatus(highlightsText);
+            
+            // Try to upload the first highlight video as an attachment
+            const firstHighlight = highlights[0];
+            let mediaIds = [];
+            
+            if (firstHighlight.url) {
+                console.log(`[EventProcessor] Baixando vídeo do highlight: ${firstHighlight.url}`);
+                const mediaId = await uploadMediaFromUrl(firstHighlight.url, { 
+                    type: 'video', 
+                    description: firstHighlight.title || 'Highlight'
+                });
+                
+                if (mediaId) {
+                    mediaIds.push(mediaId);
+                } else if (firstHighlight.thumbnail) {
+                    // Fallback to thumbnail if video fails
+                    console.log(`[EventProcessor] Fallback para thumbnail: ${firstHighlight.thumbnail}`);
+                    const thumbId = await uploadMediaFromUrl(firstHighlight.thumbnail, { 
+                        type: 'image', 
+                        description: firstHighlight.title || 'Thumbnail'
+                    });
+                    if (thumbId) mediaIds.push(thumbId);
+                }
+            }
+
+            const postOptions = mediaIds.length > 0 ? { mediaIds } : {};
+            await postStatus(highlightsText, postOptions);
             markEventPosted(highlightsId);
             console.log(`[EventProcessor] Highlights postados para partida ${match.id}`);
         }
