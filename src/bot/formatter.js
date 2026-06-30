@@ -33,14 +33,19 @@ export function formatGoal(event, match, options = {}) {
     const minute = displayMinute(event.minute);
     const typeLower = event.type?.toLowerCase() ?? '';
     const isOwnGoal = typeLower.includes('own') || typeLower.includes('autogol') || typeLower.includes('gol contra');
+    const isPenalty = typeLower.includes('gol de pênalti') || typeLower.includes('pênalti convertido') || typeLower.includes('penalty - scored');
 
     let text = '';
     if (options.isFavoriteTeam) {
         text += '⚫🔴 Gol do Galo!\n\n';
     }
-    text += isOwnGoal
-        ? translate('ui.own_goal_announcement')
-        : translate('ui.goal_announcement');
+    if (isOwnGoal) {
+        text += translate('ui.own_goal_announcement');
+    } else if (isPenalty) {
+        text += '⚽ Gol de Pênalti!\n';
+    } else {
+        text += translate('ui.goal_announcement');
+    }
     text += '\n\n';
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
     text += `⏱️ ${minute}'\n`;
@@ -290,6 +295,55 @@ export function formatHighlights(match, highlights) {
     }
 
     text += `\n${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
+ * Format penalty shootout start announcement
+ * @param {Object} match - Match data
+ * @returns {string} Formatted post text
+ */
+export function formatShootoutStart(match) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+
+    let text = '\ud83c\udfaf Disputa de P\u00eanaltis!\n\n';
+    text += `\ud83c\udfdf\ufe0f ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
+    text += `${translate('ui.extra_time_draw')}\n`;
+    text += `\n\u26bd Come\u00e7ou a disputa de p\u00eanaltis...`;
+
+    text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
+ * Format a penalty shootout kick (scored or missed)
+ * @param {Object} event - Shootout kick event data
+ * @param {Object} match - Match data
+ * @param {string} category - SHOOTOUT_GOAL or SHOOTOUT_MISS
+ * @returns {string} Formatted post text
+ */
+export function formatShootoutKick(event, match, category) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const player = playerName(event.player) || translate('common.unknown_player');
+    const teamName = event.team?.name || (event.teamId === homeTeam.id ? homeTeam.name : awayTeam.name);
+    const isGoal = category === 'SHOOTOUT_GOAL';
+
+    let text = '';
+    if (isGoal) {
+        text += '\u26bd Gol na disputa de p\u00eanaltis!\n\n';
+    } else {
+        text += '\u274c P\u00eanalti perdido!\n\n';
+    }
+
+    text += `\ud83c\udfdf\ufe0f ${homeTeam.name} x ${awayTeam.name}\n`;
+    text += `\ud83d\udc64 ${player} (${teamName})`;
+
+    const desc = eventDescription(event);
+    if (desc) text += `\n\n\ud83d\udcdd ${desc}`;
+
+    text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }
