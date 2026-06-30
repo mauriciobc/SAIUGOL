@@ -23,7 +23,7 @@ import {
  * Event type constants
  */
 const EVENT_TYPES = {
-    GOAL: ['goal', 'gol', 'penalty', 'own goal', 'goal - header', 'gol de cabeça', 'penalty - scored', 'pênalti convertido'],
+    GOAL: ['goal', 'gol', 'gol de pênalti', 'own goal', 'goal - header', 'gol de cabeça', 'penalty - scored', 'pênalti convertido'],
     YELLOW_CARD: ['yellow card', 'yellowcard', 'cartão amarelo'],
     RED_CARD: ['red card', 'redcard', 'second yellow', 'cartão vermelho'],
     SUBSTITUTION: ['substitution', 'sub', 'substituição'],
@@ -37,7 +37,8 @@ const EVENT_TYPES = {
 /** Type substrings that mean the goal was disallowed/overturned — do not post as goal. */
 const DISALLOWED_GOAL_KEYWORDS = [
     'disallowed', 'no goal', 'ruled out', 'overturned', 'not given', 'chalked off',
-    'annulado', 'não vale', 'cancelado', 'impedimento',
+    'annulado', 'não vale', 'cancelado', 'impedimento', 'penalty - saved', 'penalty - missed',
+    'pênalti defendido', 'pênalti perdido',
 ];
 
 /**

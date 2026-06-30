@@ -382,7 +382,7 @@ export async function getLiveEvents(matchId, leagueCode) {
                             base.playerIn = { name: p0Name };
                             base.playerOut = { name: p1Name };
                         }
-                    } else if (type.includes('goal') || type.includes('gol') || type.includes('penalty') || type.includes('pênalti')) {
+                    } else if (type.includes('goal') || type.includes('gol') || type.includes('gol de pênalti') || type.includes('pênalti convertido') || type.includes('penalty - scored')) {
                         const scorerFromText = parseScorerFromGoalDescription(description);
                         if (scorerFromText) {
                             base.player = { name: scorerFromText };

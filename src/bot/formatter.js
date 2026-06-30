@@ -33,14 +33,19 @@ export function formatGoal(event, match, options = {}) {
     const minute = displayMinute(event.minute);
     const typeLower = event.type?.toLowerCase() ?? '';
     const isOwnGoal = typeLower.includes('own') || typeLower.includes('autogol') || typeLower.includes('gol contra');
+    const isPenalty = typeLower.includes('gol de pênalti') || typeLower.includes('pênalti convertido') || typeLower.includes('penalty - scored');
 
     let text = '';
     if (options.isFavoriteTeam) {
         text += '⚫🔴 Gol do Galo!\n\n';
     }
-    text += isOwnGoal
-        ? translate('ui.own_goal_announcement')
-        : translate('ui.goal_announcement');
+    if (isOwnGoal) {
+        text += translate('ui.own_goal_announcement');
+    } else if (isPenalty) {
+        text += '⚽ Gol de Pênalti!\n';
+    } else {
+        text += translate('ui.goal_announcement');
+    }
     text += '\n\n';
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
     text += `⏱️ ${minute}'\n`;
