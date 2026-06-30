@@ -17,6 +17,8 @@ import {
     formatHalfTime,
     formatMatchEnd,
     formatHighlights,
+    formatShootoutStart,
+    formatShootoutKick,
 } from './formatter.js';
 
 /**
@@ -28,6 +30,9 @@ const EVENT_TYPES = {
     RED_CARD: ['red card', 'redcard', 'second yellow', 'cartão vermelho'],
     SUBSTITUTION: ['substitution', 'sub', 'substituição'],
     VAR: ['var', 'video assistant referee'],
+    SHOOTOUT_GOAL: ['penalty kick - scored', 'penalty goal', 'gol na disputa de pênaltis', 'pênalti convertido na disputa'],
+    SHOOTOUT_MISS: ['penalty kick - missed', 'penalty kick - saved', 'pênalti perdido na disputa', 'pênalti defendido na disputa'],
+    SHOOTOUT_START: ['penalty shootout starts', 'disputa de pênaltis', 'começa disputa de pênaltis'],
     SECOND_HALF_START: ['start 2nd half', 'second half', '2nd half', 'começo do 2º tempo'],
     MATCH_START: ['kickoff', 'kick off', 'match start', 'começo'],
     MATCH_END: ['full time', 'fulltime', 'match end', 'fim de jogo'],
@@ -113,6 +118,10 @@ function shouldPostEvent(category) {
             return config.events.substitutions;
         case 'VAR':
             return config.events.varReviews;
+        case 'SHOOTOUT_GOAL':
+        case 'SHOOTOUT_MISS':
+        case 'SHOOTOUT_START':
+            return config.events.goals; // Use goals flag for shootout reporting
         case 'SECOND_HALF_START':
         case 'MATCH_START':
             return config.events.matchStart;
@@ -125,11 +134,13 @@ function shouldPostEvent(category) {
     }
 }
 
-const PRIORITY_HIGH = 0;  // GOAL, RED_CARD - process first
+const PRIORITY_HIGH = 0;  // GOAL, RED_CARD, SHOOTOUT events - process first
 const PRIORITY_NORMAL = 1;
 
 function eventPriority(category) {
-    if (category === 'GOAL' || category === 'RED_CARD') return PRIORITY_HIGH;
+    if (category === 'GOAL' || category === 'RED_CARD' || category === 'SHOOTOUT_START' || category === 'SHOOTOUT_GOAL' || category === 'SHOOTOUT_MISS') {
+        return PRIORITY_HIGH;
+    }
     return PRIORITY_NORMAL;
 }
 
@@ -234,6 +245,11 @@ function formatEventPost(category, event, match, options = {}) {
             return formatSubstitution(event, match);
         case 'VAR':
             return formatVAR(event, match);
+        case 'SHOOTOUT_START':
+            return formatShootoutStart(match);
+        case 'SHOOTOUT_GOAL':
+        case 'SHOOTOUT_MISS':
+            return formatShootoutKick(event, match, category);
         case 'MATCH_START':
             return formatMatchStart(match);
         case 'SECOND_HALF_START':

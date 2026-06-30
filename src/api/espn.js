@@ -387,6 +387,12 @@ export async function getLiveEvents(matchId, leagueCode) {
                         if (scorerFromText) {
                             base.player = { name: scorerFromText };
                         }
+                    } else if (type.includes('penalty kick') || type.includes('pênalti na disputa')) {
+                        // Penalty shootout kick - extract player name
+                        const scorerFromText = parseScorerFromGoalDescription(description);
+                        if (scorerFromText) {
+                            base.player = { name: scorerFromText };
+                        }
                     }
                     return base;
                 });
