@@ -17,12 +17,41 @@ import {
     formatHalfTime,
     formatMatchEnd,
     formatHighlights,
+    formatExtraTimeStart,
+    formatExtraTimeHalf,
+    formatExtraTimeSecondHalf,
+    formatExtraTimeEnd,
     formatShootoutStart,
-    formatShootoutKick,
 } from './formatter.js';
 
 /**
- * Event type constants
+ * ESPN keyEvents[].type.id → category. Numeric ids are stable across languages, unlike
+ * type.text substrings (e.g. "Halftime Extra Time" contains "halftime", "Start 2nd Half Extra
+ * Time" contains "2nd half" — matching those by text alone misclassifies extra-time events as
+ * their regular-time equivalents). Checked before the text-keyword fallback in categorizeEvent.
+ * Ids verified against live ESPN summary responses (EN and PT).
+ */
+const ID_TO_CATEGORY = {
+    '70': 'GOAL',                    // Gol / Goal
+    '97': 'GOAL',                    // Own Goal / Gol Contra
+    '98': 'GOAL',                    // Penalty - Scored / Gol de pênalti
+    '137': 'GOAL',                   // Goal - Header / Gol de cabeça
+    '173': 'GOAL',                   // Goal - Volley
+    '94': 'YELLOW_CARD',             // Yellow Card / Cartão amarelo
+    '76': 'SUBSTITUTION',            // Substitution / substituição
+    '80': 'MATCH_START',             // Kickoff / Começo
+    '82': 'SECOND_HALF_START',       // Start 2nd Half / Começo do 2º tempo
+    '81': 'HALF_TIME',               // Halftime / Intervalo
+    '84': 'EXTRA_TIME_START',        // Start Extra Time / Começo da prorrogação
+    '85': 'EXTRA_TIME_HALF',         // Halftime Extra Time / Intervalo da prorrogação
+    '86': 'EXTRA_TIME_SECOND_HALF',  // Start 2nd Half Extra Time / Começo do 2º tempo da prorrogação
+    '87': 'EXTRA_TIME_END',          // End Extra Time / Fim da prorrogação
+    '88': 'SHOOTOUT_START',          // Start Shootout / Começo da disputa de pênaltis
+};
+
+/**
+ * Event type constants — fallback for event ids not covered by ID_TO_CATEGORY
+ * (e.g. leagues that report a different id scheme, or types not yet observed).
  */
 const EVENT_TYPES = {
     GOAL: ['goal', 'gol', 'gol de pênalti', 'own goal', 'goal - header', 'gol de cabeça', 'penalty - scored', 'pênalti convertido'],
@@ -30,9 +59,11 @@ const EVENT_TYPES = {
     RED_CARD: ['red card', 'redcard', 'second yellow', 'cartão vermelho'],
     SUBSTITUTION: ['substitution', 'sub', 'substituição'],
     VAR: ['var', 'video assistant referee'],
-    SHOOTOUT_GOAL: ['penalty kick - scored', 'penalty goal', 'gol na disputa de pênaltis', 'pênalti convertido na disputa'],
-    SHOOTOUT_MISS: ['penalty kick - missed', 'penalty kick - saved', 'pênalti perdido na disputa', 'pênalti defendido na disputa'],
-    SHOOTOUT_START: ['penalty shootout starts', 'disputa de pênaltis', 'começa disputa de pênaltis'],
+    EXTRA_TIME_START: ['start extra time', 'começo da prorrogação'],
+    EXTRA_TIME_HALF: ['halftime extra time', 'intervalo da prorrogação'],
+    EXTRA_TIME_SECOND_HALF: ['start 2nd half extra time', 'começo do 2º tempo da prorrogação'],
+    EXTRA_TIME_END: ['end extra time', 'fim da prorrogação'],
+    SHOOTOUT_START: ['start shootout', 'começo da disputa de pênaltis'],
     SECOND_HALF_START: ['start 2nd half', 'second half', '2nd half', 'começo do 2º tempo'],
     MATCH_START: ['kickoff', 'kick off', 'match start', 'começo'],
     MATCH_END: ['full time', 'fulltime', 'match end', 'fim de jogo'],
@@ -47,19 +78,27 @@ const DISALLOWED_GOAL_KEYWORDS = [
 ];
 
 /**
- * Determine the event category from event type string
+ * Determine the event category from event type id (preferred) or type string (fallback).
  * @param {string} type - Event type string
+ * @param {string|number} [typeId] - ESPN keyEvents[].type.id
  * @returns {string|null} Category name or null
  */
-function categorizeEvent(type) {
-    if (!type) return null;
-    const lowerType = type.toLowerCase();
+function categorizeEvent(type, typeId) {
+    const lowerType = (type || '').toLowerCase();
+    const isDisallowedGoal = () => DISALLOWED_GOAL_KEYWORDS.some((kw) => lowerType.includes(kw));
 
+    if (typeId != null) {
+        const category = ID_TO_CATEGORY[String(typeId)];
+        if (category != null) {
+            if (category === 'GOAL' && isDisallowedGoal()) return null;
+            return category;
+        }
+    }
+
+    if (!type) return null;
     for (const [category, keywords] of Object.entries(EVENT_TYPES)) {
         if (keywords.some((kw) => lowerType.includes(kw))) {
-            if (category === 'GOAL' && DISALLOWED_GOAL_KEYWORDS.some((kw) => lowerType.includes(kw))) {
-                return null;
-            }
+            if (category === 'GOAL' && isDisallowedGoal()) return null;
             return category;
         }
     }
@@ -118,10 +157,12 @@ function shouldPostEvent(category) {
             return config.events.substitutions;
         case 'VAR':
             return config.events.varReviews;
-        case 'SHOOTOUT_GOAL':
-        case 'SHOOTOUT_MISS':
+        case 'EXTRA_TIME_START':
+        case 'EXTRA_TIME_HALF':
+        case 'EXTRA_TIME_SECOND_HALF':
+        case 'EXTRA_TIME_END':
         case 'SHOOTOUT_START':
-            return config.events.goals; // Use goals flag for shootout reporting
+            return config.events.extraTime;
         case 'SECOND_HALF_START':
         case 'MATCH_START':
             return config.events.matchStart;
@@ -134,13 +175,11 @@ function shouldPostEvent(category) {
     }
 }
 
-const PRIORITY_HIGH = 0;  // GOAL, RED_CARD, SHOOTOUT events - process first
+const PRIORITY_HIGH = 0;  // GOAL, RED_CARD - process first
 const PRIORITY_NORMAL = 1;
 
 function eventPriority(category) {
-    if (category === 'GOAL' || category === 'RED_CARD' || category === 'SHOOTOUT_START' || category === 'SHOOTOUT_GOAL' || category === 'SHOOTOUT_MISS') {
-        return PRIORITY_HIGH;
-    }
+    if (category === 'GOAL' || category === 'RED_CARD') return PRIORITY_HIGH;
     return PRIORITY_NORMAL;
 }
 
@@ -167,7 +206,7 @@ export async function processEvents(events, match) {
     const withIds = events.map((event) => ({
         event,
         eventId: generateEventId(match.id, event),
-        category: categorizeEvent(event.type),
+        category: categorizeEvent(event.type, event.typeId),
     }));
 
     for (let i = 0; i < withIds.length; i++) {
@@ -245,11 +284,16 @@ function formatEventPost(category, event, match, options = {}) {
             return formatSubstitution(event, match);
         case 'VAR':
             return formatVAR(event, match);
+        case 'EXTRA_TIME_START':
+            return formatExtraTimeStart(match);
+        case 'EXTRA_TIME_HALF':
+            return formatExtraTimeHalf(match, event);
+        case 'EXTRA_TIME_SECOND_HALF':
+            return formatExtraTimeSecondHalf(match, event);
+        case 'EXTRA_TIME_END':
+            return formatExtraTimeEnd(match);
         case 'SHOOTOUT_START':
             return formatShootoutStart(match);
-        case 'SHOOTOUT_GOAL':
-        case 'SHOOTOUT_MISS':
-            return formatShootoutKick(event, match, category);
         case 'MATCH_START':
             return formatMatchStart(match);
         case 'SECOND_HALF_START':

@@ -172,7 +172,7 @@ describe('Formatter Integration', async () => {
     it('should parse Portuguese names with accents from substitution descriptions', () => {
         const event = {
             minute: "65'",
-            description: 'João Silva entra em campo substituindo Pedro Álvares.'
+            description: 'Substituição, entra em campo João Silva substituindo Pedro Álvares.'
         };
 
         const result = formatSubstitution(event, mockMatch);

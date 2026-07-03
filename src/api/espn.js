@@ -234,6 +234,11 @@ export async function getMatchDetails(matchId, leagueCode) {
                     return null;
                 }
 
+                // Only present once a penalty shootout has decided the match (header.competitions[0]
+                // .competitors[].shootoutScore); ESPN doesn't expose individual shootout kicks here.
+                const homeShootoutScore = home.shootoutScore != null ? parseInt(home.shootoutScore, 10) : undefined;
+                const awayShootoutScore = away.shootoutScore != null ? parseInt(away.shootoutScore, 10) : undefined;
+
                 return {
                     id: matchId,
                     homeTeam: {
@@ -246,6 +251,8 @@ export async function getMatchDetails(matchId, leagueCode) {
                     },
                     homeScore: parseInt(home.score, 10) || 0,
                     awayScore: parseInt(away.score, 10) || 0,
+                    homeShootoutScore,
+                    awayShootoutScore,
                     status: competition.status?.type?.name || 'unknown',
                     venue: competition.venue?.fullName,
                     startTime: header.date,
@@ -288,20 +295,25 @@ function getParticipantDisplayName(participant) {
 /**
  * Parse player in/out names from substitution description text.
  * Supports English and other common formats (e.g. Italian "X sostituisce Y").
+ *
+ * The player-out capture matches only consecutive Title-Case words (not "up to the next
+ * period"): ESPN often appends an untagged, lowercase reason clause after the name with no
+ * separating punctuation (e.g. "...substituindo Jordan Bos uma lesão." or "...replaces Jordan
+ * Bos because of an injury."), which a period-anchored capture would swallow into the name.
  * @param {string} text - Event description
  * @returns {{ playerIn: string, playerOut: string }|null}
  */
 function parseSubstitutionFromText(text) {
     if (!text || typeof text !== 'string') return null;
     const namePart = '[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\\s\'-]+?';
+    const strictName = '[A-ZÀ-Þ][A-Za-zà-ÿ\'-]*(?:\\s[A-ZÀ-Þ][A-Za-zà-ÿ\'-]*)*';
     const patterns = [
-        { re: /entra em campo\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'-]+?)\s+substituindo\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'-]+?)\./, playerIn: 1, playerOut: 2 },
-        { re: new RegExp(`(${namePart}) replaces (${namePart})(?:\s+because|\\.)`), playerIn: 1, playerOut: 2 },
-        { re: new RegExp(`(${namePart}) replaces (${namePart})\\.`), playerIn: 1, playerOut: 2 },
-        { re: new RegExp(`(${namePart}) on for (${namePart})\\.`), playerIn: 1, playerOut: 2 },
-        { re: new RegExp(`(${namePart}) sostituisce (${namePart})\\.`), playerIn: 1, playerOut: 2 },
-        { re: new RegExp(`(${namePart}) in per (${namePart})\\.`), playerIn: 1, playerOut: 2 },
-        { re: new RegExp(`(${namePart}) for (${namePart})\\.`), playerIn: 1, playerOut: 2 },
+        { re: new RegExp(`entra em campo\\s+(${namePart})\\s+substituindo\\s+(${strictName})`), playerIn: 1, playerOut: 2 },
+        { re: new RegExp(`(${namePart}) replaces (${strictName})`), playerIn: 1, playerOut: 2 },
+        { re: new RegExp(`(${namePart}) on for (${strictName})`), playerIn: 1, playerOut: 2 },
+        { re: new RegExp(`(${namePart}) sostituisce (${strictName})`), playerIn: 1, playerOut: 2 },
+        { re: new RegExp(`(${namePart}) in per (${strictName})`), playerIn: 1, playerOut: 2 },
+        { re: new RegExp(`(${namePart}) for (${strictName})`), playerIn: 1, playerOut: 2 },
     ];
     for (const { re, playerIn: i, playerOut: o } of patterns) {
         const m = text.match(re);
@@ -366,6 +378,7 @@ export async function getLiveEvents(matchId, leagueCode) {
                     const p1Name = getParticipantDisplayName(event.participants?.[1]);
                     const base = {
                         id: event.id,
+                        typeId: event.type?.id != null ? String(event.type.id) : undefined,
                         type,
                         minute: event.clock?.displayValue || "0'",
                         teamId: event.team?.id,
@@ -383,12 +396,6 @@ export async function getLiveEvents(matchId, leagueCode) {
                             base.playerOut = { name: p1Name };
                         }
                     } else if (type.includes('goal') || type.includes('gol') || type.includes('gol de pênalti') || type.includes('pênalti convertido') || type.includes('penalty - scored')) {
-                        const scorerFromText = parseScorerFromGoalDescription(description);
-                        if (scorerFromText) {
-                            base.player = { name: scorerFromText };
-                        }
-                    } else if (type.includes('penalty kick') || type.includes('pênalti na disputa')) {
-                        // Penalty shootout kick - extract player name
                         const scorerFromText = parseScorerFromGoalDescription(description);
                         if (scorerFromText) {
                             base.player = { name: scorerFromText };

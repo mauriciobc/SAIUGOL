@@ -194,6 +194,7 @@ export const config = {
         matchStart: true,
         interval: true,
         matchEnd: true,
+        extraTime: true,
     },
     // Internationalization configuration (valid values: docs/linguagens-validas.md)
     i18n: {

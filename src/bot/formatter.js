@@ -105,22 +105,29 @@ export function formatCard(event, match, options = {}) {
 /**
  * Parse player in/out from substitution description.
  * Supports English ("X replaces Y." / "X on for Y.") and others (e.g. Italian "X sostituisce Y.").
+ *
+ * The player-out capture matches only consecutive Title-Case words rather than "up to the next
+ * period": ESPN often appends an untagged, lowercase reason clause after the name with no
+ * separating punctuation (e.g. "...substituindo Jordan Bos uma lesão." or "...replaces Jordan
+ * Bos because of an injury."), which a period-anchored capture would swallow into the name.
+ * The player-in capture is lazy (bounded by the following keyword) so it doesn't greedily eat
+ * into an optional keyword prefix (e.g. "comes" in "comes on for").
  * @param {string} text
  * @returns {{ playerIn: string, playerOut: string }|null}
  */
-function parseSubstitutionFromDescription(text) {
+export function parseSubstitutionFromDescription(text) {
     if (!text || typeof text !== 'string') return null;
-    const namePart = '[\\p{L}\\p{M}][\\p{L}\\p{M}\\s\'-]+';
+    const namePart = '[\\p{L}\\p{M}][\\p{L}\\p{M}\\s\'-]+?';
+    const strictName = '\\p{Lu}[\\p{L}\\p{M}\'-]*(?:\\s\\p{Lu}[\\p{L}\\p{M}\'-]*)*';
     // Ordem: variantes por idioma primeiro; fallback genérico por último. O último padrão
     // exige contexto de substituição ("on for" / "comes on for") para evitar falsos
     // positivos com "for" solto (ex.: "Assist for X.").
     const patterns = [
-        new RegExp(`(${namePart})\\s+entra em campo\\s+substituindo\\s+(${namePart})\\.`, 'u'),
-        new RegExp(`(${namePart}) replaces (${namePart})\\.`, 'u'),
-        new RegExp(`(${namePart}) on for (${namePart})\\.`, 'u'),
-        new RegExp(`(${namePart}) sostituisce (${namePart})\\.`, 'u'),
-        new RegExp(`(${namePart}) in per (${namePart})\\.`, 'u'),
-        new RegExp(`(${namePart}) (?:comes )?on for (${namePart})\\.`, 'u'),
+        new RegExp(`entra em campo\\s+(${namePart})\\s+substituindo\\s+(${strictName})`, 'u'),
+        new RegExp(`(${namePart}) replaces (${strictName})`, 'u'),
+        new RegExp(`(${namePart}) sostituisce (${strictName})`, 'u'),
+        new RegExp(`(${namePart}) in per (${strictName})`, 'u'),
+        new RegExp(`(${namePart}) (?:comes )?on for (${strictName})`, 'u'),
     ];
     for (const re of patterns) {
         const m = text.match(re);
@@ -247,15 +254,22 @@ export function formatHalfTime(match, event = {}) {
 }
 
 /**
- * Format match end announcement
+ * Format match end announcement. If the match was decided on penalties (homeShootoutScore/
+ * awayShootoutScore present — set once ESPN's header.competitors[].shootoutScore appears),
+ * shows the shootout score and winner instead of the regular/extra-time score, which is often
+ * a draw for these matches.
  * @param {Object} match - Match data
  * @returns {string} Formatted post text
  */
 export function formatMatchEnd(match) {
-    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const { homeTeam, awayTeam, homeScore, awayScore, homeShootoutScore, awayShootoutScore } = match;
+    const hasShootout = homeShootoutScore != null && awayShootoutScore != null;
 
     let result;
-    if (homeScore > awayScore) {
+    if (hasShootout) {
+        const winnerTeam = homeShootoutScore > awayShootoutScore ? homeTeam : awayTeam;
+        result = translate('ui.team_wins', { team: winnerTeam.name });
+    } else if (homeScore > awayScore) {
         result = translate('ui.team_wins', { team: homeTeam.name });
     } else if (awayScore > homeScore) {
         result = translate('ui.team_wins', { team: awayTeam.name });
@@ -264,8 +278,11 @@ export function formatMatchEnd(match) {
     }
 
     let text = `${translate('ui.match_end')}\n\n`;
-    text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n\n`;
-    text += `${result}`;
+    text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}`;
+    if (hasShootout) {
+        text += ` (${homeShootoutScore} x ${awayShootoutScore} ${translate('ui.penalties')})`;
+    }
+    text += `\n\n${result}`;
 
     text += `\n\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
@@ -300,50 +317,87 @@ export function formatHighlights(match, highlights) {
 }
 
 /**
- * Format penalty shootout start announcement
+ * Format extra time start announcement (after regular 90 minutes end level)
+ * @param {Object} match - Match data
+ * @returns {string} Formatted post text
+ */
+export function formatExtraTimeStart(match) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+
+    let text = `${translate('ui.extra_time_start')}\n\n`;
+    text += `\ud83c\udfdf\ufe0f ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
+    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
+ * Format extra time halftime (interval between the two 15-minute extra-time halves)
+ * @param {Object} match - Match data
+ * @param {Object} event - Event data (optional, for minute)
+ * @returns {string} Formatted post text
+ */
+export function formatExtraTimeHalf(match, event = {}) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const rawMinute = displayMinute(event?.minute);
+    const minute = rawMinute === '?' ? '105' : rawMinute;
+
+    let text = `${translate('ui.extra_time_half')}\n\n`;
+    text += `\ud83c\udfdf\ufe0f ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
+    text += `\u23f1\ufe0f ${minute}'\n`;
+    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
+ * Format second half of extra time start. Distinct from formatSecondHalfStart (regular time)
+ * so it isn't confused with a normal second-half restart.
+ * @param {Object} match - Match data
+ * @param {Object} event - Event data (optional, for minute)
+ * @returns {string} Formatted post text
+ */
+export function formatExtraTimeSecondHalf(match, event = {}) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const rawMinute = displayMinute(event?.minute);
+    const minute = rawMinute === '?' ? '105' : rawMinute;
+
+    let text = `${translate('ui.extra_time_second_half')}\n\n`;
+    text += `\ud83c\udfdf\ufe0f ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
+    text += `\u23f1\ufe0f ${minute}'\n`;
+    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
+ * Format extra time end announcement (120 minutes played)
+ * @param {Object} match - Match data
+ * @returns {string} Formatted post text
+ */
+export function formatExtraTimeEnd(match) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+
+    let text = `${translate('ui.extra_time_end')}\n\n`;
+    text += `\ud83c\udfdf\ufe0f ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
+    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
+ * Format penalty shootout start announcement. Only fires when scores are still level after
+ * extra time (that's the only way ESPN emits this event), so the draw framing is always correct.
  * @param {Object} match - Match data
  * @returns {string} Formatted post text
  */
 export function formatShootoutStart(match) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
 
-    let text = '\ud83c\udfaf Disputa de P\u00eanaltis!\n\n';
+    let text = `${translate('ui.shootout_start')}\n\n`;
     text += `\ud83c\udfdf\ufe0f ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
     text += `${translate('ui.extra_time_draw')}\n`;
-    text += `\n\u26bd Come\u00e7ou a disputa de p\u00eanaltis...`;
-
-    text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
-
-    return text;
-}
-
-/**
- * Format a penalty shootout kick (scored or missed)
- * @param {Object} event - Shootout kick event data
- * @param {Object} match - Match data
- * @param {string} category - SHOOTOUT_GOAL or SHOOTOUT_MISS
- * @returns {string} Formatted post text
- */
-export function formatShootoutKick(event, match, category) {
-    const { homeTeam, awayTeam, homeScore, awayScore } = match;
-    const player = playerName(event.player) || translate('common.unknown_player');
-    const teamName = event.team?.name || (event.teamId === homeTeam.id ? homeTeam.name : awayTeam.name);
-    const isGoal = category === 'SHOOTOUT_GOAL';
-
-    let text = '';
-    if (isGoal) {
-        text += '\u26bd Gol na disputa de p\u00eanaltis!\n\n';
-    } else {
-        text += '\u274c P\u00eanalti perdido!\n\n';
-    }
-
-    text += `\ud83c\udfdf\ufe0f ${homeTeam.name} x ${awayTeam.name}\n`;
-    text += `\ud83d\udc64 ${player} (${teamName})`;
-
-    const desc = eventDescription(event);
-    if (desc) text += `\n\n\ud83d\udcdd ${desc}`;
-
-    text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
+    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }
