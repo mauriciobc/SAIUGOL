@@ -1,6 +1,7 @@
 import { config } from '../config.js';
 import { postStatus, uploadMediaFromUrl } from '../api/mastodon.js';
 import { getHighlights } from '../api/espn.js';
+import { PENALTY_SCORED_KEYWORDS, PENALTY_MISSED_KEYWORDS } from '../utils/eventKeywords.js';
 import {
     isEventPosted,
     markEventPosted,
@@ -54,7 +55,7 @@ const ID_TO_CATEGORY = {
  * (e.g. leagues that report a different id scheme, or types not yet observed).
  */
 const EVENT_TYPES = {
-    GOAL: ['goal', 'gol', 'gol de pênalti', 'own goal', 'goal - header', 'gol de cabeça', 'penalty - scored', 'pênalti convertido'],
+    GOAL: ['goal', 'gol', 'own goal', 'goal - header', 'gol de cabeça', ...PENALTY_SCORED_KEYWORDS],
     YELLOW_CARD: ['yellow card', 'yellowcard', 'cartão amarelo'],
     RED_CARD: ['red card', 'redcard', 'second yellow', 'cartão vermelho'],
     SUBSTITUTION: ['substitution', 'sub', 'substituição'],
@@ -73,8 +74,7 @@ const EVENT_TYPES = {
 /** Type substrings that mean the goal was disallowed/overturned — do not post as goal. */
 const DISALLOWED_GOAL_KEYWORDS = [
     'disallowed', 'no goal', 'ruled out', 'overturned', 'not given', 'chalked off',
-    'annulado', 'não vale', 'cancelado', 'impedimento', 'penalty - saved', 'penalty - missed',
-    'pênalti defendido', 'pênalti perdido',
+    'annulado', 'não vale', 'cancelado', 'impedimento', ...PENALTY_MISSED_KEYWORDS,
 ];
 
 /**

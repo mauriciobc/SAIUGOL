@@ -1,5 +1,6 @@
 import { config } from '../config.js';
 import { translate } from '../services/i18n.js';
+import { PENALTY_SCORED_KEYWORDS } from '../utils/eventKeywords.js';
 
 function playerName(player) {
     if (player == null) return undefined;
@@ -33,7 +34,7 @@ export function formatGoal(event, match, options = {}) {
     const minute = displayMinute(event.minute);
     const typeLower = event.type?.toLowerCase() ?? '';
     const isOwnGoal = typeLower.includes('own') || typeLower.includes('autogol') || typeLower.includes('gol contra');
-    const isPenalty = typeLower.includes('gol de pênalti') || typeLower.includes('pênalti convertido') || typeLower.includes('penalty - scored');
+    const isPenalty = PENALTY_SCORED_KEYWORDS.some((kw) => typeLower.includes(kw));
 
     let text = '';
     if (options.isFavoriteTeam) {
@@ -42,7 +43,7 @@ export function formatGoal(event, match, options = {}) {
     if (isOwnGoal) {
         text += translate('ui.own_goal_announcement');
     } else if (isPenalty) {
-        text += '⚽ Gol de Pênalti!\n';
+        text += translate('ui.penalty_goal_announcement');
     } else {
         text += translate('ui.goal_announcement');
     }

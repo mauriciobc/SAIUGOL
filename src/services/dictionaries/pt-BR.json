@@ -34,6 +34,7 @@
     "ui": {
         "goal_announcement": "⚽ GOOOOL!",
         "own_goal_announcement": "⚽ GOOOOL! (Contra)",
+        "penalty_goal_announcement": "⚽ Gol de Pênalti!",
         "yellow_card_announcement": "🟨 CARTÃO AMARELO!",
         "red_card_announcement": "🟥 CARTÃO VERMELHO!",
         "substitution_announcement": "🔄 SUBSTITUIÇÃO",

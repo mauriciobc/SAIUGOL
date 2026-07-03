@@ -395,7 +395,10 @@ export async function getLiveEvents(matchId, leagueCode) {
                             base.playerIn = { name: p0Name };
                             base.playerOut = { name: p1Name };
                         }
-                    } else if (type.includes('goal') || type.includes('gol') || type.includes('gol de pênalti') || type.includes('pênalti convertido') || type.includes('penalty - scored')) {
+                    } else if (type.includes('goal') || type.includes('gol') || type.includes('penalty') || type.includes('pênalti')) {
+                        // Broad match is safe here: parseScorerFromGoalDescription only matches text
+                        // starting with "Goal!"/"Gol!", so a missed/saved penalty (whose description
+                        // doesn't start that way) simply yields no scorer rather than a wrong one.
                         const scorerFromText = parseScorerFromGoalDescription(description);
                         if (scorerFromText) {
                             base.player = { name: scorerFromText };
