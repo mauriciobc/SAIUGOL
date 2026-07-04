@@ -6,7 +6,7 @@ describe('parseSubstitutionFromDescription - Unicode Fix', () => {
     it('should handle Portuguese names with accents and special characters', () => {
         const testCases = [
             {
-                description: 'João Silva entra em campo substituindo Pedro Álvares.',
+                description: 'Substituição, entra em campo João Silva substituindo Pedro Álvares.',
                 expected: { playerIn: 'João Silva', playerOut: 'Pedro Álvares' }
             },
             {
