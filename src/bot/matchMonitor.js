@@ -1,4 +1,5 @@
 import { getTodayMatches, getMatchDetails, getLiveEvents } from '../api/espn.js';
+import { getDateStringFor } from '../utils/dateUtils.js';
 import { postStatus } from '../api/mastodon.js';
 import {
     isMatchActive,
@@ -10,12 +11,20 @@ import {
     isEventPosted,
     markEventPosted,
     isRecoveredActiveKey,
+    getLastDigestDate,
+    setLastDigestDate,
 } from '../state/matchState.js';
 import { matchesToSnapshotMap } from '../state/snapshotContract.js';
 import { computeDiff } from '../state/diffEngine.js';
 import { processEvents, handleMatchEnd, markExistingEventsAsSeen, getMatchStartEventId } from './eventProcessor.js';
-import { formatMatchStart } from './formatter.js';
+import { formatMatchStart, formatDailyDigest, formatMatchPreview } from './formatter.js';
 import { config } from '../config.js';
+
+/** Last successfully fetched league match list, updated every poll. */
+let _lastLeagueMatches = [];
+
+/** Returns the most recent cross-league match list (for mention listener schedule replies). */
+export function getLastLeagueMatches() { return _lastLeagueMatches; }
 
 /**
  * Initialize the match monitor
@@ -41,9 +50,43 @@ export async function poll() {
     /** Timestamps (ms) of scheduled start for matches with status 'pre' and valid startTime (all leagues). */
     const preMatchStartTimestamps = [];
 
+    // Collect all league matches first so the daily digest can show a full cross-league schedule.
+    /** @type {Array<{ league: Object, matches: Array }>} */
+    const allLeagueMatches = [];
     for (const league of config.activeLeagues) {
         try {
             const matches = await getTodayMatches(league.code);
+            allLeagueMatches.push({ league, matches });
+        } catch (error) {
+            console.error(`[MatchMonitor] Erro ao buscar partidas para ${league.name}:`, error.message);
+            allLeagueMatches.push({ league, matches: [] });
+        }
+    }
+    _lastLeagueMatches = allLeagueMatches;
+
+    // Daily digest — fire once per calendar day across all leagues
+    if (config.events.dailyDigest) {
+        const today = getDateStringFor(new Date(), config.timezone);
+        if (getLastDigestDate() !== today) {
+            const hasMatches = allLeagueMatches.some(({ matches }) => matches.length > 0);
+            if (hasMatches) {
+                try {
+                    const digestText = formatDailyDigest(allLeagueMatches);
+                    await postStatus(digestText);
+                    setLastDigestDate(today);
+                    console.log('[MatchMonitor] Digest diário postado');
+                } catch (err) {
+                    console.error('[MatchMonitor] Erro ao postar digest diário:', err.message);
+                }
+            } else {
+                // No matches today — still mark as seen so we don't retry every poll
+                setLastDigestDate(today);
+            }
+        }
+    }
+
+    for (const { league, matches } of allLeagueMatches) {
+        try {
             console.log(`[MatchMonitor] ${matches.length} partidas encontradas para ${league.name}`);
 
             const newSnapshotMap = matchesToSnapshotMap(matches);
@@ -53,6 +96,23 @@ export async function poll() {
                 if (snap?.status === 'pre' && match.startTime) {
                     const t = new Date(match.startTime).getTime();
                     if (!Number.isNaN(t)) preMatchStartTimestamps.push(t);
+
+                    // Pre-match preview — fire once when the match enters the poll window
+                    if (config.events.matchPreview) {
+                        const previewId = `${matchId}-preview`;
+                        const inWindow = t - Date.now() <= config.bot.pollWindowBeforeMatchMs;
+                        if (inWindow && !isEventPosted(previewId)) {
+                            try {
+                                const matchData = normalizeMatchData({ ...match, league });
+                                const previewText = formatMatchPreview(matchData);
+                                await postStatus(previewText);
+                                markEventPosted(previewId);
+                                console.log(`[MatchMonitor] Preview pré-jogo postado para partida ${matchId}`);
+                            } catch (err) {
+                                console.error(`[MatchMonitor] Erro ao postar preview da partida ${matchId}:`, err.message);
+                            }
+                        }
+                    }
                 }
             }
             const { actions, snapshotEntries } = computeDiff(
@@ -219,10 +279,18 @@ function normalizeMatchData(apiMatch) {
         homeTeam: {
             id: apiMatch.homeTeam?.id,
             name: apiMatch.homeTeam?.name || apiMatch.homeName || 'Casa',
+            logo: apiMatch.homeTeam?.logo,
+            form: apiMatch.homeTeam?.form,
+            record: apiMatch.homeTeam?.record,
+            standing: apiMatch.homeTeam?.standing,
         },
         awayTeam: {
             id: apiMatch.awayTeam?.id,
             name: apiMatch.awayTeam?.name || apiMatch.awayName || 'Visitante',
+            logo: apiMatch.awayTeam?.logo,
+            form: apiMatch.awayTeam?.form,
+            record: apiMatch.awayTeam?.record,
+            standing: apiMatch.awayTeam?.standing,
         },
         homeScore: apiMatch.homeScore ?? apiMatch.homeGoals ?? 0,
         awayScore: apiMatch.awayScore ?? apiMatch.awayGoals ?? 0,
@@ -233,6 +301,8 @@ function normalizeMatchData(apiMatch) {
         minute: apiMatch.minute || apiMatch.clock,
         startTime: apiMatch.startTime || apiMatch.date,
         league: apiMatch.league,
+        venueCity: apiMatch.venueCity,
+        boxscore: apiMatch.boxscore,
     };
 }
 

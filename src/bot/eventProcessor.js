@@ -5,8 +5,6 @@ import { PENALTY_SCORED_KEYWORDS, PENALTY_MISSED_KEYWORDS } from '../utils/event
 import {
     isEventPosted,
     markEventPosted,
-    getLastScore,
-    updateLastScore,
 } from '../state/matchState.js';
 import {
     formatGoal,
@@ -18,6 +16,7 @@ import {
     formatHalfTime,
     formatMatchEnd,
     formatHighlights,
+    formatMatchStats,
     formatExtraTimeStart,
     formatExtraTimeHalf,
     formatExtraTimeSecondHalf,
@@ -252,7 +251,25 @@ export async function processEvents(events, match) {
         const isFavorite = isFavoriteTeam(event, match);
         const text = formatEventPost(category, event, match, { isFavoriteTeam: isFavorite });
         if (text) {
-            const result = await postStatus(text);
+            let postOptions = {};
+            if (category === 'GOAL' && config.media.attachCrests) {
+                const scoringTeamId = event.teamId || event.team?.id;
+                const scoringTeam =
+                    scoringTeamId && String(scoringTeamId) === String(match.homeTeam?.id)
+                        ? match.homeTeam
+                        : scoringTeamId && String(scoringTeamId) === String(match.awayTeam?.id)
+                        ? match.awayTeam
+                        : null;
+                const logoUrl = scoringTeam?.logo;
+                if (logoUrl) {
+                    const mediaId = await uploadMediaFromUrl(logoUrl, {
+                        type: 'image',
+                        description: `${scoringTeam.name} crest`,
+                    });
+                    if (mediaId) postOptions = { mediaIds: [mediaId] };
+                }
+            }
+            const result = await postStatus(text, postOptions);
             if (result) {
                 markEventPosted(eventId);
                 postedCount++;
@@ -305,36 +322,6 @@ function formatEventPost(category, event, match, options = {}) {
         default:
             return null;
     }
-}
-
-/**
- * Check for score changes and post if there's a new goal.
- * Not used by matchMonitor (goals are driven by getLiveEvents + processEvents). lastScores is not
- * persisted, so after a restart getLastScore is empty and this would just set lastScore without posting.
- * @param {Object} match - Match data with current score
- * @returns {Promise<boolean>} True if score change was posted
- */
-export async function checkScoreChange(match) {
-    const lastScore = getLastScore(match.id);
-    const currentHome = match.homeScore || 0;
-    const currentAway = match.awayScore || 0;
-
-    if (!lastScore) {
-        updateLastScore(match.id, currentHome, currentAway);
-        return false;
-    }
-
-    const scoreDiff =
-        currentHome + currentAway - (lastScore.home + lastScore.away);
-
-    if (scoreDiff > 0) {
-        // Score increased - there was a goal
-        // The actual goal event will be posted by processEvents
-        updateLastScore(match.id, currentHome, currentAway);
-        return true;
-    }
-
-    return false;
 }
 
 /**
@@ -393,6 +380,18 @@ export async function handleMatchEnd(match) {
             await postStatus(highlightsText, postOptions);
             markEventPosted(highlightsId);
             console.log(`[EventProcessor] Highlights postados para partida ${match.id}`);
+        }
+    }
+
+    if (config.events.matchStats) {
+        const statsId = `${match.id}-match-stats`;
+        if (!isEventPosted(statsId)) {
+            const statsText = formatMatchStats(match);
+            if (statsText) {
+                await postStatus(statsText);
+                markEventPosted(statsId);
+                console.log(`[EventProcessor] Estatísticas postadas para partida ${match.id}`);
+            }
         }
     }
 }

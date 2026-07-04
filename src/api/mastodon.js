@@ -33,6 +33,10 @@ export function __setClient(customClient) {
     client = customClient;
 }
 
+let _uploadFn = null;
+/** Override uploadMediaFromUrl for testing. Pass null to restore the real implementation. */
+export function __setUploadFn(fn) { _uploadFn = fn; }
+
 /**
  * Helper to download a file using native curl (to bypass Node.js WAF blocking)
  */
@@ -89,6 +93,7 @@ function downloadWithCurl(url, destPath) {
  * @returns {Promise<string|null>} Media ID or null on error
  */
 export async function uploadMediaFromUrl(url, options = {}) {
+    if (_uploadFn) return _uploadFn(url, options);
     if (config.bot.dryRun) {
         mastodonLogger.debug({ url }, '[DRY RUN] Upload de mídia');
         return 'dry-run-media-id';
@@ -315,6 +320,25 @@ export async function getAccountId() {
     } catch (error) {
         mastodonLogger.error({ err: error }, 'Erro ao obter ID da conta');
         return null;
+    }
+}
+
+/**
+ * Get mention notifications since a given notification id.
+ * Requires the token to have read:notifications scope.
+ * @param {string|null} sinceId - Only return notifications newer than this id
+ * @returns {Promise<Array>} Array of megalodon notification objects (type === 'mention')
+ */
+export async function getMentions(sinceId = null) {
+    try {
+        const mastodon = getClient();
+        const params = { types: ['mention'], limit: 30 };
+        if (sinceId) params.since_id = sinceId;
+        const response = await mastodon.getNotifications(params);
+        return response.data || [];
+    } catch (error) {
+        mastodonLogger.error({ error: error.message }, 'Erro ao buscar menções');
+        return [];
     }
 }
 

@@ -88,4 +88,18 @@ describe('persistence', () => {
         assert.ok(typeof stats.size === 'number');
         assert.ok(stats.size > 0);
     });
+
+    it('saveState deve persistir lastDigestDate e loadState deve restaurá-la', async () => {
+        const date = '2026-07-04';
+        await saveState(new Set(), new Map(), [], date);
+        const loaded = await loadState();
+        assert.strictEqual(loaded.lastDigestDate, date);
+    });
+
+    it('loadState deve retornar lastDigestDate null quando não salvo', async () => {
+        const stateFile = join(testDir, 'state.json');
+        if (existsSync(stateFile)) rmSync(stateFile);
+        const loaded = await loadState();
+        assert.strictEqual(loaded.lastDigestDate, null);
+    });
 });

@@ -142,21 +142,29 @@ export async function getTodayMatches(leagueCode) {
                         return null;
                     }
 
+                    const venueAddr = competition.venue?.address;
                     return {
                         id: event.id,
                         homeTeam: {
                             id: home.team?.id,
                             name: home.team?.displayName || 'Casa',
+                            logo: home.team?.logo,
+                            form: home.form || undefined,
+                            record: home.records?.find(r => r.type === 'total')?.summary || undefined,
                         },
                         awayTeam: {
                             id: away.team?.id,
                             name: away.team?.displayName || 'Visitante',
+                            logo: away.team?.logo,
+                            form: away.form || undefined,
+                            record: away.records?.find(r => r.type === 'total')?.summary || undefined,
                         },
                         homeScore: parseInt(home.score, 10) || 0,
                         awayScore: parseInt(away.score, 10) || 0,
                         status: competition.status?.type?.name || 'unknown',
                         state: competition.status?.type?.state || 'unknown',
                         venue: competition.venue?.fullName || 'Não informado',
+                        venueCity: venueAddr?.city || undefined,
                         startTime: event.date,
                         minute: competition.status?.displayClock || "0'",
                     };
@@ -181,6 +189,62 @@ export async function getTodayMatches(leagueCode) {
         espnLogger.error({ error: error.message }, 'Todas as tentativas falharam para getTodayMatches');
         return [];
     });
+}
+
+/**
+ * Parse the standings table from a summary response for a specific team.
+ * Returns undefined when the competition has no table (e.g. World Cup group stage with no entries).
+ * @param {Object|undefined} standings - response.data.standings
+ * @param {string|undefined} teamId
+ * @returns {{ rank: number, points: number, wins: number, losses: number, ties: number, gamesPlayed: number }|undefined}
+ */
+function parseStandingForTeam(standings, teamId) {
+    if (!standings || !teamId) return undefined;
+    const entries = standings.groups?.[0]?.standings?.entries;
+    if (!entries?.length) return undefined;
+    const entry = entries.find(e => String(e.team?.id) === String(teamId));
+    if (!entry) return undefined;
+    const stat = (name) => {
+        const s = entry.stats?.find(s => s.name === name);
+        return s != null ? Number(s.value) : undefined;
+    };
+    return {
+        rank: stat('rank'),
+        points: stat('points'),
+        wins: stat('wins'),
+        losses: stat('losses'),
+        ties: stat('ties'),
+        gamesPlayed: stat('gamesPlayed'),
+    };
+}
+
+/**
+ * Parse boxscore statistics from a summary response.
+ * Returns undefined when boxscore is absent. Individual stats are undefined when not provided by ESPN
+ * for a given league (e.g. World Cup returns a minimal stat set).
+ * @param {Object|undefined} rawBoxscore - response.data.boxscore
+ * @returns {{ home: Object, away: Object }|undefined}
+ */
+function parseBoxscore(rawBoxscore) {
+    if (!rawBoxscore?.teams?.length) return undefined;
+    const result = {};
+    for (const teamData of rawBoxscore.teams) {
+        const side = teamData.homeAway === 'home' ? 'home' : 'away';
+        const stat = (name) => {
+            const s = teamData.statistics?.find(s => s.name === name);
+            return s != null ? s.displayValue ?? s.value : undefined;
+        };
+        result[side] = {
+            possessionPct: stat('possessionPct'),
+            totalShots: stat('totalShots'),
+            shotsOnTarget: stat('shotsOnTarget'),
+            wonCorners: stat('wonCorners'),
+            yellowCards: stat('yellowCards'),
+            redCards: stat('redCards'),
+            saves: stat('saves'),
+        };
+    }
+    return (result.home || result.away) ? result : undefined;
 }
 
 /**
@@ -239,15 +303,23 @@ export async function getMatchDetails(matchId, leagueCode) {
                 const homeShootoutScore = home.shootoutScore != null ? parseInt(home.shootoutScore, 10) : undefined;
                 const awayShootoutScore = away.shootoutScore != null ? parseInt(away.shootoutScore, 10) : undefined;
 
+                const homeStanding = parseStandingForTeam(response.data.standings, home.team?.id);
+                const awayStanding = parseStandingForTeam(response.data.standings, away.team?.id);
+                const boxscore = parseBoxscore(response.data.boxscore);
+
                 return {
                     id: matchId,
                     homeTeam: {
                         id: home.team?.id,
                         name: home.team?.displayName || 'Casa',
+                        logo: home.team?.logo,
+                        standing: homeStanding,
                     },
                     awayTeam: {
                         id: away.team?.id,
                         name: away.team?.displayName || 'Visitante',
+                        logo: away.team?.logo,
+                        standing: awayStanding,
                     },
                     homeScore: parseInt(home.score, 10) || 0,
                     awayScore: parseInt(away.score, 10) || 0,
@@ -257,6 +329,7 @@ export async function getMatchDetails(matchId, leagueCode) {
                     venue: competition.venue?.fullName,
                     startTime: header.date,
                     minute: competition.status?.displayClock,
+                    boxscore,
                 };
             } catch (error) {
                 const latencyMs = Date.now() - startTime;

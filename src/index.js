@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import { config } from './config.js';
 import { verifyCredentials } from './api/mastodon.js';
-import { initialize, startMonitoring } from './bot/matchMonitor.js';
+import { initialize, startMonitoring, getLastLeagueMatches } from './bot/matchMonitor.js';
+import { startMentionListener } from './bot/mentionListener.js';
 import { whenReady, shutdown as shutdownState } from './state/matchState.js';
 import { logger, botLogger } from './utils/logger.js';
 import { initI18n } from './services/i18n.js';
@@ -55,6 +56,9 @@ async function main() {
     }, 'Bot iniciado com sucesso');
 
     await startMonitoring();
+
+    // Start mention listener on its own fixed-interval loop (independent of elastic match polling)
+    startMentionListener(getLastLeagueMatches);
 }
 
 // Handle graceful shutdown

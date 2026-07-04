@@ -38,7 +38,8 @@ export function formatGoal(event, match, options = {}) {
 
     let text = '';
     if (options.isFavoriteTeam) {
-        text += '⚫🔴 Gol do Galo!\n\n';
+        const { favoriteTeamEmoji: emoji, favoriteTeamNickname: nickname } = config.bot;
+        text += `${emoji} Gol do ${nickname}!\n\n`;
     }
     if (isOwnGoal) {
         text += translate('ui.own_goal_announcement');
@@ -84,7 +85,8 @@ export function formatCard(event, match, options = {}) {
 
     let text = '';
     if (isRed && options.isFavoriteTeam) {
-        text += '⚫🔴 Cartão vermelho - Galo!\n\n';
+        const { favoriteTeamEmoji: emoji, favoriteTeamNickname: nickname } = config.bot;
+        text += `${emoji} Cartão vermelho - ${nickname}!\n\n`;
     }
     text += `${cardType}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
@@ -196,6 +198,15 @@ export function formatVAR(event, match) {
     return text;
 }
 
+/** Format a standing as a compact annotation, e.g. "(1º · 41pts)". Returns '' when absent. */
+function standingAnnotation(standing) {
+    if (!standing?.rank || standing?.points == null) return '';
+    const parts = [];
+    if (standing.rank != null) parts.push(`${standing.rank}º`);
+    if (standing.points != null) parts.push(`${standing.points}pts`);
+    return parts.length ? ` (${parts.join(' · ')})` : '';
+}
+
 /**
  * Format match start announcement
  * @param {Object} match - Match data
@@ -205,7 +216,7 @@ export function formatMatchStart(match) {
     const { homeTeam, awayTeam, venue } = match;
 
     let text = `${translate('ui.match_start')}\n\n`;
-    text += `🏟️ ${homeTeam.name} x ${awayTeam.name}\n`;
+    text += `🏟️ ${homeTeam.name}${standingAnnotation(homeTeam.standing)} x ${awayTeam.name}${standingAnnotation(awayTeam.standing)}\n`;
 
     if (venue) {
         text += `📍 ${venue}\n`;
@@ -279,7 +290,7 @@ export function formatMatchEnd(match) {
     }
 
     let text = `${translate('ui.match_end')}\n\n`;
-    text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}`;
+    text += `🏟️ ${homeTeam.name}${standingAnnotation(homeTeam.standing)} ${homeScore} x ${awayScore} ${awayTeam.name}${standingAnnotation(awayTeam.standing)}`;
     if (hasShootout) {
         text += ` (${homeShootoutScore} x ${awayShootoutScore} ${translate('ui.penalties')})`;
     }
@@ -287,6 +298,116 @@ export function formatMatchEnd(match) {
 
     text += `\n\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
+    return text;
+}
+
+/**
+ * Format post-match statistics toot.
+ * @param {Object} match - Match data (with boxscore)
+ * @returns {string|null} Formatted post text, or null if no stats available
+ */
+export function formatMatchStats(match) {
+    const { homeTeam, awayTeam, homeScore, awayScore, boxscore } = match;
+    if (!boxscore) return null;
+
+    const fmt = (side) => {
+        const s = boxscore[side];
+        if (!s) return null;
+        const parts = [];
+        if (s.possessionPct != null) parts.push(`${translate('ui.possession')} ${s.possessionPct}%`);
+        if (s.totalShots != null) {
+            const onTarget = s.shotsOnTarget != null ? ` (${s.shotsOnTarget} ${translate('ui.shots_on_target')})` : '';
+            parts.push(`${translate('ui.shots')} ${s.totalShots}${onTarget}`);
+        }
+        if (s.wonCorners != null) parts.push(`${translate('ui.corners')} ${s.wonCorners}`);
+        if (s.saves != null) parts.push(`${translate('ui.saves')} ${s.saves}`);
+        if (s.yellowCards != null) parts.push(`🟨 ${s.yellowCards}`);
+        if (s.redCards != null) parts.push(`🟥 ${s.redCards}`);
+        return parts.length ? parts.join(' · ') : null;
+    };
+
+    const homeStats = fmt('home');
+    const awayStats = fmt('away');
+    if (!homeStats && !awayStats) return null;
+
+    let text = `${translate('ui.match_stats')}\n\n`;
+    text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n\n`;
+    if (homeStats) text += `${homeTeam.name}: ${homeStats}\n`;
+    if (awayStats) text += `${awayTeam.name}: ${awayStats}\n`;
+
+    text += `\n${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/** Format a kickoff time as HH:MM in the configured timezone. Returns '' if date is invalid. */
+function formatKickoff(isoDate) {
+    if (!isoDate) return '';
+    try {
+        return new Intl.DateTimeFormat('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: config.timezone,
+        }).format(new Date(isoDate));
+    } catch {
+        return '';
+    }
+}
+
+/**
+ * Format a daily digest listing all of today's matches, grouped by league.
+ * @param {Array<{ league: Object, matches: Array }>} leagueMatches - Array of { league, matches }
+ * @returns {string} Formatted post text
+ */
+export function formatDailyDigest(leagueMatches) {
+    let text = `${translate('ui.daily_digest')}\n\n`;
+
+    for (const { league, matches } of leagueMatches) {
+        if (!matches.length) continue;
+        if (league?.name) text += `🏆 ${league.name}\n`;
+        for (const match of matches) {
+            const kickoff = formatKickoff(match.startTime);
+            const time = kickoff ? ` ${kickoff}` : '';
+            text += `⚽ ${match.homeTeam.name} x ${match.awayTeam.name}${time}\n`;
+        }
+        text += '\n';
+    }
+
+    const allHashtags = [...new Set(leagueMatches.flatMap(({ league }) => league?.hashtags || []))];
+    if (allHashtags.length) text += allHashtags.join(' ');
+
+    return text.trimEnd();
+}
+
+/**
+ * Format a pre-match preview for a single match (form, record, venue city).
+ * @param {Object} match - Match data (with homeTeam.form, homeTeam.record, venueCity)
+ * @returns {string} Formatted post text
+ */
+export function formatMatchPreview(match) {
+    const { homeTeam, awayTeam, venueCity } = match;
+    const kickoff = formatKickoff(match.startTime);
+
+    let text = `${translate('ui.match_preview')}\n\n`;
+    text += `⚽ ${homeTeam.name} x ${awayTeam.name}`;
+    if (kickoff) text += ` — ${kickoff}`;
+    text += '\n';
+    if (venueCity) text += `📍 ${venueCity}\n`;
+    text += '\n';
+
+    const teamLine = (team) => {
+        const parts = [];
+        if (team.form) parts.push(`${translate('ui.form')}: ${team.form}`);
+        if (team.record) parts.push(`${translate('ui.record')}: ${team.record}`);
+        return parts.length ? `${team.name}: ${parts.join(' · ')}` : null;
+    };
+
+    const homeLine = teamLine(homeTeam);
+    const awayLine = teamLine(awayTeam);
+    if (homeLine) text += `${homeLine}\n`;
+    if (awayLine) text += `${awayLine}\n`;
+
+    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
     return text;
 }
 

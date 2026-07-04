@@ -85,7 +85,7 @@ describe('Translation Service', () => {
 });
 
 describe('Formatter Integration', async () => {
-    const { formatGoal, formatCard, formatSubstitution, formatVAR, formatHighlights, formatMatchStart, formatMatchEnd, formatSecondHalfStart } =
+    const { formatGoal, formatCard, formatSubstitution, formatVAR, formatHighlights, formatMatchStart, formatMatchEnd, formatSecondHalfStart, formatMatchStats, formatDailyDigest, formatMatchPreview } =
         await import('../src/bot/formatter.js');
 
     initI18n('pt-BR');
@@ -258,5 +258,165 @@ describe('Formatter Integration', async () => {
         assert.ok(result.includes('Palmeiras'));
         assert.ok(result.includes('2 x 1'));
         assert.ok(result.includes('46'));
+    });
+
+    it('should include favorite team goal alert using config nickname and emoji', () => {
+        const event = {
+            player: { name: 'Hulk' },
+            minute: '10',
+            type: 'Goal',
+            team: { name: 'Flamengo' }
+        };
+        const result = formatGoal(event, mockMatch, { isFavoriteTeam: true });
+        assert.ok(result.includes('⚫🔴'));
+        assert.ok(result.includes('Galo'));
+        assert.ok(result.startsWith('⚫🔴 Gol do Galo!'));
+    });
+
+    it('should include favorite team red card alert using config nickname and emoji', () => {
+        const event = {
+            player: { name: 'Jogador' },
+            minute: '55',
+            type: 'Red Card'
+        };
+        const result = formatCard(event, mockMatch, { isFavoriteTeam: true });
+        assert.ok(result.includes('⚫🔴'));
+        assert.ok(result.includes('Galo'));
+        assert.ok(result.startsWith('⚫🔴 Cartão vermelho - Galo!'));
+    });
+
+    it('should not include favorite team alert for yellow card even with isFavoriteTeam', () => {
+        const event = {
+            player: { name: 'Jogador' },
+            minute: '30',
+            type: 'Yellow Card'
+        };
+        const result = formatCard(event, mockMatch, { isFavoriteTeam: true });
+        assert.ok(!result.includes('Galo'));
+    });
+
+    it('should include standing annotation in formatMatchStart when standing present', () => {
+        const matchWithStanding = {
+            ...mockMatch,
+            homeTeam: { ...mockMatch.homeTeam, standing: { rank: 1, points: 41 } },
+            awayTeam: { ...mockMatch.awayTeam, standing: { rank: 5, points: 30 } },
+        };
+        const result = formatMatchStart(matchWithStanding);
+        assert.ok(result.includes('(1º · 41pts)'), `expected standing annotation, got: ${result}`);
+        assert.ok(result.includes('(5º · 30pts)'));
+    });
+
+    it('should omit standing annotation in formatMatchStart when standing absent', () => {
+        const result = formatMatchStart(mockMatch);
+        assert.ok(!result.includes('pts'));
+    });
+
+    it('should include standing annotation in formatMatchEnd when standing present', () => {
+        const matchWithStanding = {
+            ...mockMatch,
+            homeTeam: { ...mockMatch.homeTeam, standing: { rank: 2, points: 38 } },
+            awayTeam: { ...mockMatch.awayTeam, standing: undefined },
+        };
+        const result = formatMatchEnd(matchWithStanding);
+        assert.ok(result.includes('(2º · 38pts)'));
+    });
+
+    it('formatMatchStats returns null when no boxscore', () => {
+        const result = formatMatchStats(mockMatch);
+        assert.strictEqual(result, null);
+    });
+
+    it('formatMatchStats formats available stats', () => {
+        const matchWithStats = {
+            ...mockMatch,
+            boxscore: {
+                home: { possessionPct: '55.0', totalShots: '12', shotsOnTarget: '5', wonCorners: '6', yellowCards: '1', redCards: '0', saves: '3' },
+                away: { possessionPct: '45.0', totalShots: '8', shotsOnTarget: '2', wonCorners: '3', yellowCards: '2', redCards: '0', saves: '7' },
+            },
+        };
+        const result = formatMatchStats(matchWithStats);
+        assert.ok(result !== null);
+        assert.ok(result.includes('📊 ESTATÍSTICAS'));
+        assert.ok(result.includes('Flamengo'));
+        assert.ok(result.includes('Palmeiras'));
+        assert.ok(result.includes('55.0'));
+        assert.ok(result.includes('12'));
+        assert.ok(result.includes('5 no gol'));
+    });
+
+    it('formatMatchStats handles partial stats gracefully', () => {
+        const matchWithPartialStats = {
+            ...mockMatch,
+            boxscore: {
+                home: { possessionPct: undefined, totalShots: undefined, shotsOnTarget: undefined, wonCorners: undefined, yellowCards: '1', redCards: '0', saves: undefined },
+                away: undefined,
+            },
+        };
+        const result = formatMatchStats(matchWithPartialStats);
+        assert.ok(result !== null);
+        assert.ok(result.includes('🟨 1'));
+    });
+
+    it('formatDailyDigest lists fixtures grouped by league', () => {
+        const league = { name: 'Brasileirão', hashtags: ['#Brasileirao'] };
+        const leagueMatches = [{
+            league,
+            matches: [
+                { homeTeam: { name: 'Flamengo' }, awayTeam: { name: 'Palmeiras' }, startTime: '2026-07-04T18:00:00Z' },
+                { homeTeam: { name: 'Atlético-MG' }, awayTeam: { name: 'Grêmio' }, startTime: '2026-07-04T21:00:00Z' },
+            ],
+        }];
+        const result = formatDailyDigest(leagueMatches);
+        assert.ok(result.includes('📅 JOGOS DE HOJE'));
+        assert.ok(result.includes('Brasileirão'));
+        assert.ok(result.includes('Flamengo'));
+        assert.ok(result.includes('Palmeiras'));
+        assert.ok(result.includes('Atlético-MG'));
+        assert.ok(result.includes('#Brasileirao'));
+    });
+
+    it('formatDailyDigest skips leagues with no matches', () => {
+        const leagueMatches = [
+            { league: { name: 'Liga A', hashtags: [] }, matches: [] },
+            { league: { name: 'Liga B', hashtags: [] }, matches: [
+                { homeTeam: { name: 'Time1' }, awayTeam: { name: 'Time2' }, startTime: null },
+            ]},
+        ];
+        const result = formatDailyDigest(leagueMatches);
+        assert.ok(!result.includes('Liga A'));
+        assert.ok(result.includes('Liga B'));
+        assert.ok(result.includes('Time1'));
+    });
+
+    it('formatMatchPreview shows form and record when present', () => {
+        const matchWithPreviewData = {
+            ...mockMatch,
+            homeTeam: { ...mockMatch.homeTeam, form: 'WWDLW', record: '9-2-7' },
+            awayTeam: { ...mockMatch.awayTeam, form: 'WLLWW', record: '8-3-7' },
+            venueCity: 'Rio de Janeiro',
+            startTime: '2026-07-04T21:00:00Z',
+        };
+        const result = formatMatchPreview(matchWithPreviewData);
+        assert.ok(result.includes('🔜 PRÉ-JOGO'));
+        assert.ok(result.includes('Flamengo'));
+        assert.ok(result.includes('Palmeiras'));
+        assert.ok(result.includes('WWDLW'));
+        assert.ok(result.includes('9-2-7'));
+        assert.ok(result.includes('Rio de Janeiro'));
+    });
+
+    it('formatMatchPreview omits sections when data absent', () => {
+        const minimalMatch = {
+            ...mockMatch,
+            homeTeam: { ...mockMatch.homeTeam, form: undefined, record: undefined },
+            awayTeam: { ...mockMatch.awayTeam, form: undefined, record: undefined },
+            venueCity: undefined,
+            startTime: null,
+        };
+        const result = formatMatchPreview(minimalMatch);
+        assert.ok(result.includes('🔜 PRÉ-JOGO'));
+        assert.ok(result.includes('Flamengo'));
+        assert.ok(!result.includes('Forma:'));
+        assert.ok(!result.includes('Campeonato:'));
     });
 });
