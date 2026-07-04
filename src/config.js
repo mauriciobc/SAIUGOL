@@ -170,6 +170,8 @@ export const config = {
         pollScheduleRefreshMaxMs: parseEnvInt(process.env.POLL_SCHEDULE_REFRESH_MAX_MS, 3600000, 300000, 86400000),
         favoriteTeamIds: (process.env.FAVORITE_TEAM_IDS || '').split(',').map(s => s.trim()).filter(Boolean),
         favoriteTeamNames: (process.env.FAVORITE_TEAM_NAMES || '').split(',').map(s => s.trim()).filter(Boolean),
+        favoriteTeamNickname: process.env.FAVORITE_TEAM_NICKNAME ?? 'Galo',
+        favoriteTeamEmoji: process.env.FAVORITE_TEAM_EMOJI ?? '⚫🔴',
     },
     // Timing delays (milliseconds)
     delays: {
@@ -184,6 +186,16 @@ export const config = {
         initialDelayMs: parseEnvInt(process.env.RETRY_INITIAL_DELAY_MS, 1000, 100),
         maxDelayMs: parseEnvInt(process.env.RETRY_MAX_DELAY_MS, 10000, 1000),
     },
+    // Mention listener
+    mentions: {
+        pollIntervalMs: parseEnvInt(process.env.MENTION_POLL_INTERVAL_MS, 60000, 10000),
+        cooldownMs: parseEnvInt(process.env.MENTION_COOLDOWN_MS, 300000, 10000),
+        enabled: process.env.MENTION_LISTENER !== 'false',
+    },
+    // Media attachment settings
+    media: {
+        attachCrests: process.env.ATTACH_CRESTS !== 'false',
+    },
     // Event types to post
     events: {
         goals: true,
@@ -195,6 +207,9 @@ export const config = {
         interval: true,
         matchEnd: true,
         extraTime: true,
+        matchStats: true,
+        dailyDigest: process.env.DAILY_DIGEST !== 'false',
+        matchPreview: process.env.MATCH_PREVIEW !== 'false',
     },
     // Internationalization configuration (valid values: docs/linguagens-validas.md)
     i18n: {

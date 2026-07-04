@@ -57,7 +57,18 @@
         "player_in": "Entra",
         "player_out": "Sai",
         "decision": "Decisão",
-        "review_in_progress": "Revisão em andamento"
+        "review_in_progress": "Revisão em andamento",
+        "daily_digest": "📅 JOGOS DE HOJE",
+        "match_preview": "🔜 PRÉ-JOGO",
+        "form": "Forma",
+        "record": "Temporada",
+        "city": "Cidade",
+        "match_stats": "📊 ESTATÍSTICAS",
+        "possession": "Posse",
+        "shots": "Chutes",
+        "shots_on_target": "Chutes no gol",
+        "corners": "Escanteios",
+        "saves": "Defesas"
     },
     "common": {
         "home": "Casa",

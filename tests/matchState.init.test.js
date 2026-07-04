@@ -26,7 +26,10 @@ describe('matchState initialization and whenReady', () => {
         const snap = { id: '1', score: { home: 0, away: 0 }, status: 'in', gameTime: "0'" };
         await saveState(new Set(), new Map([['bra.1:1', snap]]));
 
-        const { whenReady, getPreviousSnapshot } = await import('../src/state/matchState.js');
+        const { resetStateForTesting, getPreviousSnapshot } = await import('../src/state/matchState.js');
+        resetStateForTesting();
+
+        const { whenReady } = await import('../src/state/matchState.js');
         const readyPromise = whenReady();
         assert.ok(readyPromise instanceof Promise, 'whenReady() deve retornar uma Promise');
 

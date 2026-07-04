@@ -25,6 +25,12 @@ const previousSnapshots = new Map();
 /** @type {Set<string>} */
 const recoveredActiveKeys = new Set();
 
+// Last calendar date (YYYY-MM-DD) a daily digest was posted; persisted to avoid double-posting on restart
+let lastDigestDate = null;
+
+// Last processed notification ID for the mention listener; persisted to avoid re-answering old mentions on restart
+let lastNotificationId = null;
+
 // Periodic save timer
 let saveTimer = null;
 
@@ -57,6 +63,12 @@ async function initializeState() {
         state.activeMatchKeys.forEach((k) => recoveredActiveKeys.add(k));
         console.log(`[State] ${recoveredActiveKeys.size} chaves de partidas ativas restauradas`);
     }
+    if (state.lastDigestDate) {
+        lastDigestDate = state.lastDigestDate;
+    }
+    if (state.lastNotificationId) {
+        lastNotificationId = state.lastNotificationId;
+    }
 
     // Start periodic save timer (skip in test to avoid keeping process alive)
     if (process.env.NODE_ENV !== 'test') {
@@ -87,8 +99,13 @@ export async function saveStateNow() {
     for (const [key, snap] of previousSnapshots) {
         if (snap && snap.status === 'in') activeMatchKeys.push(key);
     }
-    return await persistState(postedEventIds, previousSnapshots, activeMatchKeys);
+    return await persistState(postedEventIds, previousSnapshots, activeMatchKeys, lastDigestDate, lastNotificationId);
 }
+
+export function getLastDigestDate() { return lastDigestDate; }
+export function setLastDigestDate(date) { lastDigestDate = date; }
+export function getLastNotificationId() { return lastNotificationId; }
+export function setLastNotificationId(id) { lastNotificationId = id; }
 
 /**
  * Stop periodic saving (for shutdown)
@@ -119,6 +136,25 @@ export function whenReady() {
     if (initialized) return Promise.resolve();
     if (!initPromise) initPromise = initializeState();
     return initPromise;
+}
+
+/**
+ * Reset module-level state for testing. Only callable when NODE_ENV=test.
+ */
+export function resetStateForTesting() {
+    if (process.env.NODE_ENV !== 'test') {
+        throw new Error('resetStateForTesting is only allowed in test environment');
+    }
+    initialized = false;
+    initPromise = null;
+    activeMatches.clear();
+    postedEventIds.clear();
+    lastScores.clear();
+    previousSnapshots.clear();
+    recoveredActiveKeys.clear();
+    lastDigestDate = null;
+    lastNotificationId = null;
+    stopPeriodicSave();
 }
 
 /**

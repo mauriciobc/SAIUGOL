@@ -38,7 +38,8 @@ export function formatGoal(event, match, options = {}) {
 
     let text = '';
     if (options.isFavoriteTeam) {
-        text += '⚫🔴 Gol do Galo!\n\n';
+        const { favoriteTeamEmoji: emoji, favoriteTeamNickname: nickname } = config.bot;
+        text += `${emoji} Gol do ${nickname}!\n\n`;
     }
     if (isOwnGoal) {
         text += translate('ui.own_goal_announcement');
@@ -84,7 +85,8 @@ export function formatCard(event, match, options = {}) {
 
     let text = '';
     if (isRed && options.isFavoriteTeam) {
-        text += '⚫🔴 Cartão vermelho - Galo!\n\n';
+        const { favoriteTeamEmoji: emoji, favoriteTeamNickname: nickname } = config.bot;
+        text += `${emoji} Cartão vermelho - ${nickname}!\n\n`;
     }
     text += `${cardType}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
@@ -197,6 +199,42 @@ export function formatVAR(event, match) {
 }
 
 /**
+ * Convert a form string (e.g. "WDLWW") to colored emoji squares.
+ * W → 🟩, D → 🟨, L → 🟥, unknown → ⬜
+ */
+function formatForm(form) {
+    if (!form) return '';
+    return [...form.toUpperCase()].map(c => {
+        if (c === 'W') return '🟩';
+        if (c === 'D') return '🟨';
+        if (c === 'L') return '🟥';
+        return '⬜';
+    }).join('');
+}
+
+/**
+ * Render a 10-block possession bar with the home team's share on the left.
+ * Returns null when either value is missing or unparseable.
+ * Example: possessionBar('41.7', '58.3') → '████░░░░░░'
+ */
+function possessionBar(homeStr, awayStr) {
+    const h = parseFloat(homeStr);
+    const a = parseFloat(awayStr);
+    if (isNaN(h) || isNaN(a)) return null;
+    const blocks = Math.round(h / 10);
+    return '█'.repeat(blocks) + '░'.repeat(10 - blocks);
+}
+
+/** Format a standing as a compact annotation, e.g. "(1º · 41pts)". Returns '' when absent. */
+function standingAnnotation(standing) {
+    if (!standing || (standing.rank == null && standing.points == null)) return '';
+    const parts = [];
+    if (standing.rank != null) parts.push(`${standing.rank}º`);
+    if (standing.points != null) parts.push(`${standing.points}pts`);
+    return parts.length ? ` (${parts.join(' · ')})` : '';
+}
+
+/**
  * Format match start announcement
  * @param {Object} match - Match data
  * @returns {string} Formatted post text
@@ -205,7 +243,7 @@ export function formatMatchStart(match) {
     const { homeTeam, awayTeam, venue } = match;
 
     let text = `${translate('ui.match_start')}\n\n`;
-    text += `🏟️ ${homeTeam.name} x ${awayTeam.name}\n`;
+    text += `🏟️ ${homeTeam.name}${standingAnnotation(homeTeam.standing)} x ${awayTeam.name}${standingAnnotation(awayTeam.standing)}\n`;
 
     if (venue) {
         text += `📍 ${venue}\n`;
@@ -279,7 +317,7 @@ export function formatMatchEnd(match) {
     }
 
     let text = `${translate('ui.match_end')}\n\n`;
-    text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}`;
+    text += `🏟️ ${homeTeam.name}${standingAnnotation(homeTeam.standing)} ${homeScore} x ${awayScore} ${awayTeam.name}${standingAnnotation(awayTeam.standing)}`;
     if (hasShootout) {
         text += ` (${homeShootoutScore} x ${awayShootoutScore} ${translate('ui.penalties')})`;
     }
@@ -287,6 +325,132 @@ export function formatMatchEnd(match) {
 
     text += `\n\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
+    return text;
+}
+
+/**
+ * Format post-match statistics toot.
+ * @param {Object} match - Match data (with boxscore)
+ * @returns {string|null} Formatted post text, or null if no stats available
+ */
+export function formatMatchStats(match) {
+    const { homeTeam, awayTeam, homeScore, awayScore, boxscore } = match;
+    if (!boxscore) return null;
+
+    const h = boxscore.home;
+    const a = boxscore.away;
+
+    const statLine = (emoji, label, hVal, aVal, opts = {}) => {
+        if (hVal == null && aVal == null) return null;
+        const hv = hVal ?? '-';
+        const av = aVal ?? '-';
+        const hNum = Number(hv);
+        const aNum = Number(av);
+        let hArrow = '', aArrow = '';
+        if (!isNaN(hNum) && !isNaN(aNum) && hNum !== aNum) {
+            const homeWins = opts.lowerIsBetter ? hNum < aNum : hNum > aNum;
+            if (homeWins) hArrow = ' ◀'; else aArrow = ' ▶';
+        }
+        return `${emoji} ${label}  ${hv}${hArrow} x ${av}${aArrow}`;
+    };
+
+    const lines = [];
+
+    // Possession — rendered as a visual bar
+    const hPoss = h?.possessionPct;
+    const aPoss = a?.possessionPct;
+    if (hPoss != null || aPoss != null) {
+        const bar = possessionBar(hPoss, aPoss);
+        const hPct = hPoss != null ? `${Math.round(parseFloat(hPoss))}%` : '-';
+        const aPct = aPoss != null ? `${Math.round(parseFloat(aPoss))}%` : '-';
+        lines.push(`📊 ${translate('ui.possession')}  ${hPct} ${bar ?? '|'} ${aPct}`);
+    }
+
+    lines.push(statLine('🥅', translate('ui.shots'), h?.totalShots, a?.totalShots));
+    lines.push(statLine('🎯', translate('ui.shots_on_target'), h?.shotsOnTarget, a?.shotsOnTarget));
+    lines.push(statLine('🚩', translate('ui.corners'), h?.wonCorners, a?.wonCorners));
+    lines.push(statLine('🧤', translate('ui.saves'), h?.saves, a?.saves));
+    lines.push(statLine('🟨', 'Amarelos', h?.yellowCards, a?.yellowCards, { lowerIsBetter: true }));
+    lines.push(statLine('🟥', 'Vermelhos', h?.redCards, a?.redCards, { lowerIsBetter: true }));
+
+    const validLines = lines.filter(Boolean);
+    if (validLines.length === 0) return null;
+
+    let text = `${translate('ui.match_stats')}\n\n`;
+    text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n\n`;
+    text += validLines.join('\n');
+    text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/** Format a kickoff time as HH:MM in the configured timezone. Returns '' if date is invalid. */
+function formatKickoff(isoDate) {
+    if (!isoDate) return '';
+    try {
+        return new Intl.DateTimeFormat('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: config.timezone,
+        }).format(new Date(isoDate));
+    } catch {
+        return '';
+    }
+}
+
+/**
+ * Format a daily digest listing all of today's matches, grouped by league.
+ * @param {Array<{ league: Object, matches: Array }>} leagueMatches - Array of { league, matches }
+ * @returns {string} Formatted post text
+ */
+export function formatDailyDigest(leagueMatches) {
+    let text = `${translate('ui.daily_digest')}\n\n`;
+
+    for (const { league, matches } of leagueMatches) {
+        if (!matches.length) continue;
+        if (league?.name) text += `🏆 ${league.name}\n`;
+        for (const match of matches) {
+            const kickoff = formatKickoff(match.startTime);
+            const time = kickoff ? ` — ${kickoff}` : '';
+            text += `⚽ ${match.homeTeam.name} x ${match.awayTeam.name}${time}\n`;
+        }
+        text += '\n';
+    }
+
+    const allHashtags = [...new Set(leagueMatches.flatMap(({ league }) => league?.hashtags || []))];
+    if (allHashtags.length) text += allHashtags.join(' ');
+
+    return text.trimEnd();
+}
+
+/**
+ * Format a pre-match preview for a single match (form, record, venue city).
+ * @param {Object} match - Match data (with homeTeam.form, homeTeam.record, venueCity)
+ * @returns {string} Formatted post text
+ */
+export function formatMatchPreview(match) {
+    const { homeTeam, awayTeam, venueCity } = match;
+    const kickoff = formatKickoff(match.startTime);
+
+    let text = `${translate('ui.match_preview')}\n\n`;
+    text += `⚽ ${homeTeam.name} x ${awayTeam.name}`;
+    if (kickoff) text += ` — ${kickoff}`;
+    text += '\n';
+    if (venueCity) text += `📍 ${venueCity}\n`;
+    text += '\n';
+
+    const teamBlock = (emoji, team) => {
+        let block = `${emoji} ${team.name}`;
+        const form = formatForm(team.form);
+        if (form) block += `\n   ${translate('ui.form')}: ${form}`;
+        if (team.record) block += `\n   ${translate('ui.record')}: ${team.record}`;
+        return block;
+    };
+
+    text += `${teamBlock('🏠', homeTeam)}\n\n`;
+    text += `${teamBlock('✈️', awayTeam)}\n`;
+
+    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
     return text;
 }
 
