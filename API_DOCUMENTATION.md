@@ -12,6 +12,12 @@ This document describes all external APIs used by the SAIUGOL Mastodon bot.
 
 **Note:** The `/summary` endpoint is documented for NFL, NBA, and MLB but not explicitly for soccer. It is functional and widely used for Brasileirão data.
 
+**Notation used in this document** (documentation status and usage status are independent — a field can be officially undocumented by ESPN yet already consumed by the bot, or documented yet unused):
+- `(UNDOCUMENTED for Soccer)` / `(DOCUMENTED)` next to an endpoint or section heading — whether ESPN's own Public-ESPN-API docs cover it.
+- *verified live; not consumed by bot* next to a field — we confirmed it in a real API response, but the normalizer currently drops it before it reaches bot logic.
+
+**Betting odds note:** Several endpoints below (scoreboard `competition.odds`, summary `odds`/`pickcenter`/`hasOdds`) expose live betting lines (moneyline, spread, over/under) from third-party sportsbooks. This is confirmed present wherever it's mentioned, but deliberately **not recommended for use** — a football-scores bot surfacing betting odds is a product/ethics decision, not a data-availability one. Field tables below reference this note rather than repeating it.
+
 ---
 
 ## 1. ESPN API
@@ -64,6 +70,12 @@ The bot automatically falls back to the CDN endpoint if the main API fails.
 | `events[].competitors[].team.id` | string | Team ID |
 | `events[].competitors[].team.displayName` | string | Team display name |
 | `events[].competitors[].score` | string | Team score |
+| `events[].competitors[].team.logo` | string | Team crest URL (PNG), e.g. `https://a.espncdn.com/i/teamlogos/soccer/500/6086.png` — *verified live; not consumed by bot* |
+| `events[].competitors[].form` | string | Last-5-match results, most recent last, e.g. `"LWDWW"` — *verified live; not consumed by bot* |
+| `events[].competitors[].records[].summary` | string | Season record, e.g. `"6-4-7"` (W-D-L) — *verified live; not consumed by bot* |
+| `events[].competitors[].leaders[].leaders[0].athlete.displayName` / `.value` | string / number | Team's top scorer name and goal count — *verified live; not consumed by bot* |
+| `events[].competitions[].venue.address.city` / `.country` | string | Match city/country — *verified live; not consumed by bot* |
+| `events[].competitions[].odds` | array | Betting odds/lines — see betting odds note above |
 
 **Usage in Code:** `src/api/espn.js:95` - `getTodayMatches()`
 
@@ -78,15 +90,28 @@ The bot automatically falls back to the CDN endpoint if the main API fails.
 
 **Description:** Retrieves detailed information about a specific match. This endpoint is documented for NFL, NBA, and MLB but not explicitly for soccer in the Public-ESPN-API docs.
 
-**Response Top-Level Keys:**
+**Response Top-Level Keys (verified against a live response — full list, more than previously documented):**
 | Key | Type | Description |
 |-----|------|-------------|
 | `header` | object | Match metadata and competition details |
 | `keyEvents[]` | array | Match events (goals, cards, substitutions) |
 | `videos[]` | array | Highlight videos |
-| `boxscore` | object | Detailed scoring breakdown |
-| `rosters` | object | Team rosters |
+| `boxscore` | object | Team & player stats (see 1.2.1) |
+| `rosters` | array | Starting lineups, formations, substitutes (see 1.2.2) |
 | `commentary` | array | Play-by-play commentary |
+| `standings` | object | Full current league table (see 1.2.3) — *verified live; not consumed by bot* |
+| `gameInfo` | object | Venue, attendance, match officials/referee (see 1.2.4) — *verified live; not consumed by bot* |
+| `format` | object | Competition format details |
+| `lastFiveGames` | object | Recent form for both teams |
+| `headToHeadGames` | object | Historical head-to-head results |
+| `leaders` | array | Top performers (goals, assists, etc.) for this competition |
+| `broadcasts` | array | TV/streaming broadcast info |
+| `pickcenter` / `odds` / `hasOdds` | object/array/bool | Betting odds and win-probability data — see betting odds note above |
+| `news` | array | Related news article links |
+| `wallclockAvailable` | boolean | Whether real-time clock data is available |
+| `meta` | object | Response metadata |
+
+**Usage in Code:** `src/api/espn.js:295,399,497` currently only reads `header`, `keyEvents`, and `videos` from this response — the rest (`standings`, `gameInfo`, `rosters`, `boxscore`) is fetched on every call already made but discarded before it reaches the normalizer.
 
 **Header Fields:**
 | Field | Type | Description |
@@ -126,6 +151,60 @@ The bot automatically falls back to the CDN endpoint if the main API fails.
 - `src/api/espn.js:295` - `getMatchDetails()`
 - `src/api/espn.js:399` - `getLiveEvents()`
 - `src/api/espn.js:497` - `getHighlights()`
+
+---
+
+#### 1.2.1 Boxscore — Match Stats (UNDOCUMENTED, verified in live response)
+
+**Path:** `boxscore.teams[]` (two entries, one per team)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `boxscore.teams[].team.logo` | string | Team crest URL (same as scoreboard) |
+| `boxscore.teams[].statistics[]` | array | Per-team match stats: `foulsCommitted`, `yellowCards`, `redCards`, `offsides`, `wonCorners`, `saves`, `possessionPct`, `totalShots`, `shotsOnTarget`, `shotPct`, and more — each entry is `{ name, displayValue, label }` |
+
+Useful for a post-match "match stats" toot (possession, shots on target, corners, cards) — no extra request needed, this is part of the summary response already fetched for `keyEvents`/`videos`.
+
+---
+
+#### 1.2.2 Rosters — Lineups (UNDOCUMENTED, verified in live response)
+
+**Path:** `rosters[]` (two entries, one per team)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rosters[].team` | object | Team info |
+| `rosters[].formation` | string | Formation, e.g. `"3-4-3"` |
+| `rosters[].roster[]` | array | Players: `{ active, starter, jersey, athlete: { displayName, ... }, position, subbedIn, subbedOut, formationPlace, stats }` |
+
+`starter: true/false` distinguishes the starting XI from the bench. Timing caveat: not yet confirmed how far before kickoff this populates (may only appear once lineups are officially confirmed, sometimes at or near kickoff) — needs empirical checking before relying on it for a "predicted lineup" post.
+
+---
+
+#### 1.2.3 Standings — Full League Table (UNDOCUMENTED, verified in live response)
+
+**Path:** `standings.groups[0].standings.entries[]`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `entries[].team` | string | Team name (confirmed as a plain string in our captured sample — `"Palmeiras"` — not a nested team object; other ESPN sports/leagues have been seen returning a team object here, so re-verify if a league other than `bra.1` behaves differently) |
+| `entries[].id` / `.uid` / `.link` | string | Team ID, ESPN UID, and ESPN club page URL |
+| `entries[].logo[]` | array | Team crest, same shape as `team.logos[]` elsewhere (`{ href, width, height, rel }`) |
+| `entries[].stats[]` | array | `{ name, displayName, abbreviation, value, displayValue }` entries, including `gamesPlayed`, `wins`, `losses`, `ties`, `points`, `pointDifferential`, and **`rank`** (the team's table position — directly usable, no need to derive it from sorting `points`/`pointDifferential` yourself) |
+
+Gives the full current table for the competition in one call — the same summary call already made per live match. The `rank` stat plus `points` is enough to annotate match-start/match-end posts with each team's league position (e.g. "Palmeiras (1º, 41 pts)") without any extra computation.
+
+---
+
+#### 1.2.4 Game Info — Venue, Attendance, Officials (UNDOCUMENTED, verified in live response)
+
+**Path:** `gameInfo`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `gameInfo.venue.fullName` / `.address.{city,country}` | string | Venue and location |
+| `gameInfo.attendance` | number | Attendance figure |
+| `gameInfo.officials[].displayName` | string | Match officials, referee first (`order: 1`) |
 
 ---
 
@@ -533,3 +612,5 @@ The bot normalizes ESPN API responses to a consistent format:
 This normalization is implemented in:
 - `src/api/espn.js` - Normalization in `getTodayMatches()`, `getMatchDetails()`
 - `src/bot/matchMonitor.js` - `normalizeMatchData()`
+
+**Fields verified present in raw ESPN responses but currently dropped by normalization** (see 1.1 and 1.2.1–1.2.4 for details): `team.logo` (crest), `competitor.form`, `competitor.records[].summary`, `competitor.leaders[]` (top scorer), `standings`, `boxscore.teams[].statistics[]`, `rosters[]` (lineups/formation), `gameInfo` (attendance, officials, venue address). None of these require a new endpoint or extra request — they're part of responses the bot already fetches every poll or per live match.
