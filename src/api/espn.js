@@ -206,7 +206,9 @@ function parseStandingForTeam(standings, teamId) {
     if (!entry) return undefined;
     const stat = (name) => {
         const s = entry.stats?.find(s => s.name === name);
-        return s != null ? Number(s.value) : undefined;
+        if (s == null) return undefined;
+        const n = Number(s.value);
+        return Number.isFinite(n) ? n : undefined;
     };
     return {
         rank: stat('rank'),
@@ -234,8 +236,9 @@ function parseBoxscore(rawBoxscore) {
             const s = teamData.statistics?.find(s => s.name === name);
             return s != null ? s.displayValue ?? s.value : undefined;
         };
+        const rawPoss = stat('possessionPct');
         result[side] = {
-            possessionPct: stat('possessionPct'),
+            possessionPct: rawPoss != null ? String(rawPoss).replace(/%$/, '') : undefined,
             totalShots: stat('totalShots'),
             shotsOnTarget: stat('shotsOnTarget'),
             wonCorners: stat('wonCorners'),

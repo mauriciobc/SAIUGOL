@@ -63,7 +63,11 @@ export async function processMentions(mentions, botAccountId, leagueMatches) {
 
     for (const notification of mentions) {
         const id = notification.id;
-        if (!highestId || id > highestId) highestId = id;
+        // Mastodon IDs are numeric snowflakes; compare as BigInt to avoid lexicographic misordering.
+        // Fall back to string comparison for non-numeric IDs (e.g. in tests).
+        const isNumeric = /^\d+$/.test(id) && /^\d+$/.test(highestId ?? '0');
+        const greater = isNumeric ? BigInt(id) > BigInt(highestId ?? '0') : id > (highestId ?? '');
+        if (!highestId || greater) highestId = id;
 
         const account = notification.account;
         if (!account) continue;

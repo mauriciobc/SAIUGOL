@@ -227,7 +227,7 @@ function possessionBar(homeStr, awayStr) {
 
 /** Format a standing as a compact annotation, e.g. "(1º · 41pts)". Returns '' when absent. */
 function standingAnnotation(standing) {
-    if (!standing?.rank || standing?.points == null) return '';
+    if (!standing || (standing.rank == null && standing.points == null)) return '';
     const parts = [];
     if (standing.rank != null) parts.push(`${standing.rank}º`);
     if (standing.points != null) parts.push(`${standing.points}pts`);
