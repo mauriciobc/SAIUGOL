@@ -12,6 +12,12 @@ This document describes all external APIs used by the SAIUGOL Mastodon bot.
 
 **Note:** The `/summary` endpoint is documented for NFL, NBA, and MLB but not explicitly for soccer. It is functional and widely used for Brasileirão data.
 
+**Notation used in this document** (documentation status and usage status are independent — a field can be officially undocumented by ESPN yet already consumed by the bot, or documented yet unused):
+- `(UNDOCUMENTED for Soccer)` / `(DOCUMENTED)` next to an endpoint or section heading — whether ESPN's own Public-ESPN-API docs cover it.
+- *verified live; not consumed by bot* next to a field — we confirmed it in a real API response, but the normalizer currently drops it before it reaches bot logic.
+
+**Betting odds note:** Several endpoints below (scoreboard `competition.odds`, summary `odds`/`pickcenter`/`hasOdds`) expose live betting lines (moneyline, spread, over/under) from third-party sportsbooks. This is confirmed present wherever it's mentioned, but deliberately **not recommended for use** — a football-scores bot surfacing betting odds is a product/ethics decision, not a data-availability one. Field tables below reference this note rather than repeating it.
+
 ---
 
 ## 1. ESPN API
@@ -64,12 +70,12 @@ The bot automatically falls back to the CDN endpoint if the main API fails.
 | `events[].competitors[].team.id` | string | Team ID |
 | `events[].competitors[].team.displayName` | string | Team display name |
 | `events[].competitors[].score` | string | Team score |
-| `events[].competitors[].team.logo` | string | Team crest URL (PNG), e.g. `https://a.espncdn.com/i/teamlogos/soccer/500/6086.png` — **verified present, not yet consumed by the normalizer** |
-| `events[].competitors[].form` | string | Last-5-match results, most recent last, e.g. `"LWDWW"` — **verified present, not yet consumed** |
-| `events[].competitors[].records[].summary` | string | Season record, e.g. `"6-4-7"` (W-D-L) — **verified present, not yet consumed** |
-| `events[].competitors[].leaders[].leaders[0].athlete.displayName` / `.value` | string / number | Team's top scorer name and goal count — **verified present, not yet consumed** |
-| `events[].competitions[].venue.address.city` / `.country` | string | Match city/country — **verified present, not yet consumed** |
-| `events[].competitions[].odds` | array | Betting odds/lines (moneyline, spread, over-under) from third-party sportsbooks — **verified present; not recommended for use** (a scores bot surfacing betting lines is a product/ethics decision, not a data-availability one) |
+| `events[].competitors[].team.logo` | string | Team crest URL (PNG), e.g. `https://a.espncdn.com/i/teamlogos/soccer/500/6086.png` — *verified live; not consumed by bot* |
+| `events[].competitors[].form` | string | Last-5-match results, most recent last, e.g. `"LWDWW"` — *verified live; not consumed by bot* |
+| `events[].competitors[].records[].summary` | string | Season record, e.g. `"6-4-7"` (W-D-L) — *verified live; not consumed by bot* |
+| `events[].competitors[].leaders[].leaders[0].athlete.displayName` / `.value` | string / number | Team's top scorer name and goal count — *verified live; not consumed by bot* |
+| `events[].competitions[].venue.address.city` / `.country` | string | Match city/country — *verified live; not consumed by bot* |
+| `events[].competitions[].odds` | array | Betting odds/lines — see betting odds note above |
 
 **Usage in Code:** `src/api/espn.js:95` - `getTodayMatches()`
 
@@ -93,14 +99,14 @@ The bot automatically falls back to the CDN endpoint if the main API fails.
 | `boxscore` | object | Team & player stats (see 1.2.1) |
 | `rosters` | array | Starting lineups, formations, substitutes (see 1.2.2) |
 | `commentary` | array | Play-by-play commentary |
-| `standings` | object | Full current league table (see 1.2.3) — **verified present, not yet consumed** |
-| `gameInfo` | object | Venue, attendance, match officials/referee (see 1.2.4) — **verified present, not yet consumed** |
+| `standings` | object | Full current league table (see 1.2.3) — *verified live; not consumed by bot* |
+| `gameInfo` | object | Venue, attendance, match officials/referee (see 1.2.4) — *verified live; not consumed by bot* |
 | `format` | object | Competition format details |
 | `lastFiveGames` | object | Recent form for both teams |
 | `headToHeadGames` | object | Historical head-to-head results |
 | `leaders` | array | Top performers (goals, assists, etc.) for this competition |
 | `broadcasts` | array | TV/streaming broadcast info |
-| `pickcenter` / `odds` / `hasOdds` | object/array/bool | Betting odds and win-probability data — **not recommended for use** (see note in 1.1) |
+| `pickcenter` / `odds` / `hasOdds` | object/array/bool | Betting odds and win-probability data — see betting odds note above |
 | `news` | array | Related news article links |
 | `wallclockAvailable` | boolean | Whether real-time clock data is available |
 | `meta` | object | Response metadata |
@@ -181,10 +187,12 @@ Useful for a post-match "match stats" toot (possession, shots on target, corners
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `entries[].team` | string | Team name |
-| `entries[].stats[]` | array | `{ name, displayName, abbreviation, value, displayValue }` entries including `gamesPlayed`, `wins`, `losses`, `ties`, `points`, `pointDifferential` |
+| `entries[].team` | string | Team name (confirmed as a plain string in our captured sample — `"Palmeiras"` — not a nested team object; other ESPN sports/leagues have been seen returning a team object here, so re-verify if a league other than `bra.1` behaves differently) |
+| `entries[].id` / `.uid` / `.link` | string | Team ID, ESPN UID, and ESPN club page URL |
+| `entries[].logo[]` | array | Team crest, same shape as `team.logos[]` elsewhere (`{ href, width, height, rel }`) |
+| `entries[].stats[]` | array | `{ name, displayName, abbreviation, value, displayValue }` entries, including `gamesPlayed`, `wins`, `losses`, `ties`, `points`, `pointDifferential`, and **`rank`** (the team's table position — directly usable, no need to derive it from sorting `points`/`pointDifferential` yourself) |
 
-Gives the full current table for the competition in one call — the same summary call already made per live match. Enough to annotate match-start/match-end posts with each team's league position and points (e.g. "Palmeiras (1º, 41 pts)").
+Gives the full current table for the competition in one call — the same summary call already made per live match. The `rank` stat plus `points` is enough to annotate match-start/match-end posts with each team's league position (e.g. "Palmeiras (1º, 41 pts)") without any extra computation.
 
 ---
 
