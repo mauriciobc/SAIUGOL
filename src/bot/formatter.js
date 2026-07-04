@@ -198,6 +198,33 @@ export function formatVAR(event, match) {
     return text;
 }
 
+/**
+ * Convert a form string (e.g. "WDLWW") to colored emoji squares.
+ * W → 🟩, D → 🟨, L → 🟥, unknown → ⬜
+ */
+function formatForm(form) {
+    if (!form) return '';
+    return [...form.toUpperCase()].map(c => {
+        if (c === 'W') return '🟩';
+        if (c === 'D') return '🟨';
+        if (c === 'L') return '🟥';
+        return '⬜';
+    }).join('');
+}
+
+/**
+ * Render a 10-block possession bar with the home team's share on the left.
+ * Returns null when either value is missing or unparseable.
+ * Example: possessionBar('41.7', '58.3') → '████░░░░░░'
+ */
+function possessionBar(homeStr, awayStr) {
+    const h = parseFloat(homeStr);
+    const a = parseFloat(awayStr);
+    if (isNaN(h) || isNaN(a)) return null;
+    const blocks = Math.round(h / 10);
+    return '█'.repeat(blocks) + '░'.repeat(10 - blocks);
+}
+
 /** Format a standing as a compact annotation, e.g. "(1º · 41pts)". Returns '' when absent. */
 function standingAnnotation(standing) {
     if (!standing?.rank || standing?.points == null) return '';
@@ -310,32 +337,49 @@ export function formatMatchStats(match) {
     const { homeTeam, awayTeam, homeScore, awayScore, boxscore } = match;
     if (!boxscore) return null;
 
-    const fmt = (side) => {
-        const s = boxscore[side];
-        if (!s) return null;
-        const parts = [];
-        if (s.possessionPct != null) parts.push(`${translate('ui.possession')} ${s.possessionPct}%`);
-        if (s.totalShots != null) {
-            const onTarget = s.shotsOnTarget != null ? ` (${s.shotsOnTarget} ${translate('ui.shots_on_target')})` : '';
-            parts.push(`${translate('ui.shots')} ${s.totalShots}${onTarget}`);
+    const h = boxscore.home;
+    const a = boxscore.away;
+
+    const statLine = (emoji, label, hVal, aVal, opts = {}) => {
+        if (hVal == null && aVal == null) return null;
+        const hv = hVal ?? '-';
+        const av = aVal ?? '-';
+        const hNum = Number(hv);
+        const aNum = Number(av);
+        let hArrow = '', aArrow = '';
+        if (!isNaN(hNum) && !isNaN(aNum) && hNum !== aNum) {
+            const homeWins = opts.lowerIsBetter ? hNum < aNum : hNum > aNum;
+            if (homeWins) hArrow = ' ◀'; else aArrow = ' ▶';
         }
-        if (s.wonCorners != null) parts.push(`${translate('ui.corners')} ${s.wonCorners}`);
-        if (s.saves != null) parts.push(`${translate('ui.saves')} ${s.saves}`);
-        if (s.yellowCards != null) parts.push(`🟨 ${s.yellowCards}`);
-        if (s.redCards != null) parts.push(`🟥 ${s.redCards}`);
-        return parts.length ? parts.join(' · ') : null;
+        return `${emoji} ${label}  ${hv}${hArrow} x ${av}${aArrow}`;
     };
 
-    const homeStats = fmt('home');
-    const awayStats = fmt('away');
-    if (!homeStats && !awayStats) return null;
+    const lines = [];
+
+    // Possession — rendered as a visual bar
+    const hPoss = h?.possessionPct;
+    const aPoss = a?.possessionPct;
+    if (hPoss != null || aPoss != null) {
+        const bar = possessionBar(hPoss, aPoss);
+        const hPct = hPoss != null ? `${Math.round(parseFloat(hPoss))}%` : '-';
+        const aPct = aPoss != null ? `${Math.round(parseFloat(aPoss))}%` : '-';
+        lines.push(`📊 ${translate('ui.possession')}  ${hPct} ${bar ?? '|'} ${aPct}`);
+    }
+
+    lines.push(statLine('🥅', translate('ui.shots'), h?.totalShots, a?.totalShots));
+    lines.push(statLine('🎯', translate('ui.shots_on_target'), h?.shotsOnTarget, a?.shotsOnTarget));
+    lines.push(statLine('🚩', translate('ui.corners'), h?.wonCorners, a?.wonCorners));
+    lines.push(statLine('🧤', translate('ui.saves'), h?.saves, a?.saves));
+    lines.push(statLine('🟨', 'Amarelos', h?.yellowCards, a?.yellowCards, { lowerIsBetter: true }));
+    lines.push(statLine('🟥', 'Vermelhos', h?.redCards, a?.redCards, { lowerIsBetter: true }));
+
+    const validLines = lines.filter(Boolean);
+    if (validLines.length === 0) return null;
 
     let text = `${translate('ui.match_stats')}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n\n`;
-    if (homeStats) text += `${homeTeam.name}: ${homeStats}\n`;
-    if (awayStats) text += `${awayTeam.name}: ${awayStats}\n`;
-
-    text += `\n${(match.league?.hashtags || []).join(' ')}`;
+    text += validLines.join('\n');
+    text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }
@@ -367,7 +411,7 @@ export function formatDailyDigest(leagueMatches) {
         if (league?.name) text += `🏆 ${league.name}\n`;
         for (const match of matches) {
             const kickoff = formatKickoff(match.startTime);
-            const time = kickoff ? ` ${kickoff}` : '';
+            const time = kickoff ? ` — ${kickoff}` : '';
             text += `⚽ ${match.homeTeam.name} x ${match.awayTeam.name}${time}\n`;
         }
         text += '\n';
@@ -395,17 +439,16 @@ export function formatMatchPreview(match) {
     if (venueCity) text += `📍 ${venueCity}\n`;
     text += '\n';
 
-    const teamLine = (team) => {
-        const parts = [];
-        if (team.form) parts.push(`${translate('ui.form')}: ${team.form}`);
-        if (team.record) parts.push(`${translate('ui.record')}: ${team.record}`);
-        return parts.length ? `${team.name}: ${parts.join(' · ')}` : null;
+    const teamBlock = (emoji, team) => {
+        let block = `${emoji} ${team.name}`;
+        const form = formatForm(team.form);
+        if (form) block += `\n   ${translate('ui.form')}: ${form}`;
+        if (team.record) block += `\n   ${translate('ui.record')}: ${team.record}`;
+        return block;
     };
 
-    const homeLine = teamLine(homeTeam);
-    const awayLine = teamLine(awayTeam);
-    if (homeLine) text += `${homeLine}\n`;
-    if (awayLine) text += `${awayLine}\n`;
+    text += `${teamBlock('🏠', homeTeam)}\n\n`;
+    text += `${teamBlock('✈️', awayTeam)}\n`;
 
     text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
     return text;

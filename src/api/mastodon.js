@@ -226,6 +226,7 @@ export async function postStatus(text, options = {}) {
                 const postOptions = {
                     visibility: options.visibility || 'public',
                     in_reply_to_id: options.inReplyToId,
+                    language: config.i18n.defaultLanguage.split('-')[0],
                 };
 
                 if (options.mediaIds && options.mediaIds.length > 0) {
