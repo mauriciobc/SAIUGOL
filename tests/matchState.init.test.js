@@ -50,6 +50,25 @@ describe('matchState initialization and whenReady', () => {
         const elapsed = Date.now() - start;
         assert.ok(elapsed < 50, 'Segundo whenReady() deve resolver imediatamente (ja inicializado)');
     });
+
+    it('restaura gols pendentes persistidos após reinício (evita perder a tréplica de confirmação)', async () => {
+        const stateFile = join(testDir, 'state.json');
+        if (existsSync(stateFile)) rmSync(stateFile);
+
+        await saveState(new Set(), new Map(), [], null, null, new Map([
+            ['m9-ev9', { matchId: 'm9', statusId: '999', firstSeenAt: Date.now() }],
+        ]));
+
+        const { resetStateForTesting, getPendingGoal } = await import('../src/state/matchState.js');
+        resetStateForTesting();
+
+        const { whenReady } = await import('../src/state/matchState.js');
+        await whenReady();
+
+        const restored = getPendingGoal('m9-ev9');
+        assert.ok(restored, 'expected pending goal to be restored');
+        assert.strictEqual(restored.statusId, '999');
+    });
 });
 
 describe('catch-up match start event id', () => {

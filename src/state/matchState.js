@@ -14,6 +14,10 @@ const activeMatches = new Map();
 // Set of posted event IDs to avoid duplicates: Set<eventId>
 const postedEventIds = new Set();
 
+// Goals seen with ESPN's transient placeholder text, awaiting the full description before the
+// real "GOOOOL" post goes out: Map<eventId, { matchId, statusId, firstSeenAt }>
+const pendingGoals = new Map();
+
 // Last known score per match: Map<matchId, { home: number, away: number }>
 const lastScores = new Map();
 
@@ -69,6 +73,12 @@ async function initializeState() {
     if (state.lastNotificationId) {
         lastNotificationId = state.lastNotificationId;
     }
+    if (state.pendingGoals && typeof state.pendingGoals === 'object') {
+        for (const [eventId, data] of Object.entries(state.pendingGoals)) {
+            if (data) pendingGoals.set(eventId, data);
+        }
+        console.log(`[State] ${pendingGoals.size} gols pendentes restaurados`);
+    }
 
     // Start periodic save timer (skip in test to avoid keeping process alive)
     if (process.env.NODE_ENV !== 'test') {
@@ -99,7 +109,7 @@ export async function saveStateNow() {
     for (const [key, snap] of previousSnapshots) {
         if (snap && snap.status === 'in') activeMatchKeys.push(key);
     }
-    return await persistState(postedEventIds, previousSnapshots, activeMatchKeys, lastDigestDate, lastNotificationId);
+    return await persistState(postedEventIds, previousSnapshots, activeMatchKeys, lastDigestDate, lastNotificationId, pendingGoals);
 }
 
 export function getLastDigestDate() { return lastDigestDate; }
@@ -149,6 +159,7 @@ export function resetStateForTesting() {
     initPromise = null;
     activeMatches.clear();
     postedEventIds.clear();
+    pendingGoals.clear();
     lastScores.clear();
     previousSnapshots.clear();
     recoveredActiveKeys.clear();
@@ -232,6 +243,32 @@ export function markEventPosted(eventId) {
 }
 
 /**
+ * Get a goal awaiting confirmation (ESPN text still placeholder-shaped).
+ * @param {string} eventId - Event identifier
+ * @returns {{ matchId: string, statusId: string, firstSeenAt: number }|null}
+ */
+export function getPendingGoal(eventId) {
+    return pendingGoals.get(eventId) || null;
+}
+
+/**
+ * Mark a goal as awaiting confirmation.
+ * @param {string} eventId - Event identifier
+ * @param {{ matchId: string, statusId: string, firstSeenAt?: number }} data
+ */
+export function markGoalPending(eventId, data) {
+    pendingGoals.set(eventId, { ...data, firstSeenAt: data.firstSeenAt ?? Date.now() });
+}
+
+/**
+ * Clear a goal's pending state (confirmed, disallowed, or timed out).
+ * @param {string} eventId - Event identifier
+ */
+export function resolvePendingGoal(eventId) {
+    pendingGoals.delete(eventId);
+}
+
+/**
  * Get the last known score for a match
  * @param {number|string} matchId - Match ID
  * @returns {Object|null} { home: number, away: number } or null
@@ -262,6 +299,12 @@ function cleanupMatchEvents(matchId) {
         if (eventId.startsWith(prefix)) {
             postedEventIds.delete(eventId);
             cleanedCount++;
+        }
+    }
+
+    for (const eventId of pendingGoals.keys()) {
+        if (eventId.startsWith(prefix)) {
+            pendingGoals.delete(eventId);
         }
     }
 

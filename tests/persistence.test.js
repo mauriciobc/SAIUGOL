@@ -102,4 +102,24 @@ describe('persistence', () => {
         const loaded = await loadState();
         assert.strictEqual(loaded.lastDigestDate, null);
     });
+
+    it('saveState deve persistir pendingGoals (Map) e loadState deve restaurá-los', async () => {
+        const pendingGoals = new Map([
+            ['m1-49723876', { matchId: 'm1', statusId: '123', firstSeenAt: 1751765766000 }],
+        ]);
+
+        await saveState(new Set(), new Map(), [], null, null, pendingGoals);
+        const loaded = await loadState();
+
+        assert.strictEqual(Object.keys(loaded.pendingGoals).length, 1);
+        assert.strictEqual(loaded.pendingGoals['m1-49723876'].statusId, '123');
+        assert.strictEqual(loaded.pendingGoals['m1-49723876'].firstSeenAt, 1751765766000);
+    });
+
+    it('loadState deve retornar pendingGoals vazio quando não salvo', async () => {
+        const stateFile = join(testDir, 'state.json');
+        if (existsSync(stateFile)) rmSync(stateFile);
+        const loaded = await loadState();
+        assert.deepStrictEqual(loaded.pendingGoals, {});
+    });
 });

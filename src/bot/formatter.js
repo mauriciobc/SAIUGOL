@@ -66,6 +66,51 @@ export function formatGoal(event, match, options = {}) {
 }
 
 /**
+ * Format a goal that ESPN hasn't finished describing yet (event.text is still its transient
+ * short-form template, e.g. "Gol temporário aos 36'") as a lightweight "awaiting confirmation"
+ * post. The real "⚽ GOOOOL!" announcement (formatGoal) is posted as a reply once ESPN fills in
+ * the full narrative under the same event id.
+ * @param {Object} event - Goal event data
+ * @param {Object} match - Match data
+ * @returns {string} Formatted post text
+ */
+export function formatGoalPending(event, match) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const scorer = playerName(event.player) || translate('common.unknown_player');
+    const minute = displayMinute(event.minute);
+
+    let text = `${translate('ui.goal_pending_announcement')}\n\n`;
+    text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
+    text += `⏱️ ${minute}'\n`;
+    text += `👤 ${scorer}\n\n`;
+    text += translate('ui.goal_pending_note');
+    text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
+ * Format a retraction for a goal that was pending confirmation and later came back from ESPN
+ * marked as disallowed/overturned (e.g. VAR). Posted as a reply to the original pending toot.
+ * @param {Object} event - Goal event data
+ * @param {Object} match - Match data
+ * @returns {string} Formatted post text
+ */
+export function formatGoalDisallowed(event, match) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const scorer = playerName(event.player) || translate('common.unknown_player');
+    const minute = displayMinute(event.minute);
+
+    let text = `${translate('ui.goal_disallowed_announcement')}\n\n`;
+    text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
+    text += `⏱️ ${minute}'\n`;
+    text += `👤 ${scorer}`;
+    text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
  * Format a card event as a Mastodon post
  * @param {Object} event - Card event data
  * @param {Object} match - Match data
