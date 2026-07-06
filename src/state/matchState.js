@@ -294,6 +294,7 @@ export function updateLastScore(matchId, home, away) {
 function cleanupMatchEvents(matchId) {
     const prefix = `${mid(matchId)}-`;
     let cleanedCount = 0;
+    let cleanedPendingCount = 0;
 
     for (const eventId of postedEventIds) {
         if (eventId.startsWith(prefix)) {
@@ -305,11 +306,12 @@ function cleanupMatchEvents(matchId) {
     for (const eventId of pendingGoals.keys()) {
         if (eventId.startsWith(prefix)) {
             pendingGoals.delete(eventId);
+            cleanedPendingCount++;
         }
     }
 
-    if (cleanedCount > 0) {
-        console.log(`[State] Removidos ${cleanedCount} eventos antigos da partida ${matchId}`);
+    if (cleanedCount > 0 || cleanedPendingCount > 0) {
+        console.log(`[State] Removidos ${cleanedCount} eventos antigos e ${cleanedPendingCount} gols pendentes da partida ${matchId}`);
     }
 }
 

@@ -26,6 +26,11 @@ describe('isPlaceholderEventText', () => {
         assert.strictEqual(isPlaceholderEventText("Player (Team) Goal at 45+2'"), true);
     });
 
+    it('flags the same templates with a curly apostrophe in the minute marker', () => {
+        assert.strictEqual(isPlaceholderEventText('Player (Team) Goal at 36’'), true);
+        assert.strictEqual(isPlaceholderEventText('Player (Team) Goal at 45+2’'), true);
+    });
+
     it('does not flag full narrative descriptions', () => {
         assert.strictEqual(
             isPlaceholderEventText('Gol! México 0, Inglaterra 1. Jude Bellingham (Inglaterra) de cabeça de muito perto no canto inferior esquerdo.'),
@@ -47,10 +52,13 @@ describe('Goal confirmation lifecycle', () => {
     let postedWith = [];
     let nextId = 0;
     let origTimeout;
+    let origBetweenPosts;
 
     beforeEach(() => {
         postedWith = [];
         origTimeout = config.delays.goalConfirmationTimeoutMs;
+        origBetweenPosts = config.delays.betweenPosts;
+        config.delays.betweenPosts = 0;
         __setUploadFn(() => Promise.resolve(null));
         __setClient({
             postStatus: async (text, opts) => {
@@ -63,6 +71,7 @@ describe('Goal confirmation lifecycle', () => {
 
     afterEach(() => {
         config.delays.goalConfirmationTimeoutMs = origTimeout;
+        config.delays.betweenPosts = origBetweenPosts;
         __setUploadFn(null);
         __setClient(null);
     });
