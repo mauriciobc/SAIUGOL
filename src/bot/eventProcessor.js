@@ -239,22 +239,22 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
     if (pending) {
         if (isDisallowedNow) {
             const result = await postStatus(formatGoalDisallowed(event, match), { inReplyToId: pending.statusId });
+            if (!result) return { handled: true, posted: false }; // keep pending — retry next poll
             markEventPosted(eventId);
             resolvePendingGoal(eventId);
-            if (result) console.log(`[EventProcessor] Gol anulado (evento ${eventId}, partida ${match.id})`);
-            return { handled: true, posted: !!result };
+            console.log(`[EventProcessor] Gol anulado (evento ${eventId}, partida ${match.id})`);
+            return { handled: true, posted: true };
         }
 
         const timedOut = Date.now() - pending.firstSeenAt > config.delays.goalConfirmationTimeoutMs;
         if (!isPlaceholder || timedOut) {
             const isFavorite = isFavoriteTeam(event, match);
             const result = await postStatus(formatGoal(event, match, { isFavoriteTeam: isFavorite }), { inReplyToId: pending.statusId });
+            if (!result) return { handled: true, posted: false }; // keep pending — retry next poll
             markEventPosted(eventId);
             resolvePendingGoal(eventId);
-            if (result) {
-                console.log(`[EventProcessor] Gol confirmado${isPlaceholder ? ' (timeout, texto ainda pendente)' : ''} (evento ${eventId}, partida ${match.id})`);
-            }
-            return { handled: true, posted: !!result };
+            console.log(`[EventProcessor] Gol confirmado${isPlaceholder ? ' (timeout, texto ainda pendente)' : ''} (evento ${eventId}, partida ${match.id})`);
+            return { handled: true, posted: true };
         }
 
         // Still awaiting ESPN — nothing to post this poll.

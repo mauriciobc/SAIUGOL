@@ -1,14 +1,38 @@
-import { describe, it, before, beforeEach, afterEach } from 'node:test';
+import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { __setClient, __setUploadFn } from '../src/api/mastodon.js';
 import { config } from '../src/config.js';
 import { processEvents } from '../src/bot/eventProcessor.js';
 import { initI18n } from '../src/services/i18n.js';
-import { whenReady, getPendingGoal } from '../src/state/matchState.js';
 import { isPlaceholderEventText } from '../src/utils/eventKeywords.js';
 
-await initI18n('pt-BR');
-await whenReady();
+// Isolate this file's persisted state from the default STATE_DIR ("/app/data"), matching
+// persistence.test.js / matchState.init.test.js — avoids interfering with other state and
+// permission issues writing to the default dir.
+const testDir = mkdtempSync(join(tmpdir(), 'saiugol-goalconfirmation-'));
+const originalStateDir = process.env.STATE_DIR;
+
+let getPendingGoal;
+
+before(async () => {
+    process.env.STATE_DIR = testDir;
+    await initI18n('pt-BR');
+    // Dynamic import + resetStateForTesting so matchState re-initializes against testDir
+    // instead of whatever STATE_DIR was in effect when it was first (statically) imported.
+    const matchState = await import('../src/state/matchState.js');
+    matchState.resetStateForTesting();
+    getPendingGoal = matchState.getPendingGoal;
+    await matchState.whenReady();
+});
+
+after(() => {
+    if (originalStateDir !== undefined) process.env.STATE_DIR = originalStateDir;
+    else delete process.env.STATE_DIR;
+    rmSync(testDir, { recursive: true, force: true });
+});
 
 const makeMatch = (matchId) => ({
     id: matchId,
@@ -150,6 +174,57 @@ describe('Goal confirmation lifecycle', () => {
         assert.ok(postedWith[1].text.includes('🚫'), 'should post the disallowed-goal retraction');
         assert.strictEqual(postedWith[1].opts?.in_reply_to_id, postedWith[0].id);
         assert.strictEqual(getPendingGoal(`${match.id}-${eventId}`), null);
+    });
+
+    it('keeps a goal pending for retry when the confirmation postStatus fails (e.g. Mastodon outage)', async () => {
+        const match = makeMatch('confirm-m-5');
+        const eventId = 'confirm-ev-5';
+        const placeholderEvent = {
+            id: eventId,
+            type: 'Goal',
+            typeId: '70',
+            minute: '64',
+            teamId: '10',
+            team: { id: '10', name: 'Inglaterra' },
+            player: { name: 'Phil Foden' },
+            description: "Phil Foden (Inglaterra) Gol temporário aos 64'",
+        };
+
+        await processEvents([placeholderEvent], match);
+        assert.strictEqual(postedWith.length, 1, 'pending notice should have posted');
+        const pendingKey = `${match.id}-${eventId}`;
+        const pendingBefore = getPendingGoal(pendingKey);
+        assert.ok(pendingBefore, 'goal should still be pending');
+
+        // Simulate a transient Mastodon outage: the confirmation reply fails (postStatus -> null,
+        // as postStatus itself returns after exhausting retries).
+        __setClient({ postStatus: async () => null });
+        const confirmedEvent = {
+            ...placeholderEvent,
+            description: 'Gol! Inglaterra 1, México 0. Phil Foden (Inglaterra) finalização com o pé direito.',
+        };
+        const failedCount = await processEvents([confirmedEvent], match);
+
+        assert.strictEqual(failedCount, 0, 'a failed post must not count as posted');
+        assert.strictEqual(postedWith.length, 1, 'no new toot should be recorded on failure');
+        const pendingAfterFailure = getPendingGoal(pendingKey);
+        assert.ok(pendingAfterFailure, 'goal must remain pending so it is retried on the next poll, not lost');
+        assert.strictEqual(pendingAfterFailure.statusId, pendingBefore.statusId);
+
+        // Mastodon recovers on the next poll — same (still unresolved) event should now succeed.
+        __setClient({
+            postStatus: async (text, opts) => {
+                nextId += 1;
+                postedWith.push({ text, opts, id: String(nextId) });
+                return { data: { id: String(nextId) } };
+            },
+        });
+        const retryCount = await processEvents([confirmedEvent], match);
+
+        assert.strictEqual(retryCount, 1, 'retry should succeed once Mastodon is back');
+        assert.strictEqual(postedWith.length, 2);
+        assert.ok(postedWith[1].text.includes('⚽ GOOOOL'));
+        assert.strictEqual(getPendingGoal(pendingKey), null);
     });
 
     it('force-posts the goal after the confirmation timeout even if ESPN never fills in the text', async () => {
