@@ -1,13 +1,18 @@
 import { config } from '../config.js';
 import { postStatus, uploadMediaFromUrl } from '../api/mastodon.js';
 import { getHighlights } from '../api/espn.js';
-import { PENALTY_SCORED_KEYWORDS, PENALTY_MISSED_KEYWORDS } from '../utils/eventKeywords.js';
+import { PENALTY_SCORED_KEYWORDS, PENALTY_MISSED_KEYWORDS, isPlaceholderEventText } from '../utils/eventKeywords.js';
 import {
     isEventPosted,
     markEventPosted,
+    getPendingGoal,
+    markGoalPending,
+    resolvePendingGoal,
 } from '../state/matchState.js';
 import {
     formatGoal,
+    formatGoalPending,
+    formatGoalDisallowed,
     formatCard,
     formatSubstitution,
     formatVAR,
@@ -193,6 +198,81 @@ function isFavoriteTeam(event, match) {
     return false;
 }
 
+/** Type substrings that mean the event is a goal (reuses EVENT_TYPES.GOAL) — used to catch goals
+ * whose category resolved to null because they're currently flagged disallowed. */
+function looksLikeGoalType(type) {
+    const lower = (type || '').toLowerCase();
+    return EVENT_TYPES.GOAL.some((kw) => lower.includes(kw));
+}
+
+/**
+ * Handle a goal event through its ESPN-confirmation lifecycle:
+ * - Not seen before, text still placeholder-shaped (e.g. "Gol temporário aos 36'") → post
+ *   "aguardando confirmação" and remember the toot id.
+ * - Previously pending, ESPN has since filled in the real narrative → post the actual
+ *   "⚽ GOOOOL!" as a reply.
+ * - Previously pending, ESPN now flags it disallowed/overturned → post a retraction as a reply.
+ * - Previously pending, neither happened within config.delays.goalConfirmationTimeoutMs → post
+ *   the goal anyway with whatever text we have, so a real goal is never silently lost.
+ * Not seen before with an already-confirmed narrative (the common case) is left to the normal
+ * postable pipeline in processEvents — this only intercepts the placeholder/pending cases.
+ * @param {Object} event
+ * @param {string} eventId
+ * @param {string|null} category - categorizeEvent() result (null for currently-disallowed goals)
+ * @param {Object} match
+ * @returns {Promise<{ handled: boolean, posted: boolean }>} handled: true if the caller should
+ *   skip this event entirely (already dealt with here); posted: true if a toot went out.
+ */
+async function handleGoalConfirmationLifecycle(event, eventId, category, match) {
+    if (isEventPosted(eventId)) return { handled: false, posted: false };
+
+    const rawType = (event.type || '').toLowerCase();
+    if (category !== 'GOAL' && !looksLikeGoalType(rawType)) return { handled: false, posted: false };
+
+    const pending = getPendingGoal(eventId);
+    const isDisallowedNow = DISALLOWED_GOAL_KEYWORDS.some((kw) => rawType.includes(kw));
+    // No description at all (e.g. PT descriptions disabled) is NOT a placeholder — it's the
+    // normal, already-final shape for that config. Only a description that matches ESPN's
+    // transient short-form template counts as still-pending.
+    const isPlaceholder = isPlaceholderEventText(event.description);
+
+    if (pending) {
+        if (isDisallowedNow) {
+            const result = await postStatus(formatGoalDisallowed(event, match), { inReplyToId: pending.statusId });
+            if (!result) return { handled: true, posted: false }; // keep pending — retry next poll
+            markEventPosted(eventId);
+            resolvePendingGoal(eventId);
+            console.log(`[EventProcessor] Gol anulado (evento ${eventId}, partida ${match.id})`);
+            return { handled: true, posted: true };
+        }
+
+        const timedOut = Date.now() - pending.firstSeenAt > config.delays.goalConfirmationTimeoutMs;
+        if (!isPlaceholder || timedOut) {
+            const isFavorite = isFavoriteTeam(event, match);
+            const result = await postStatus(formatGoal(event, match, { isFavoriteTeam: isFavorite }), { inReplyToId: pending.statusId });
+            if (!result) return { handled: true, posted: false }; // keep pending — retry next poll
+            markEventPosted(eventId);
+            resolvePendingGoal(eventId);
+            console.log(`[EventProcessor] Gol confirmado${isPlaceholder ? ' (timeout, texto ainda pendente)' : ''} (evento ${eventId}, partida ${match.id})`);
+            return { handled: true, posted: true };
+        }
+
+        // Still awaiting ESPN — nothing to post this poll.
+        return { handled: true, posted: false };
+    }
+
+    if (category === 'GOAL' && !isDisallowedNow && isPlaceholder && shouldPostEvent('GOAL')) {
+        const result = await postStatus(formatGoalPending(event, match));
+        if (result) {
+            markGoalPending(eventId, { matchId: String(match.id), statusId: result.id, firstSeenAt: Date.now() });
+            console.log(`[EventProcessor] Gol aguardando confirmação (evento ${eventId}, partida ${match.id})`);
+        }
+        return { handled: true, posted: !!result };
+    }
+
+    return { handled: false, posted: false };
+}
+
 /**
  * Process a list of events for a match (goals and red cards first)
  * @param {Array} events - List of events from API
@@ -222,27 +302,45 @@ export async function processEvents(events, match) {
         );
     }
 
+    // Placeholder/pending/disallowed goal handling runs first and outside the normal postable
+    // pipeline: these need to reply to a prior toot (or wait silently) rather than post fresh,
+    // and must not be marked "posted" until truly resolved.
+    const handledEventIds = new Set();
+    for (const { event, eventId, category } of withIds) {
+        const { handled, posted } = await handleGoalConfirmationLifecycle(event, eventId, category, match);
+        if (handled) {
+            handledEventIds.add(eventId);
+            if (posted) {
+                postedCount++;
+                await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
+            }
+        }
+    }
+
     // MATCH_START pode ser postado por dois caminhos: action match_start (ID {matchId}-match-start)
     // ou evento kickoff da API (ID {matchId}-{event.id}). Evitar duplicata tratando o ID sintético.
     const postable = withIds.filter(({ eventId, category }) => {
+        if (handledEventIds.has(eventId)) return false;
         if (isEventPosted(eventId)) return false;
         if (category === 'MATCH_START' && isEventPosted(getMatchStartEventId(match.id))) return false;
         return category && shouldPostEvent(category);
     });
 
-    if (postable.length === 0 && events.length > 0) {
-        const alreadyPosted = withIds.filter(({ eventId }) => isEventPosted(eventId)).length;
-        const noCategory = withIds.filter(({ category }) => !category).length;
-        const disabledItems = withIds.filter(
-            ({ category }) => category && !shouldPostEvent(category)
-        );
-        const categoryDisabledCount = disabledItems.length;
-        const disabledCategories = [...new Set(disabledItems.map(({ category }) => category))].join(', ');
-        console.log(
-            `[EventProcessor] Partida ${match.id}: ${events.length} eventos recebidos, 0 novos para postar ` +
-            `(já postados: ${alreadyPosted}, sem categoria: ${noCategory}, categoria desativada: ${categoryDisabledCount}${disabledCategories ? ` [${disabledCategories}]` : ''})`
-        );
-        return 0;
+    if (postable.length === 0) {
+        if (events.length > 0 && postedCount === 0) {
+            const alreadyPosted = withIds.filter(({ eventId }) => isEventPosted(eventId)).length;
+            const noCategory = withIds.filter(({ category }) => !category).length;
+            const disabledItems = withIds.filter(
+                ({ category }) => category && !shouldPostEvent(category)
+            );
+            const categoryDisabledCount = disabledItems.length;
+            const disabledCategories = [...new Set(disabledItems.map(({ category }) => category))].join(', ');
+            console.log(
+                `[EventProcessor] Partida ${match.id}: ${events.length} eventos recebidos, 0 novos para postar ` +
+                `(já postados: ${alreadyPosted}, sem categoria: ${noCategory}, categoria desativada: ${categoryDisabledCount}${disabledCategories ? ` [${disabledCategories}]` : ''})`
+            );
+        }
+        return postedCount;
     }
 
     postable.sort((a, b) => eventPriority(a.category) - eventPriority(b.category));

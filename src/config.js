@@ -179,6 +179,8 @@ export const config = {
         betweenThreadPosts: parseEnvInt(process.env.DELAY_BETWEEN_THREAD_POSTS_MS, 1000, 500),
         beforeHighlights: parseEnvInt(process.env.DELAY_BEFORE_HIGHLIGHTS_MS, 30000, 5000),
         statePersistence: parseEnvInt(process.env.STATE_SAVE_INTERVAL_MS, 300000, 60000),
+        /** Max time a goal can sit "awaiting confirmation" before we post it anyway with whatever text ESPN has given us (default 5 min). */
+        goalConfirmationTimeoutMs: parseEnvInt(process.env.GOAL_CONFIRMATION_TIMEOUT_MS, 300000, 30000),
     },
     // Retry configuration for API calls
     retry: {
