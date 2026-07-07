@@ -31,6 +31,7 @@ import {
     formatMatchStart,
     formatSecondHalfStart,
     formatHalfTime,
+    formatEndRegularTime,
     formatMatchEnd,
     formatHighlights,
     formatMatchStats,
@@ -64,6 +65,7 @@ const ID_TO_CATEGORY = {
     '80': 'MATCH_START',             // Kickoff / Começo
     '82': 'SECOND_HALF_START',       // Start 2nd Half / Começo do 2º tempo
     '81': 'HALF_TIME',               // Halftime / Intervalo
+    '83': 'END_REGULAR_TIME',        // End Regular Time / Fim do tempo regulamentar
     '84': 'EXTRA_TIME_START',        // Start Extra Time / Começo da prorrogação
     '85': 'EXTRA_TIME_HALF',         // Halftime Extra Time / Intervalo da prorrogação
     '86': 'EXTRA_TIME_SECOND_HALF',  // Start 2nd Half Extra Time / Começo do 2º tempo da prorrogação
@@ -77,7 +79,7 @@ const ID_TO_CATEGORY = {
 };
 
 /** Housekeeping typeIds — never post (diffEngine or other paths handle these). */
-const SKIP_TYPE_IDS = new Set(['83', '89']);
+const SKIP_TYPE_IDS = new Set(['89']);
 
 /**
  * Event type constants — fallback for event ids not covered by ID_TO_CATEGORY
@@ -96,6 +98,7 @@ const EVENT_TYPES = {
     EXTRA_TIME_END: ['end extra time', 'fim da prorrogação'],
     SHOOTOUT_START: ['start shootout', 'começo da disputa de pênaltis'],
     SECOND_HALF_START: ['start 2nd half', 'second half', '2nd half', 'começo do 2º tempo'],
+    END_REGULAR_TIME: ['end regular time', 'fim do tempo regulamentar', 'fim do segundo tempo'],
     MATCH_START: ['kickoff', 'kick off', 'match start', 'começo'],
     MATCH_END: ['full time', 'fulltime', 'match end', 'fim de jogo'],
     HALF_TIME: ['half time', 'halftime', 'meio tempo'],
@@ -271,6 +274,7 @@ function shouldPostEvent(category) {
         case 'MATCH_START':
             return config.events.matchStart;
         case 'HALF_TIME':
+        case 'END_REGULAR_TIME':
             return config.events.interval;
         case 'MATCH_DELAY_START':
         case 'MATCH_DELAY_END':
@@ -613,6 +617,8 @@ function formatEventPost(category, event, match, options = {}) {
             return formatSecondHalfStart(match, event);
         case 'HALF_TIME':
             return formatHalfTime(match, event);
+        case 'END_REGULAR_TIME':
+            return formatEndRegularTime(match, event);
         case 'MATCH_END':
             return formatMatchEnd(match);
         case 'MATCH_DELAY_START':

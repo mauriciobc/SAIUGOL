@@ -187,7 +187,7 @@ const RECOMMENDED_CATEGORY = {
     '80': 'MATCH_START',
     '81': 'HALF_TIME',
     '82': 'SECOND_HALF_START',
-    '83': 'SKIP',
+    '83': 'END_REGULAR_TIME',
     '84': 'EXTRA_TIME_START',
     '85': 'EXTRA_TIME_HALF',
     '86': 'EXTRA_TIME_SECOND_HALF',

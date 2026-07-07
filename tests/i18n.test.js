@@ -85,7 +85,7 @@ describe('Translation Service', () => {
 });
 
 describe('Formatter Integration', async () => {
-    const { formatGoal, formatCard, formatSubstitution, formatVAR, formatHighlights, formatMatchStart, formatMatchEnd, formatSecondHalfStart, formatMatchStats, formatDailyDigest, formatMatchPreview } =
+    const { formatGoal, formatCard, formatSubstitution, formatVAR, formatHighlights, formatMatchStart, formatMatchEnd, formatSecondHalfStart, formatEndRegularTime, formatMatchStats, formatDailyDigest, formatMatchPreview } =
         await import('../src/bot/formatter.js');
 
     initI18n('pt-BR');
@@ -258,6 +258,16 @@ describe('Formatter Integration', async () => {
         assert.ok(result.includes('Palmeiras'));
         assert.ok(result.includes('2 x 1'));
         assert.ok(result.includes('46'));
+    });
+
+    it('should format end of regular time with teams, score and minute', () => {
+        const result = formatEndRegularTime(mockMatch, { minute: "90'+6'" });
+
+        assert.ok(result.includes('⏱️ FIM DO 2º TEMPO!'));
+        assert.ok(result.includes('Flamengo'));
+        assert.ok(result.includes('Palmeiras'));
+        assert.ok(result.includes('2 x 1'));
+        assert.ok(result.includes("90'+6'"));
     });
 
     it('should include favorite team goal alert using config nickname and emoji', () => {
