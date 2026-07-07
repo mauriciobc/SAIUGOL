@@ -70,6 +70,13 @@ describe('isPlaceholderEventText', () => {
         assert.strictEqual(isPlaceholderEventText(undefined), false);
         assert.strictEqual(isPlaceholderEventText(''), false);
     });
+
+    it('flags ESPN "Tentativa temporária" provisional descriptions', () => {
+        assert.strictEqual(
+            isPlaceholderEventText("Lionel Messi (Argentina) Tentativa temporária aos 21'"),
+            true
+        );
+    });
 });
 
 describe('Goal confirmation lifecycle', () => {

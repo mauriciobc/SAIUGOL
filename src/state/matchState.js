@@ -18,6 +18,9 @@ const postedEventIds = new Set();
 // real "GOOOOL" post goes out: Map<eventId, { matchId, statusId, firstSeenAt }>
 const pendingGoals = new Map();
 
+// Penalties missed/saved with placeholder text, awaiting full ESPN description.
+const pendingPenalties = new Map();
+
 // Last known score per match: Map<matchId, { home: number, away: number }>
 const lastScores = new Map();
 
@@ -79,6 +82,12 @@ async function initializeState() {
         }
         console.log(`[State] ${pendingGoals.size} gols pendentes restaurados`);
     }
+    if (state.pendingPenalties && typeof state.pendingPenalties === 'object') {
+        for (const [eventId, data] of Object.entries(state.pendingPenalties)) {
+            if (data) pendingPenalties.set(eventId, data);
+        }
+        console.log(`[State] ${pendingPenalties.size} pênaltis pendentes restaurados`);
+    }
 
     // Start periodic save timer (skip in test to avoid keeping process alive)
     if (process.env.NODE_ENV !== 'test') {
@@ -109,7 +118,7 @@ export async function saveStateNow() {
     for (const [key, snap] of previousSnapshots) {
         if (snap && snap.status === 'in') activeMatchKeys.push(key);
     }
-    return await persistState(postedEventIds, previousSnapshots, activeMatchKeys, lastDigestDate, lastNotificationId, pendingGoals);
+    return await persistState(postedEventIds, previousSnapshots, activeMatchKeys, lastDigestDate, lastNotificationId, pendingGoals, pendingPenalties);
 }
 
 export function getLastDigestDate() { return lastDigestDate; }
@@ -160,6 +169,7 @@ export function resetStateForTesting() {
     activeMatches.clear();
     postedEventIds.clear();
     pendingGoals.clear();
+    pendingPenalties.clear();
     lastScores.clear();
     previousSnapshots.clear();
     recoveredActiveKeys.clear();
@@ -269,6 +279,32 @@ export function resolvePendingGoal(eventId) {
 }
 
 /**
+ * Get a penalty awaiting confirmation (ESPN text still placeholder-shaped).
+ * @param {string} eventId - Event identifier
+ * @returns {{ matchId: string, statusId: string, firstSeenAt: number }|null}
+ */
+export function getPendingPenalty(eventId) {
+    return pendingPenalties.get(eventId) || null;
+}
+
+/**
+ * Mark a penalty as awaiting confirmation.
+ * @param {string} eventId - Event identifier
+ * @param {{ matchId: string, statusId: string, firstSeenAt?: number }} data
+ */
+export function markPenaltyPending(eventId, data) {
+    pendingPenalties.set(eventId, { ...data, firstSeenAt: data.firstSeenAt ?? Date.now() });
+}
+
+/**
+ * Clear a penalty's pending state (confirmed or timed out).
+ * @param {string} eventId - Event identifier
+ */
+export function resolvePendingPenalty(eventId) {
+    pendingPenalties.delete(eventId);
+}
+
+/**
  * Get the last known score for a match
  * @param {number|string} matchId - Match ID
  * @returns {Object|null} { home: number, away: number } or null
@@ -310,8 +346,15 @@ function cleanupMatchEvents(matchId) {
         }
     }
 
+    for (const eventId of pendingPenalties.keys()) {
+        if (eventId.startsWith(prefix)) {
+            pendingPenalties.delete(eventId);
+            cleanedPendingCount++;
+        }
+    }
+
     if (cleanedCount > 0 || cleanedPendingCount > 0) {
-        console.log(`[State] Removidos ${cleanedCount} eventos antigos e ${cleanedPendingCount} gols pendentes da partida ${matchId}`);
+        console.log(`[State] Removidos ${cleanedCount} eventos antigos e ${cleanedPendingCount} confirmações pendentes da partida ${matchId}`);
     }
 }
 

@@ -1,4 +1,4 @@
-import { describe, it, before, after, afterEach } from 'node:test';
+import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert';
 import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -9,13 +9,14 @@ import { getMatchStartEventId } from '../src/bot/eventProcessor.js';
 const testDir = mkdtempSync(join(tmpdir(), 'saiugol-matchstate-init-'));
 const originalStateDir = process.env.STATE_DIR;
 
-afterEach(() => {
+after(() => {
     if (originalStateDir !== undefined) process.env.STATE_DIR = originalStateDir;
     else delete process.env.STATE_DIR;
+    rmSync(testDir, { recursive: true, force: true });
 });
 
 describe('matchState initialization and whenReady', () => {
-    before(() => {
+    beforeEach(() => {
         process.env.STATE_DIR = testDir;
     });
 

@@ -45,15 +45,23 @@ const MATCH_INDEX = parseInt(process.env.MATCH_INDEX, 10);
 // ─── Event classification (mirrors eventProcessor.js ID_TO_CATEGORY) ────────
 
 const ID_TO_CATEGORY = {
-    '70': 'GOAL', '97': 'GOAL', '98': 'GOAL', '137': 'GOAL', '173': 'GOAL',
-    '94': 'YELLOW_CARD', '76': 'SUBSTITUTION',
+    '70': 'GOAL', '97': 'GOAL', '98': 'GOAL', '114': 'PENALTY_MISSED',
+    '137': 'GOAL', '138': 'GOAL', '173': 'GOAL',
+    '93': 'RED_CARD', '94': 'YELLOW_CARD', '76': 'SUBSTITUTION', '167': 'VAR',
     '80': 'MATCH_START', '81': 'HALF_TIME', '82': 'SECOND_HALF_START',
     '84': 'EXTRA_TIME_START', '85': 'EXTRA_TIME_HALF',
     '86': 'EXTRA_TIME_SECOND_HALF', '87': 'EXTRA_TIME_END', '88': 'SHOOTOUT_START',
+    '129': 'MATCH_DELAY_START', '130': 'MATCH_DELAY_END',
 };
 
 // ESPN timing/housekeeping event IDs that carry no post-worthy content — silently skip
-const IGNORED_TYPE_IDS = new Set(['83', '129', '130']);
+const IGNORED_TYPE_IDS = new Set(['83', '89']);
+
+function isPenaltyMissedType(type, typeId) {
+    if (typeId === '114') return true;
+    const t = (type || '').toLowerCase();
+    return t.includes('pênalti - defendido') || t.includes('penalty - saved') || t.includes('pênalti defendido');
+}
 
 function categorizeEvent(type, typeId) {
     if (typeId != null) {
@@ -62,16 +70,34 @@ function categorizeEvent(type, typeId) {
         if (cat) return cat;
     }
     const t = (type || '').toLowerCase();
-    if (t.includes('goal') || t.includes('gol') || t.includes('penalty') || t.includes('pênalti')) return 'GOAL';
+    if (isPenaltyMissedType(type, typeId)) return 'PENALTY_MISSED';
+    if (t.includes('goal') || t.includes('gol')) return 'GOAL';
+    if (t.includes('penalty') || t.includes('pênalti')) return 'GOAL';
     if (t.includes('yellow')) return 'YELLOW_CARD';
-    if (t.includes('red') || t.includes('second yellow')) return 'RED_CARD';
+    if (t.includes('red') || t.includes('second yellow') || t.includes('vermelho')) return 'RED_CARD';
     if (t.includes('substitut') || t.includes('sub ')) return 'SUBSTITUTION';
     if (t.includes('var')) return 'VAR';
-    if (t.includes('2nd half') || t.includes('second half')) return 'SECOND_HALF_START';
-    if (t.includes('kickoff') || t.includes('kick off')) return 'MATCH_START';
+    if (t.includes('start delay') || t.includes('jogo atrasado')) return 'MATCH_DELAY_START';
+    if (t.includes('end delay') || t.includes('fim do atraso')) return 'MATCH_DELAY_END';
+    if (t.includes('start extra time') || t.includes('começo da prorrogação')) return 'EXTRA_TIME_START';
+    if (t.includes('halftime extra time') || t.includes('intervalo da prorrogação')) return 'EXTRA_TIME_HALF';
+    if (t.includes('start 2nd half extra time') || t.includes('começo do 2º tempo da prorrogação')) return 'EXTRA_TIME_SECOND_HALF';
+    if (t.includes('end extra time') || t.includes('fim da prorrogação')) return 'EXTRA_TIME_END';
+    if (t.includes('start shootout') || t.includes('começo da disputa de pênaltis')) return 'SHOOTOUT_START';
+    if (t.includes('2nd half') || t.includes('second half') || t.includes('começo do 2º tempo')) return 'SECOND_HALF_START';
+    if (t.includes('kickoff') || t.includes('kick off') || t.includes('começo')) return 'MATCH_START';
     if (t.includes('full time') || t.includes('fulltime')) return 'MATCH_END';
-    if (t.includes('half time') || t.includes('halftime')) return 'HALF_TIME';
+    if (t.includes('half time') || t.includes('halftime') || t.includes('intervalo')) return 'HALF_TIME';
     return null;
+}
+
+function normalizeDelayMinute(minute) {
+    return String(minute ?? '').trim().replace(/'+$/, '');
+}
+
+function getMatchDelayKey(category, minute) {
+    const phase = category === 'MATCH_DELAY_START' ? 'start' : 'end';
+    return `${phase}-${normalizeDelayMinute(minute)}`;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -150,7 +176,8 @@ function formatGoal(event, match) {
     const minute = displayMinute(event.minute);
     const typeLower = event.type?.toLowerCase() ?? '';
     const isOwnGoal = typeLower.includes('own') || typeLower.includes('autogol');
-    const isPenalty = typeLower.includes('penalty') || typeLower.includes('pênalti');
+    const isPenalty = (typeLower.includes('penalty') || typeLower.includes('pênalti'))
+        && !isPenaltyMissedType(event.type, event.typeId);
 
     let text = '';
     if (isOwnGoal) text += translate('ui.own_goal_announcement');
@@ -164,6 +191,55 @@ function formatGoal(event, match) {
     if (desc) text += `\n\n📝 ${desc}`;
     const scoringTeam = resolveScoringTeam(event, match);
     text += `\n\n${getTeamHashtag(scoringTeam?.name || match.homeTeam.name)} ${(match.leagueHashtags || []).join(' ')}`;
+    return text;
+}
+
+function formatPenaltyMissed(event, match) {
+    const player = playerName(event.player) || translate('common.unknown_player');
+    const minute = displayMinute(event.minute);
+
+    let text = `${translate('ui.penalty_missed_announcement')}\n\n`;
+    text += `🏟️ ${match.homeTeam.name} ${match.homeScore} x ${match.awayScore} ${match.awayTeam.name}\n`;
+    text += `⏱️ ${minute}'\n`;
+    text += `👤 ${player}`;
+    const desc = event.description || '';
+    if (desc) text += `\n\n📝 ${desc}`;
+    text += `\n\n${getTeamHashtag(event.team?.name || match.homeTeam.name)} ${(match.leagueHashtags || []).join(' ')}`;
+    return text;
+}
+
+function parseDelayReason(description) {
+    const d = (description || '').toLowerCase();
+    if (d.includes('hidratação') || d.includes('drinks break')) return 'hydration';
+    if (d.includes('lesão') || d.includes('lesao') || d.includes('injury')) return 'injury';
+    return 'generic';
+}
+
+function formatMatchDelayStart(event, match) {
+    const minute = displayMinute(event.minute);
+    const reason = parseDelayReason(event.description);
+    const announcementKey = reason === 'hydration'
+        ? 'ui.match_delay_hydration_start'
+        : reason === 'injury'
+            ? 'ui.match_delay_injury_start'
+            : 'ui.match_delay_generic_start';
+
+    let text = `${translate(announcementKey)}\n\n`;
+    text += `🏟️ ${match.homeTeam.name} ${match.homeScore} x ${match.awayScore} ${match.awayTeam.name}\n`;
+    text += `⏱️ ${minute}'\n`;
+    if (event.description) text += `\n📝 ${event.description}\n`;
+    text += `\n${getTeamHashtag(match.homeTeam.name)} ${getTeamHashtag(match.awayTeam.name)} ${(match.leagueHashtags || []).join(' ')}`;
+    return text;
+}
+
+function formatMatchDelayEnd(event, match) {
+    const minute = displayMinute(event.minute);
+
+    let text = `${translate('ui.match_delay_end')}\n\n`;
+    text += `🏟️ ${match.homeTeam.name} ${match.homeScore} x ${match.awayScore} ${match.awayTeam.name}\n`;
+    text += `⏱️ ${minute}'\n`;
+    if (event.description) text += `\n📝 ${event.description}\n`;
+    text += `\n${getTeamHashtag(match.homeTeam.name)} ${getTeamHashtag(match.awayTeam.name)} ${(match.leagueHashtags || []).join(' ')}`;
     return text;
 }
 
@@ -444,9 +520,20 @@ function buildTimeline(match, skipLifecycle) {
 
     // Add actual events, skipping lifecycle categories and uncategorized events
     // (lifecycle is already handled by the injected items above)
+    const seenDelayKeys = new Map();
     for (const ev of events) {
         if (!skipLifecycle && ['MATCH_START', 'HALF_TIME', 'SECOND_HALF_START', 'MATCH_END', 'EXTRA_TIME_START', 'EXTRA_TIME_HALF', 'EXTRA_TIME_SECOND_HALF', 'SHOOTOUT_START'].includes(ev._category)) {
             continue; // covered by injected lifecycle
+        }
+        if (ev._category === 'MATCH_DELAY_START' || ev._category === 'MATCH_DELAY_END') {
+            const key = getMatchDelayKey(ev._category, ev.minute);
+            const existing = seenDelayKeys.get(key);
+            const hasDesc = Boolean((ev.description || '').trim());
+            if (existing) {
+                const existingHasDesc = Boolean((existing.description || '').trim());
+                if (!(hasDesc && !existingHasDesc)) continue;
+            }
+            seenDelayKeys.set(key, ev);
         }
         if (ev._category == null) {
             log(`  Skipping uncategorized event: ${ev.type}`);
@@ -460,6 +547,17 @@ function buildTimeline(match, skipLifecycle) {
             category: ev._category,
         });
     }
+
+    // Remove duplicate delay entries superseded by a better-described twin
+    const delayWinners = new Set(seenDelayKeys.values());
+    const filtered = timeline.filter((item) => {
+        if (item.type !== 'event') return true;
+        const cat = item.category;
+        if (cat !== 'MATCH_DELAY_START' && cat !== 'MATCH_DELAY_END') return true;
+        return delayWinners.has(item.event);
+    });
+    timeline.length = 0;
+    timeline.push(...filtered);
 
     // Sort by time, with lifecycle before events at the same time
     timeline.sort((a, b) => a.time - b.time || (a.type === 'lifecycle' ? -1 : 1));
@@ -585,6 +683,18 @@ async function replayMatch(match) {
                     break;
                 case 'SUBSTITUTION':
                     text = formatSubstitution(event, liveMatch(match, score));
+                    break;
+                case 'PENALTY_MISSED':
+                    text = formatPenaltyMissed(event, liveMatch(match, score));
+                    break;
+                case 'VAR':
+                    text = `📺 VAR\n\n${event.description || event.type}`;
+                    break;
+                case 'MATCH_DELAY_START':
+                    text = formatMatchDelayStart(event, liveMatch(match, score));
+                    break;
+                case 'MATCH_DELAY_END':
+                    text = formatMatchDelayEnd(event, liveMatch(match, score));
                     break;
                 default:
                     log(`  Skipping uncategorized event: ${event.type}`);

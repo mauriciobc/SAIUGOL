@@ -412,6 +412,28 @@ export function parseScorerFromGoalDescription(text) {
 }
 
 /**
+ * Parse player name from ESPN provisional text before the final description is ready.
+ * PT: "Lionel Messi (Argentina) Tentativa temporária aos 21'"
+ * EN: "Lionel Messi (Argentina) Temporary attempt at 21'"
+ * @param {string} text
+ * @returns {string|null}
+ */
+export function parsePlayerFromTemporaryDescription(text) {
+    if (!text || typeof text !== 'string') return null;
+    const m = text.match(/^(.+?)\s*\([^)]+\)\s+(?:Tentativa tempor[aá]ria|Temporary attempt)/i);
+    return m ? m[1].trim() : null;
+}
+
+/**
+ * Extract player name from goal or provisional penalty descriptions.
+ * @param {string} text
+ * @returns {string|null}
+ */
+export function parsePlayerFromEventDescription(text) {
+    return parseScorerFromGoalDescription(text) || parsePlayerFromTemporaryDescription(text);
+}
+
+/**
  * Get live events for a match (goals, cards, etc.)
  * @param {string} matchId - The match ID
  * @param {string} leagueCode - The league code
@@ -475,9 +497,9 @@ export async function getLiveEvents(matchId, leagueCode) {
                         // Broad match is safe here: parseScorerFromGoalDescription only matches text
                         // starting with "Goal!"/"Gol!", so a missed/saved penalty (whose description
                         // doesn't start that way) simply yields no scorer rather than a wrong one.
-                        const scorerFromText = parseScorerFromGoalDescription(description);
-                        if (scorerFromText) {
-                            base.player = { name: scorerFromText };
+                        const playerFromText = parsePlayerFromEventDescription(description);
+                        if (playerFromText) {
+                            base.player = { name: playerFromText };
                         }
                     }
                     return base;

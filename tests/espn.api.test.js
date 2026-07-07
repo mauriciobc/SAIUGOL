@@ -1,6 +1,6 @@
 import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
-import { getTodayMatches, getMatchDetails, getLiveEvents, getHighlights, parseScorerFromGoalDescription } from '../src/api/espn.js';
+import { getTodayMatches, getMatchDetails, getLiveEvents, getHighlights, parseScorerFromGoalDescription, parsePlayerFromTemporaryDescription } from '../src/api/espn.js';
 import { resetMetrics } from '../src/utils/metrics.js';
 import { resetAllBreakers } from '../src/utils/circuitBreaker.js';
 
@@ -130,6 +130,23 @@ describe('parseScorerFromGoalDescription', () => {
     it('should return null when text does not match goal description format', () => {
         assert.strictEqual(parseScorerFromGoalDescription('No goal here.'), null);
         assert.strictEqual(parseScorerFromGoalDescription('Goal! No parenthesis'), null);
+    });
+});
+
+describe('parsePlayerFromTemporaryDescription', () => {
+    it('should extract player from PT provisional penalty text', () => {
+        const text = "Lionel Messi (Argentina) Tentativa temporária aos 21'";
+        assert.strictEqual(parsePlayerFromTemporaryDescription(text), 'Lionel Messi');
+    });
+
+    it('should extract player from EN provisional text', () => {
+        const text = 'Lionel Messi (Argentina) Temporary attempt at 21\'';
+        assert.strictEqual(parsePlayerFromTemporaryDescription(text), 'Lionel Messi');
+    });
+
+    it('should return null for final penalty description format', () => {
+        const text = 'Pênalti defendido! Lionel Messi (Argentina) perdeu uma oportunidade única...';
+        assert.strictEqual(parsePlayerFromTemporaryDescription(text), null);
     });
 });
 

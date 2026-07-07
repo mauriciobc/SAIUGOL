@@ -209,6 +209,7 @@ export const config = {
         interval: true,
         matchEnd: true,
         extraTime: true,
+        matchDelay: process.env.EVENT_MATCH_DELAY !== 'false',
         matchStats: true,
         dailyDigest: process.env.DAILY_DIGEST !== 'false',
         matchPreview: process.env.MATCH_PREVIEW !== 'false',

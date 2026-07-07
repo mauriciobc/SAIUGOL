@@ -1,0 +1,1472 @@
+{
+  "fetchedAt": "2026-07-04T17:05:50.570Z",
+  "date": "20260703",
+  "matchCount": 3,
+  "matches": [
+    {
+      "id": "760499",
+      "leagueCode": "fifa.world",
+      "leagueName": "FIFA World Cup",
+      "leagueHashtags": [
+        "#WorldCup",
+        "#CopaDoMundo"
+      ],
+      "homeTeam": {
+        "id": "628",
+        "name": "Australia",
+        "logo": "https://a.espncdn.com/i/teamlogos/countries/500/aus.png",
+        "form": "LDLWD"
+      },
+      "awayTeam": {
+        "id": "2620",
+        "name": "Egypt",
+        "logo": "https://a.espncdn.com/i/teamlogos/countries/500/egy.png",
+        "form": "WDWDL"
+      },
+      "homeScore": 1,
+      "awayScore": 1,
+      "status": "STATUS_FINAL_PEN",
+      "state": "post",
+      "venue": "AT&T Stadium",
+      "venueCity": "Arlington, Texas",
+      "startTime": "2026-07-03T18:00Z",
+      "minute": "120'",
+      "homeShootoutScore": 2,
+      "awayShootoutScore": 4,
+      "boxscore": {
+        "home": {
+          "possessionPct": "41.7",
+          "totalShots": "16",
+          "shotsOnTarget": "1",
+          "wonCorners": "4",
+          "yellowCards": "0",
+          "redCards": "0",
+          "saves": "3"
+        },
+        "away": {
+          "possessionPct": "58.3",
+          "totalShots": "14",
+          "shotsOnTarget": "3",
+          "wonCorners": "7",
+          "yellowCards": "2",
+          "redCards": "0",
+          "saves": "1"
+        }
+      },
+      "keyEvents": [
+        {
+          "id": "49685085",
+          "typeId": "80",
+          "type": "kickoff",
+          "minute": "0'"
+        },
+        {
+          "id": "49685303",
+          "typeId": "137",
+          "type": "goal - header",
+          "minute": "13'",
+          "teamId": "2620",
+          "description": "Goal! Australia 0, Egypt 1. Emam Ashour (Egypt) header from the centre of the box to the bottom left corner. Assisted by Karim Hafez with a cross following a set piece situation.",
+          "player": {
+            "name": "Emam Ashour"
+          }
+        },
+        {
+          "id": "49685480",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "23'",
+          "teamId": "2620",
+          "description": "Delay in match for a drinks break."
+        },
+        {
+          "id": "49685481",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "23'",
+          "teamId": "628"
+        },
+        {
+          "id": "49685485",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "26'",
+          "teamId": "2620",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49685484",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "26'",
+          "teamId": "628"
+        },
+        {
+          "id": "49685566",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "32'",
+          "teamId": "2620",
+          "description": "Delay in match because of an injury Mohamed Hany (Egypt)."
+        },
+        {
+          "id": "49685567",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "32'",
+          "teamId": "628"
+        },
+        {
+          "id": "49685569",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "33'",
+          "teamId": "2620",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49685568",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "33'",
+          "teamId": "628"
+        },
+        {
+          "id": "49685867",
+          "typeId": "81",
+          "type": "halftime",
+          "minute": "45'+6'"
+        },
+        {
+          "id": "49685872",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "45'",
+          "teamId": "628",
+          "description": "Substitution, Australia. Kai Trewin replaces Jordan Bos because of an injury.",
+          "player": {
+            "name": "Kai Trewin"
+          },
+          "playerIn": {
+            "name": "Kai Trewin"
+          },
+          "playerOut": {
+            "name": "Jordan Bos"
+          }
+        },
+        {
+          "id": "49685878",
+          "typeId": "82",
+          "type": "start 2nd half",
+          "minute": "45'"
+        },
+        {
+          "id": "49685906",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "48'",
+          "teamId": "2620",
+          "description": "Delay in match because of an injury Mohamed Hany (Egypt)."
+        },
+        {
+          "id": "49685905",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "48'",
+          "teamId": "628"
+        },
+        {
+          "id": "49685908",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "49'",
+          "teamId": "2620",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49685909",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "49'",
+          "teamId": "628"
+        },
+        {
+          "id": "49686000",
+          "typeId": "97",
+          "type": "own goal",
+          "minute": "55'",
+          "teamId": "628",
+          "description": "Own Goal by Mohamed Hany, Egypt. Australia 1, Egypt 1.",
+          "player": {
+            "name": "Mohamed Hany"
+          }
+        },
+        {
+          "id": "49686199",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "67'",
+          "teamId": "2620",
+          "description": "Substitution, Egypt. Haissem Hassan replaces Mostafa Zico.",
+          "player": {
+            "name": "Haissem Hassan"
+          },
+          "playerIn": {
+            "name": "Haissem Hassan"
+          },
+          "playerOut": {
+            "name": "Mostafa Zico"
+          }
+        },
+        {
+          "id": "49686200",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "67'",
+          "teamId": "2620",
+          "description": "Substitution, Egypt. Hossam Abdelmaguid replaces Hamdi Fathy.",
+          "player": {
+            "name": "Hossam Abdelmaguid"
+          },
+          "playerIn": {
+            "name": "Hossam Abdelmaguid"
+          },
+          "playerOut": {
+            "name": "Hamdy Fathy"
+          }
+        },
+        {
+          "id": "49686221",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "68'",
+          "teamId": "2620",
+          "description": "Delay in match for a drinks break."
+        },
+        {
+          "id": "49686222",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "68'",
+          "teamId": "628",
+          "description": "Delay in match for a drinks break."
+        },
+        {
+          "id": "49686223",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "71'",
+          "teamId": "628",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49686224",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "71'",
+          "teamId": "2620",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49686263",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "74'",
+          "teamId": "628",
+          "description": "Substitution, Australia. Ajdin Hrustic replaces Cristian Volpato.",
+          "player": {
+            "name": "Ajdin Hrustic"
+          },
+          "playerIn": {
+            "name": "Ajdin Hrustic"
+          },
+          "playerOut": {
+            "name": "Cristian Volpato"
+          }
+        },
+        {
+          "id": "49686264",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "74'",
+          "teamId": "628",
+          "description": "Substitution, Australia. Mohamed Touré replaces Nestory Irankunda.",
+          "player": {
+            "name": "Mohamed Toure"
+          },
+          "playerIn": {
+            "name": "Mohamed Toure"
+          },
+          "playerOut": {
+            "name": "Nestory Irankunda"
+          }
+        },
+        {
+          "id": "49686378",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "79'",
+          "teamId": "2620",
+          "description": "Delay in match because of an injury Karim Hafez (Egypt)."
+        },
+        {
+          "id": "49686377",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "79'",
+          "teamId": "628"
+        },
+        {
+          "id": "49686381",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "80'",
+          "teamId": "2620",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49686379",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "80'",
+          "teamId": "628"
+        },
+        {
+          "id": "49686380",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "80'",
+          "teamId": "2620",
+          "description": "Substitution, Egypt. Trezeguet replaces Karim Hafez because of an injury.",
+          "player": {
+            "name": "Trézéguet"
+          },
+          "playerIn": {
+            "name": "Trézéguet"
+          },
+          "playerOut": {
+            "name": "Karim Hafez"
+          }
+        },
+        {
+          "id": "49686631",
+          "typeId": "83",
+          "type": "end regular time",
+          "minute": "90'+6'",
+          "description": "Second Half ends, Australia 1, Egypt 1."
+        },
+        {
+          "id": "49686634",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "90'",
+          "teamId": "628",
+          "description": "Substitution, Australia. Paul Okon-Engstler replaces Aiden O'Neill.",
+          "player": {
+            "name": "Paul Okon-Engstler"
+          },
+          "playerIn": {
+            "name": "Paul Okon-Engstler"
+          },
+          "playerOut": {
+            "name": "Aiden O'Neill"
+          }
+        },
+        {
+          "id": "49686635",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "90'",
+          "teamId": "628",
+          "description": "Substitution, Australia. Awer Mabil replaces Connor Metcalfe.",
+          "player": {
+            "name": "Awer Mabil"
+          },
+          "playerIn": {
+            "name": "Awer Mabil"
+          },
+          "playerOut": {
+            "name": "Connor Metcalfe"
+          }
+        },
+        {
+          "id": "49686639",
+          "typeId": "84",
+          "type": "start extra time",
+          "minute": "90'"
+        },
+        {
+          "id": "49686862",
+          "typeId": "94",
+          "type": "yellow card",
+          "minute": "105'",
+          "teamId": "2620",
+          "description": "Haissem Hassan (Egypt) is shown the yellow card for a bad foul.",
+          "player": {
+            "name": "Haissem Hassan"
+          }
+        },
+        {
+          "id": "49686867",
+          "typeId": "85",
+          "type": "halftime extra time",
+          "minute": "105'+1'",
+          "description": "First Half Extra Time ends, Australia 1, Egypt 1."
+        },
+        {
+          "id": "49686868",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "105'",
+          "teamId": "2620",
+          "description": "Substitution, Egypt. Hamza Abdelkarim replaces Omar Marmoush.",
+          "player": {
+            "name": "Hamza Abdelkarim"
+          },
+          "playerIn": {
+            "name": "Hamza Abdelkarim"
+          },
+          "playerOut": {
+            "name": "Omar Marmoush"
+          }
+        },
+        {
+          "id": "49686876",
+          "typeId": "86",
+          "type": "start 2nd half extra time",
+          "minute": "105'"
+        },
+        {
+          "id": "49687076",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "119'",
+          "teamId": "628",
+          "description": "Substitution, Australia. Mathew Ryan replaces Patrick Beach.",
+          "player": {
+            "name": "Mathew Ryan"
+          },
+          "playerIn": {
+            "name": "Mathew Ryan"
+          },
+          "playerOut": {
+            "name": "Patrick Beach"
+          }
+        },
+        {
+          "id": "49687086",
+          "typeId": "94",
+          "type": "yellow card",
+          "minute": "120'",
+          "teamId": "2620",
+          "description": "Yasser Ibrahim (Egypt) is shown the yellow card for a bad foul.",
+          "player": {
+            "name": "Yasser Ibrahim"
+          }
+        },
+        {
+          "id": "49687089",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "120'+1'",
+          "teamId": "2620",
+          "description": "Substitution, Egypt. Mahmoud Saber replaces Marwan Attia.",
+          "player": {
+            "name": "Mahmoud Saber"
+          },
+          "playerIn": {
+            "name": "Mahmoud Saber"
+          },
+          "playerOut": {
+            "name": "Marawan Attia"
+          }
+        },
+        {
+          "id": "49687093",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "120'+2'",
+          "teamId": "628",
+          "description": "Delay in match because of an injury Alessandro Circati (Australia)."
+        },
+        {
+          "id": "49687095",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "120'+2'",
+          "teamId": "2620",
+          "description": "Delay in match because of an injury Yasser Ibrahim (Egypt)."
+        },
+        {
+          "id": "49687100",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "120'+3'",
+          "teamId": "2620",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49687099",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "120'+3'",
+          "teamId": "628"
+        },
+        {
+          "id": "49687101",
+          "typeId": "87",
+          "type": "end extra time",
+          "minute": "120'+3'",
+          "description": "Second Half Extra Time ends, Australia 1, Egypt 1."
+        },
+        {
+          "id": "49687122",
+          "typeId": "88",
+          "type": "start shootout",
+          "minute": "120'"
+        },
+        {
+          "id": "49687123",
+          "typeId": "89",
+          "type": "end match",
+          "minute": "120'"
+        }
+      ]
+    },
+    {
+      "id": "760500",
+      "leagueCode": "fifa.world",
+      "leagueName": "FIFA World Cup",
+      "leagueHashtags": [
+        "#WorldCup",
+        "#CopaDoMundo"
+      ],
+      "homeTeam": {
+        "id": "202",
+        "name": "Argentina",
+        "logo": "https://a.espncdn.com/i/teamlogos/countries/500/arg.png",
+        "form": "WWWWW"
+      },
+      "awayTeam": {
+        "id": "2597",
+        "name": "Cape Verde",
+        "logo": "https://a.espncdn.com/i/teamlogos/countries/500/cpv.png",
+        "form": "LDDDW"
+      },
+      "homeScore": 3,
+      "awayScore": 2,
+      "status": "STATUS_FINAL_AET",
+      "state": "post",
+      "venue": "Hard Rock Stadium",
+      "venueCity": "Miami Gardens, Florida",
+      "startTime": "2026-07-03T22:00Z",
+      "minute": "120'+3'",
+      "boxscore": {
+        "home": {
+          "possessionPct": "63.6",
+          "totalShots": "22",
+          "shotsOnTarget": "10",
+          "wonCorners": "8",
+          "yellowCards": "1",
+          "redCards": "0",
+          "saves": "3"
+        },
+        "away": {
+          "possessionPct": "36.4",
+          "totalShots": "16",
+          "shotsOnTarget": "5",
+          "wonCorners": "8",
+          "yellowCards": "1",
+          "redCards": "0",
+          "saves": "8"
+        }
+      },
+      "keyEvents": [
+        {
+          "id": "49687129",
+          "typeId": "80",
+          "type": "kickoff",
+          "minute": "0'"
+        },
+        {
+          "id": "49687549",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "25'",
+          "teamId": "202",
+          "description": "Delay in match for a drinks break."
+        },
+        {
+          "id": "49687548",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "25'",
+          "teamId": "2597"
+        },
+        {
+          "id": "49687550",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "27'",
+          "teamId": "202",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49687551",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "27'",
+          "teamId": "2597"
+        },
+        {
+          "id": "49687566",
+          "typeId": "70",
+          "type": "goal",
+          "minute": "29'",
+          "teamId": "202",
+          "description": "Goal! Argentina 1, Cabo Verde 0. Lionel Messi (Argentina) left footed shot from the right side of the six yard box to the top right corner. Assisted by Lisandro Martínez with a through ball.",
+          "player": {
+            "name": "Lionel Messi"
+          }
+        },
+        {
+          "id": "49687911",
+          "typeId": "81",
+          "type": "halftime",
+          "minute": "45'+4'",
+          "description": "First Half ends, Argentina 1, Cabo Verde 0."
+        },
+        {
+          "id": "49687917",
+          "typeId": "82",
+          "type": "start 2nd half",
+          "minute": "45'"
+        },
+        {
+          "id": "49688156",
+          "typeId": "70",
+          "type": "goal",
+          "minute": "59'",
+          "teamId": "2597",
+          "description": "Goal! Argentina 1, Cabo Verde 1. Deroy Duarte (Cabo Verde) right footed shot from a difficult angle on the right to the bottom left corner. Assisted by Ryan Mendes.",
+          "player": {
+            "name": "Deroy Duarte"
+          }
+        },
+        {
+          "id": "49688192",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "63'",
+          "teamId": "202",
+          "description": "Substitution, Argentina. Julián Alvarez replaces Lautaro Martínez.",
+          "player": {
+            "name": "Julián Álvarez"
+          },
+          "playerIn": {
+            "name": "Julián Álvarez"
+          },
+          "playerOut": {
+            "name": "Lautaro Martínez"
+          }
+        },
+        {
+          "id": "49688193",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "64'",
+          "teamId": "202",
+          "description": "Substitution, Argentina. Nico González replaces Thiago Almada.",
+          "player": {
+            "name": "Nico González"
+          },
+          "playerIn": {
+            "name": "Nico González"
+          },
+          "playerOut": {
+            "name": "Thiago Almada"
+          }
+        },
+        {
+          "id": "49688250",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "67'",
+          "teamId": "2597",
+          "description": "Substitution, Cabo Verde. Jamiro Monteiro replaces Laros Duarte.",
+          "player": {
+            "name": "Jamiro Monteiro"
+          },
+          "playerIn": {
+            "name": "Jamiro Monteiro"
+          },
+          "playerOut": {
+            "name": "Laros Duarte"
+          }
+        },
+        {
+          "id": "49688251",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "67'",
+          "teamId": "2597",
+          "description": "Substitution, Cabo Verde. Dailon Livramento replaces Nuno da Costa.",
+          "player": {
+            "name": "Dailon Livramento"
+          },
+          "playerIn": {
+            "name": "Dailon Livramento"
+          },
+          "playerOut": {
+            "name": "Nuno da Costa"
+          }
+        },
+        {
+          "id": "49688266",
+          "typeId": "94",
+          "type": "yellow card",
+          "minute": "68'",
+          "teamId": "2597",
+          "description": "Kevin Pina (Cabo Verde) is shown the yellow card for a bad foul.",
+          "player": {
+            "name": "Kevin Pina"
+          }
+        },
+        {
+          "id": "49688337",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "73'",
+          "teamId": "202",
+          "description": "Delay in match for a drinks break."
+        },
+        {
+          "id": "49688336",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "73'",
+          "teamId": "2597"
+        },
+        {
+          "id": "49688338",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "76'",
+          "teamId": "202",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49688339",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "76'",
+          "teamId": "2597"
+        },
+        {
+          "id": "49688374",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "80'",
+          "teamId": "2597",
+          "description": "Substitution, Cabo Verde. Willy Semedo replaces Ryan Mendes.",
+          "player": {
+            "name": "Willy Semedo"
+          },
+          "playerIn": {
+            "name": "Willy Semedo"
+          },
+          "playerOut": {
+            "name": "Ryan Mendes"
+          }
+        },
+        {
+          "id": "49688375",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "80'",
+          "teamId": "2597",
+          "description": "Substitution, Cabo Verde. Hélio Varela replaces Jovane Cabral.",
+          "player": {
+            "name": "Hélio Varela"
+          },
+          "playerIn": {
+            "name": "Hélio Varela"
+          },
+          "playerOut": {
+            "name": "Jovane Cabral"
+          }
+        },
+        {
+          "id": "49688445",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "84'",
+          "teamId": "202",
+          "description": "Substitution, Argentina. Leandro Paredes replaces Rodrigo De Paul.",
+          "player": {
+            "name": "Leandro Paredes"
+          },
+          "playerIn": {
+            "name": "Leandro Paredes"
+          },
+          "playerOut": {
+            "name": "Rodrigo De Paul"
+          }
+        },
+        {
+          "id": "49688455",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "86'",
+          "teamId": "202",
+          "description": "Substitution, Argentina. Nicolás Tagliafico replaces Facundo Medina because of an injury.",
+          "player": {
+            "name": "Nicolás Tagliafico"
+          },
+          "playerIn": {
+            "name": "Nicolás Tagliafico"
+          },
+          "playerOut": {
+            "name": "Facundo Medina"
+          }
+        },
+        {
+          "id": "49688645",
+          "typeId": "83",
+          "type": "end regular time",
+          "minute": "90'+9'",
+          "description": "Second Half ends, Argentina 1, Cabo Verde 1."
+        },
+        {
+          "id": "49688662",
+          "typeId": "84",
+          "type": "start extra time",
+          "minute": "90'",
+          "description": "First Half Extra Time begins Argentina 1, Cabo Verde 1."
+        },
+        {
+          "id": "49688681",
+          "typeId": "70",
+          "type": "goal",
+          "minute": "92'",
+          "teamId": "202",
+          "description": "Goal! Argentina 2, Cabo Verde 1. Lisandro Martínez (Argentina) left footed shot from the right side of the box to the top right corner. Assisted by Alexis Mac Allister with a headed pass following a corner.",
+          "player": {
+            "name": "Lisandro Martínez"
+          }
+        },
+        {
+          "id": "49688867",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "100'",
+          "teamId": "2597",
+          "description": "Substitution, Cabo Verde. Yannick Semedo replaces Deroy Duarte.",
+          "player": {
+            "name": "Yannick Semedo"
+          },
+          "playerIn": {
+            "name": "Yannick Semedo"
+          },
+          "playerOut": {
+            "name": "Deroy Duarte"
+          }
+        },
+        {
+          "id": "49688872",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "100'",
+          "teamId": "2597",
+          "description": "Substitution, Cabo Verde. Gilson Benchimol replaces Kevin Pina.",
+          "player": {
+            "name": "Gilson Benchimol"
+          },
+          "playerIn": {
+            "name": "Gilson Benchimol"
+          },
+          "playerOut": {
+            "name": "Kevin Pina"
+          }
+        },
+        {
+          "id": "49688979",
+          "typeId": "70",
+          "type": "goal",
+          "minute": "103'",
+          "teamId": "2597",
+          "description": "Goal! Argentina 2, Cabo Verde 2. Sidny Cabral (Cabo Verde) right footed shot from the left side of the box to the top right corner. Assisted by Yannick Semedo.",
+          "player": {
+            "name": "Sidny Cabral"
+          }
+        },
+        {
+          "id": "49689003",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "104'",
+          "teamId": "202",
+          "description": "Substitution, Argentina. Gonzalo Montiel replaces Nahuel Molina.",
+          "player": {
+            "name": "Gonzalo Montiel"
+          },
+          "playerIn": {
+            "name": "Gonzalo Montiel"
+          },
+          "playerOut": {
+            "name": "Nahuel Molina"
+          }
+        },
+        {
+          "id": "49689166",
+          "typeId": "85",
+          "type": "halftime extra time",
+          "minute": "105'+4'"
+        },
+        {
+          "id": "49689198",
+          "typeId": "86",
+          "type": "start 2nd half extra time",
+          "minute": "105'"
+        },
+        {
+          "id": "49689366",
+          "typeId": "97",
+          "type": "own goal",
+          "minute": "111'",
+          "teamId": "202",
+          "description": "Own Goal by Diney Borges, Cabo Verde. Argentina 3, Cabo Verde 2.",
+          "player": {
+            "name": "Diney Borges"
+          }
+        },
+        {
+          "id": "49689478",
+          "typeId": "94",
+          "type": "yellow card",
+          "minute": "115'",
+          "teamId": "202",
+          "description": "Gonzalo Montiel (Argentina) is shown the yellow card for a bad foul.",
+          "player": {
+            "name": "Gonzalo Montiel"
+          }
+        },
+        {
+          "id": "49689683",
+          "typeId": "87",
+          "type": "end extra time",
+          "minute": "120'+4'"
+        }
+      ]
+    },
+    {
+      "id": "760501",
+      "leagueCode": "fifa.world",
+      "leagueName": "FIFA World Cup",
+      "leagueHashtags": [
+        "#WorldCup",
+        "#CopaDoMundo"
+      ],
+      "homeTeam": {
+        "id": "208",
+        "name": "Colombia",
+        "logo": "https://a.espncdn.com/i/teamlogos/countries/500/col.png",
+        "form": "WDWWW"
+      },
+      "awayTeam": {
+        "id": "4469",
+        "name": "Ghana",
+        "logo": "https://a.espncdn.com/i/teamlogos/countries/500/gha.png",
+        "form": "LLDWD"
+      },
+      "homeScore": 1,
+      "awayScore": 0,
+      "status": "STATUS_FULL_TIME",
+      "state": "post",
+      "venue": "GEHA Field at Arrowhead Stadium",
+      "venueCity": "Kansas City, Missouri",
+      "startTime": "2026-07-04T01:30Z",
+      "minute": "90'+8'",
+      "boxscore": {
+        "home": {
+          "possessionPct": "60.7",
+          "totalShots": "20",
+          "shotsOnTarget": "8",
+          "wonCorners": "3",
+          "yellowCards": "2",
+          "redCards": "0",
+          "saves": "0"
+        },
+        "away": {
+          "possessionPct": "39.3",
+          "totalShots": "8",
+          "shotsOnTarget": "0",
+          "wonCorners": "2",
+          "yellowCards": "3",
+          "redCards": "0",
+          "saves": "7"
+        }
+      },
+      "keyEvents": [
+        {
+          "id": "49690083",
+          "typeId": "80",
+          "type": "kickoff",
+          "minute": "0'",
+          "description": "First Half begins."
+        },
+        {
+          "id": "49690281",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "8'",
+          "teamId": "208",
+          "description": "Substitution, Colombia. Luis Suárez replaces Jhon Córdoba because of an injury.",
+          "player": {
+            "name": "Luis Suárez"
+          },
+          "playerIn": {
+            "name": "Luis Suárez"
+          },
+          "playerOut": {
+            "name": "Jhon Córdoba"
+          }
+        },
+        {
+          "id": "49690311",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "9'",
+          "teamId": "4469",
+          "description": "Delay in match because of an injury Marvin Senaya (Ghana)."
+        },
+        {
+          "id": "49690313",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "9'",
+          "teamId": "208"
+        },
+        {
+          "id": "49690356",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "10'",
+          "teamId": "4469",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49690359",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "10'",
+          "teamId": "208"
+        },
+        {
+          "id": "49690439",
+          "typeId": "94",
+          "type": "yellow card",
+          "minute": "12'",
+          "teamId": "208",
+          "description": "Jhon Arias (Colombia) is shown the yellow card for a bad foul.",
+          "player": {
+            "name": "Jhon Arias"
+          }
+        },
+        {
+          "id": "49690446",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "12'",
+          "teamId": "4469",
+          "description": "Delay in match because of an injury Marvin Senaya (Ghana)."
+        },
+        {
+          "id": "49690452",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "12'",
+          "teamId": "208"
+        },
+        {
+          "id": "49690470",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "13'",
+          "teamId": "4469",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49690476",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "13'",
+          "teamId": "208"
+        },
+        {
+          "id": "49690469",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "13'",
+          "teamId": "4469",
+          "description": "Substitution, Ghana. Alidu Seidu replaces Marvin Senaya because of an injury.",
+          "player": {
+            "name": "Alidu Seidu"
+          },
+          "playerIn": {
+            "name": "Alidu Seidu"
+          },
+          "playerOut": {
+            "name": "Marvin Senaya"
+          }
+        },
+        {
+          "id": "49690543",
+          "typeId": "70",
+          "type": "goal",
+          "minute": "14'",
+          "teamId": "208",
+          "description": "Goal! Colombia 1, Ghana 0. Jhon Arias (Colombia) right footed shot from the centre of the box to the bottom right corner. Assisted by Luis Suárez with a cross.",
+          "player": {
+            "name": "Jhon Arias"
+          }
+        },
+        {
+          "id": "49690931",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "24'",
+          "teamId": "208",
+          "description": "Delay in match for a drinks break."
+        },
+        {
+          "id": "49690932",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "24'",
+          "teamId": "4469"
+        },
+        {
+          "id": "49691005",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "27'",
+          "teamId": "208",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49691006",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "27'",
+          "teamId": "4469"
+        },
+        {
+          "id": "49691735",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "45'+1'",
+          "teamId": "4469",
+          "description": "Delay in match because of an injury Alidu Seidu (Ghana)."
+        },
+        {
+          "id": "49691732",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "45'+1'",
+          "teamId": "208"
+        },
+        {
+          "id": "49691779",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "45'+3'",
+          "teamId": "4469",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49691773",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "45'+3'",
+          "teamId": "208"
+        },
+        {
+          "id": "49691993",
+          "typeId": "81",
+          "type": "halftime",
+          "minute": "45'+8'",
+          "description": "First Half ends, Colombia 1, Ghana 0."
+        },
+        {
+          "id": "49692337",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "45'",
+          "teamId": "208",
+          "description": "Substitution, Colombia. Richard Ríos replaces James Rodríguez.",
+          "player": {
+            "name": "Richard Ríos"
+          },
+          "playerIn": {
+            "name": "Richard Ríos"
+          },
+          "playerOut": {
+            "name": "James Rodríguez"
+          }
+        },
+        {
+          "id": "49692354",
+          "typeId": "82",
+          "type": "start 2nd half",
+          "minute": "45'",
+          "description": "Second Half begins Colombia 1, Ghana 0."
+        },
+        {
+          "id": "49692453",
+          "typeId": "94",
+          "type": "yellow card",
+          "minute": "49'",
+          "teamId": "4469",
+          "description": "Caleb Yirenkyi (Ghana) is shown the yellow card for a bad foul.",
+          "player": {
+            "name": "Caleb Yirenkyi"
+          }
+        },
+        {
+          "id": "49692968",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "62'",
+          "teamId": "4469",
+          "description": "Substitution, Ghana. Abdul Fatawu replaces Iñaki Williams.",
+          "player": {
+            "name": "Fatawu Issahaku"
+          },
+          "playerIn": {
+            "name": "Fatawu Issahaku"
+          },
+          "playerOut": {
+            "name": "Iñaki Williams"
+          }
+        },
+        {
+          "id": "49692976",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "62'",
+          "teamId": "4469",
+          "description": "Substitution, Ghana. Elisha Owusu replaces Kwasi Sibo because of an injury.",
+          "player": {
+            "name": "Elisha Owusu"
+          },
+          "playerIn": {
+            "name": "Elisha Owusu"
+          },
+          "playerOut": {
+            "name": "Kwasi Sibo"
+          }
+        },
+        {
+          "id": "49693104",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "65'",
+          "teamId": "4469",
+          "description": "Delay in match because of an injury Abdul Fatawu (Ghana)."
+        },
+        {
+          "id": "49693102",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "65'",
+          "teamId": "208"
+        },
+        {
+          "id": "49693105",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "66'",
+          "teamId": "4469",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49693106",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "66'",
+          "teamId": "208"
+        },
+        {
+          "id": "49693127",
+          "typeId": "94",
+          "type": "yellow card",
+          "minute": "66'",
+          "teamId": "4469",
+          "description": "Abdul Fatawu (Ghana) is shown the yellow card.",
+          "player": {
+            "name": "Fatawu Issahaku"
+          }
+        },
+        {
+          "id": "49693239",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "69'",
+          "teamId": "208",
+          "description": "Delay in match for a drinks break."
+        },
+        {
+          "id": "49693238",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "69'",
+          "teamId": "4469"
+        },
+        {
+          "id": "49693281",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "72'",
+          "teamId": "208",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49693293",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "72'",
+          "teamId": "4469"
+        },
+        {
+          "id": "49693296",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "73'",
+          "teamId": "208",
+          "description": "Substitution, Colombia. Juan Fernando Quintero replaces Jhon Arias.",
+          "player": {
+            "name": "Juan Fernando Quintero"
+          },
+          "playerIn": {
+            "name": "Juan Fernando Quintero"
+          },
+          "playerOut": {
+            "name": "Jhon Arias"
+          }
+        },
+        {
+          "id": "49693386",
+          "typeId": "94",
+          "type": "yellow card",
+          "minute": "76'",
+          "teamId": "4469",
+          "description": "Alidu Seidu (Ghana) is shown the yellow card for a bad foul.",
+          "player": {
+            "name": "Alidu Seidu"
+          }
+        },
+        {
+          "id": "49693436",
+          "typeId": "94",
+          "type": "yellow card",
+          "minute": "78'",
+          "teamId": "208",
+          "description": "Richard Ríos (Colombia) is shown the yellow card for a bad foul.",
+          "player": {
+            "name": "Richard Ríos"
+          }
+        },
+        {
+          "id": "49693447",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "79'",
+          "teamId": "4469",
+          "description": "Substitution, Ghana. Ernest Nuamah replaces Jordan Ayew.",
+          "player": {
+            "name": "Ernest Nuamah"
+          },
+          "playerIn": {
+            "name": "Ernest Nuamah"
+          },
+          "playerOut": {
+            "name": "Jordan Ayew"
+          }
+        },
+        {
+          "id": "49693448",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "79'",
+          "teamId": "4469",
+          "description": "Substitution, Ghana. Prince Adu replaces Caleb Yirenkyi.",
+          "player": {
+            "name": "Prince Adu"
+          },
+          "playerIn": {
+            "name": "Prince Adu"
+          },
+          "playerOut": {
+            "name": "Caleb Yirenkyi"
+          }
+        },
+        {
+          "id": "49693860",
+          "typeId": "76",
+          "type": "substitution",
+          "minute": "90'",
+          "teamId": "208",
+          "description": "Substitution, Colombia. Jaminton Campaz replaces Luis Díaz.",
+          "player": {
+            "name": "Jáminton Campaz"
+          },
+          "playerIn": {
+            "name": "Jáminton Campaz"
+          },
+          "playerOut": {
+            "name": "Luis Díaz"
+          }
+        },
+        {
+          "id": "49693928",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "90'+2'",
+          "teamId": "4469",
+          "description": "Delay in match because of an injury Gideon Mensah (Ghana)."
+        },
+        {
+          "id": "49693932",
+          "typeId": "129",
+          "type": "start delay",
+          "minute": "90'+2'",
+          "teamId": "208",
+          "description": "Delay in match because of an injury Richard Ríos (Colombia)."
+        },
+        {
+          "id": "49693959",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "90'+3'",
+          "teamId": "208",
+          "description": "Delay over. They are ready to continue."
+        },
+        {
+          "id": "49693954",
+          "typeId": "130",
+          "type": "end delay",
+          "minute": "90'+3'",
+          "teamId": "4469"
+        },
+        {
+          "id": "49694185",
+          "typeId": "83",
+          "type": "end regular time",
+          "minute": "90'+8'",
+          "description": "Second Half ends, Colombia 1, Ghana 0."
+        }
+      ]
+    }
+  ]
+}

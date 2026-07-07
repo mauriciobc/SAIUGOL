@@ -1,5 +1,6 @@
 import { config } from '../config.js';
 import { translate } from '../services/i18n.js';
+import { parsePlayerFromEventDescription } from '../api/espn.js';
 import { PENALTY_SCORED_KEYWORDS } from '../utils/eventKeywords.js';
 
 function playerName(player) {
@@ -76,7 +77,9 @@ export function formatGoal(event, match, options = {}) {
  */
 export function formatGoalPending(event, match) {
     const { homeTeam, awayTeam, homeScore, awayScore } = match;
-    const scorer = playerName(event.player) || translate('common.unknown_player');
+    const scorer = playerName(event.player)
+        || parsePlayerFromEventDescription(eventDescription(event))
+        || translate('common.unknown_player');
     const minute = displayMinute(event.minute);
 
     let text = `${translate('ui.goal_pending_announcement')}\n\n`;
@@ -105,6 +108,62 @@ export function formatGoalDisallowed(event, match) {
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
     text += `⏱️ ${minute}'\n`;
     text += `👤 ${scorer}`;
+    text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
+ * Format a missed/saved penalty event as a Mastodon post
+ * @param {Object} event - Penalty missed event data
+ * @param {Object} match - Match data
+ * @param {{ isFavoriteTeam?: boolean }} [options]
+ * @returns {string} Formatted post text
+ */
+export function formatPenaltyMissed(event, match, options = {}) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const player = playerName(event.player)
+        || parsePlayerFromEventDescription(eventDescription(event))
+        || translate('common.unknown_player');
+    const minute = displayMinute(event.minute);
+
+    let text = '';
+    if (options.isFavoriteTeam) {
+        const { favoriteTeamEmoji: emoji, favoriteTeamNickname: nickname } = config.bot;
+        text += `${emoji} Pênalti perdido - ${nickname}!\n\n`;
+    }
+    text += `${translate('ui.penalty_missed_announcement')}\n\n`;
+    text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
+    text += `⏱️ ${minute}'\n`;
+    text += `👤 ${player}`;
+
+    const desc = eventDescription(event);
+    if (desc) text += `\n\n📝 ${desc}`;
+
+    text += `\n\n${getTeamHashtag(event.team?.name || homeTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
+ * Format a penalty that ESPN hasn't finished describing yet (e.g. "Tentativa temporária aos 21'").
+ * The real announcement (formatPenaltyMissed) is posted as a reply once ESPN fills in the text.
+ * @param {Object} event - Penalty missed event data
+ * @param {Object} match - Match data
+ * @returns {string} Formatted post text
+ */
+export function formatPenaltyMissedPending(event, match) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const player = playerName(event.player)
+        || parsePlayerFromEventDescription(eventDescription(event))
+        || translate('common.unknown_player');
+    const minute = displayMinute(event.minute);
+
+    let text = `${translate('ui.penalty_missed_pending_announcement')}\n\n`;
+    text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
+    text += `⏱️ ${minute}'\n`;
+    text += `👤 ${player}\n\n`;
+    text += translate('ui.penalty_missed_pending_note');
     text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
@@ -607,6 +666,68 @@ export function formatShootoutStart(match) {
     let text = `${translate('ui.shootout_start')}\n\n`;
     text += `\ud83c\udfdf\ufe0f ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
     text += `${translate('ui.extra_time_draw')}\n`;
+    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
+ * Parse delay reason from ESPN description (PT or EN).
+ * @param {string} [description]
+ * @returns {'hydration'|'injury'|'generic'}
+ */
+export function parseDelayReason(description) {
+    const d = (description || '').toLowerCase();
+    if (d.includes('hidratação') || d.includes('drinks break')) return 'hydration';
+    if (d.includes('lesão') || d.includes('lesao') || d.includes('injury')) return 'injury';
+    return 'generic';
+}
+
+/**
+ * Format match delay start (typeId 129 — hydration, injury, or generic pause).
+ * @param {Object} event
+ * @param {Object} match
+ * @returns {string}
+ */
+export function formatMatchDelayStart(event, match) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const minute = displayMinute(event.minute);
+    const reason = parseDelayReason(eventDescription(event));
+    const announcementKey = reason === 'hydration'
+        ? 'ui.match_delay_hydration_start'
+        : reason === 'injury'
+            ? 'ui.match_delay_injury_start'
+            : 'ui.match_delay_generic_start';
+
+    let text = `${translate(announcementKey)}\n\n`;
+    text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
+    text += `⏱️ ${minute}'\n`;
+
+    const desc = eventDescription(event);
+    if (desc) text += `\n📝 ${desc}\n`;
+
+    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
+ * Format match delay end (typeId 130 — play resumes).
+ * @param {Object} event
+ * @param {Object} match
+ * @returns {string}
+ */
+export function formatMatchDelayEnd(event, match) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const minute = displayMinute(event.minute);
+
+    let text = `${translate('ui.match_delay_end')}\n\n`;
+    text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
+    text += `⏱️ ${minute}'\n`;
+
+    const desc = eventDescription(event);
+    if (desc) text += `\n📝 ${desc}\n`;
+
     text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
     return text;

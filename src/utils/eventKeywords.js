@@ -9,19 +9,37 @@
 export const PENALTY_SCORED_KEYWORDS = ['penalty - scored', 'gol de pênalti', 'pênalti convertido'];
 
 /** Phrases meaning a penalty was missed/saved (does not count as a goal). */
-export const PENALTY_MISSED_KEYWORDS = ['penalty - saved', 'penalty - missed', 'pênalti defendido', 'pênalti perdido'];
+export const PENALTY_MISSED_KEYWORDS = [
+    'penalty - saved',
+    'penalty - missed',
+    'pênalti defendido',
+    'pênalti perdido',
+    'pênalti - defendido',
+    'pênalti - perdido',
+];
+
+/** ESPN provisional description while the play is still being written (PT/EN). */
+export const TEMPORARY_ATTEMPT_KEYWORDS = [
+    'tentativa temporária',
+    'tentativa temporaria',
+    'temporary attempt',
+];
+
+export function isTemporaryAttemptDescription(description) {
+    const d = (description || '').toLowerCase();
+    return TEMPORARY_ATTEMPT_KEYWORDS.some((kw) => d.includes(kw));
+}
 
 /**
  * True when `text` looks like ESPN's transient short-form event text (e.g. "Jude Bellingham
- * (England) Goal at 36'" / "...Gol temporário aos 36'") rather than the full narrative
- * description ("Gol! México 0, Inglaterra 1. Jude Bellingham (Inglaterra) de cabeça..."). ESPN
- * fills in keyEvents[].text asynchronously under the same event id — polling can catch the
- * placeholder before it's replaced. Confirmed goal narratives (including own goals, which never
- * start with "Gol!"/"Goal!") end in descriptive prose, never in a bare "at/aos <minute>'".
+ * (England) Goal at 36'" / "...Gol temporário aos 36'" / "...Tentativa temporária aos 21'")
+ * rather than the full narrative description. ESPN fills in keyEvents[].text asynchronously
+ * under the same event id — polling can catch the placeholder before it's replaced.
  * @param {string} text - event.text / event.description
  * @returns {boolean}
  */
 export function isPlaceholderEventText(text) {
     if (!text || typeof text !== 'string') return false;
+    if (isTemporaryAttemptDescription(text)) return true;
     return /\b(?:at|aos)\s+\d+(?:\+\d+)?['’]?\s*$/i.test(text.trim());
 }

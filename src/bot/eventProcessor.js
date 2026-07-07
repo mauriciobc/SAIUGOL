@@ -1,13 +1,22 @@
 import { config } from '../config.js';
 import { postStatus, uploadMediaFromUrl } from '../api/mastodon.js';
 import { getHighlights } from '../api/espn.js';
-import { PENALTY_SCORED_KEYWORDS, PENALTY_MISSED_KEYWORDS, isPlaceholderEventText } from '../utils/eventKeywords.js';
+import {
+    PENALTY_SCORED_KEYWORDS,
+    PENALTY_MISSED_KEYWORDS,
+    TEMPORARY_ATTEMPT_KEYWORDS,
+    isTemporaryAttemptDescription,
+    isPlaceholderEventText,
+} from '../utils/eventKeywords.js';
 import {
     isEventPosted,
     markEventPosted,
     getPendingGoal,
     markGoalPending,
     resolvePendingGoal,
+    getPendingPenalty,
+    markPenaltyPending,
+    resolvePendingPenalty,
 } from '../state/matchState.js';
 import {
     formatGoal,
@@ -27,6 +36,10 @@ import {
     formatExtraTimeSecondHalf,
     formatExtraTimeEnd,
     formatShootoutStart,
+    formatPenaltyMissed,
+    formatPenaltyMissedPending,
+    formatMatchDelayStart,
+    formatMatchDelayEnd,
 } from './formatter.js';
 
 /**
@@ -40,6 +53,7 @@ const ID_TO_CATEGORY = {
     '70': 'GOAL',                    // Gol / Goal
     '97': 'GOAL',                    // Own Goal / Gol Contra
     '98': 'GOAL',                    // Penalty - Scored / Gol de pênalti
+    '114': 'PENALTY_MISSED',         // Penalty - Saved / Pênalti defendido
     '137': 'GOAL',                   // Goal - Header / Gol de cabeça
     '173': 'GOAL',                   // Goal - Volley
     '94': 'YELLOW_CARD',             // Yellow Card / Cartão amarelo
@@ -52,13 +66,22 @@ const ID_TO_CATEGORY = {
     '86': 'EXTRA_TIME_SECOND_HALF',  // Start 2nd Half Extra Time / Começo do 2º tempo da prorrogação
     '87': 'EXTRA_TIME_END',          // End Extra Time / Fim da prorrogação
     '88': 'SHOOTOUT_START',          // Start Shootout / Começo da disputa de pênaltis
+    '93': 'RED_CARD',                // Red Card / Cartão vermelho
+    '129': 'MATCH_DELAY_START',      // Start Delay / Jogo atrasado (hidratação, lesão, etc.)
+    '130': 'MATCH_DELAY_END',        // End Delay / Fim do atraso
+    '138': 'GOAL',                   // Goal - Free-kick / Gol de falta
+    '167': 'VAR',                    // VAR - Card Upgrade
 };
+
+/** Housekeeping typeIds — never post (diffEngine or other paths handle these). */
+const SKIP_TYPE_IDS = new Set(['83', '89']);
 
 /**
  * Event type constants — fallback for event ids not covered by ID_TO_CATEGORY
  * (e.g. leagues that report a different id scheme, or types not yet observed).
  */
 const EVENT_TYPES = {
+    PENALTY_MISSED: [...PENALTY_MISSED_KEYWORDS],
     GOAL: ['goal', 'gol', 'own goal', 'goal - header', 'gol de cabeça', ...PENALTY_SCORED_KEYWORDS],
     YELLOW_CARD: ['yellow card', 'yellowcard', 'cartão amarelo'],
     RED_CARD: ['red card', 'redcard', 'second yellow', 'cartão vermelho'],
@@ -73,6 +96,8 @@ const EVENT_TYPES = {
     MATCH_START: ['kickoff', 'kick off', 'match start', 'começo'],
     MATCH_END: ['full time', 'fulltime', 'match end', 'fim de jogo'],
     HALF_TIME: ['half time', 'halftime', 'meio tempo'],
+    MATCH_DELAY_START: ['start delay', 'jogo atrasado'],
+    MATCH_DELAY_END: ['end delay', 'fim do atraso'],
 };
 
 /** Type substrings that mean the goal was disallowed/overturned — do not post as goal. */
@@ -85,18 +110,29 @@ const DISALLOWED_GOAL_KEYWORDS = [
  * Determine the event category from event type id (preferred) or type string (fallback).
  * @param {string} type - Event type string
  * @param {string|number} [typeId] - ESPN keyEvents[].type.id
+ * @param {string} [description] - Event description (for provisional ESPN text)
  * @returns {string|null} Category name or null
  */
-function categorizeEvent(type, typeId) {
+export function categorizeEvent(type, typeId, description) {
     const lowerType = (type || '').toLowerCase();
     const isDisallowedGoal = () => DISALLOWED_GOAL_KEYWORDS.some((kw) => lowerType.includes(kw));
+    const isPenaltyType = () =>
+        PENALTY_MISSED_KEYWORDS.some((kw) => lowerType.includes(kw))
+        || lowerType.includes('penalty')
+        || lowerType.includes('pênalti');
 
     if (typeId != null) {
+        if (SKIP_TYPE_IDS.has(String(typeId))) return null;
         const category = ID_TO_CATEGORY[String(typeId)];
         if (category != null) {
             if (category === 'GOAL' && isDisallowedGoal()) return null;
             return category;
         }
+    }
+
+    // Provisional ESPN type — goal attempts await VAR; penalty when type hints penalty.
+    if (TEMPORARY_ATTEMPT_KEYWORDS.some((kw) => lowerType.includes(kw))) {
+        return isPenaltyType() ? 'PENALTY_MISSED' : 'GOAL';
     }
 
     if (!type) return null;
@@ -106,6 +142,12 @@ function categorizeEvent(type, typeId) {
             return category;
         }
     }
+
+    // Provisional description — goal awaits VAR; penalty when type hints penalty.
+    if (isTemporaryAttemptDescription(description)) {
+        return isPenaltyType() ? 'PENALTY_MISSED' : 'GOAL';
+    }
+
     return null;
 }
 
@@ -132,6 +174,57 @@ export function getMatchStartEventId(matchId) {
     return `${String(matchId)}-match-start`;
 }
 
+function normalizeMinute(minute) {
+    return String(minute ?? '').trim().replace(/'+$/, '');
+}
+
+function isMatchDelayCategory(category) {
+    return category === 'MATCH_DELAY_START' || category === 'MATCH_DELAY_END';
+}
+
+/**
+ * Synthetic event ID for match delays (129/130). ESPN emits two events per pause (one per team).
+ * @param {string|number} matchId
+ * @param {string} category - MATCH_DELAY_START | MATCH_DELAY_END
+ * @param {string} minute
+ * @returns {string}
+ */
+export function getMatchDelayEventId(matchId, category, minute) {
+    const phase = category === 'MATCH_DELAY_START' ? 'start' : 'end';
+    return `${String(matchId)}-delay-${phase}-${normalizeMinute(minute)}`;
+}
+
+/**
+ * Collapse duplicate delay events (same minute) and prefer the one with a description.
+ * @param {Array} withIds
+ * @param {string|number} matchId
+ * @returns {Array}
+ */
+function resolveDelayEvents(withIds, matchId) {
+    const groups = new Map();
+    const nonDelay = [];
+
+    for (const item of withIds) {
+        if (!isMatchDelayCategory(item.category)) {
+            nonDelay.push(item);
+            continue;
+        }
+        const key = getMatchDelayEventId(matchId, item.category, item.event.minute);
+        const existing = groups.get(key);
+        const hasDesc = Boolean((item.event.description || '').trim());
+        if (!existing) {
+            groups.set(key, { ...item, eventId: key });
+        } else {
+            const existingHasDesc = Boolean((existing.event.description || '').trim());
+            if (hasDesc && !existingHasDesc) {
+                groups.set(key, { ...item, eventId: key });
+            }
+        }
+    }
+
+    return [...nonDelay, ...groups.values()];
+}
+
 /**
  * Mark current events as already seen (for matches joined in progress).
  * @param {string} matchId - Match ID
@@ -139,7 +232,10 @@ export function getMatchStartEventId(matchId) {
  */
 export function markExistingEventsAsSeen(matchId, events) {
     for (const event of events) {
-        const eventId = generateEventId(matchId, event);
+        const category = categorizeEvent(event.type, event.typeId, event.description);
+        const eventId = isMatchDelayCategory(category)
+            ? getMatchDelayEventId(matchId, category, event.minute)
+            : generateEventId(matchId, event);
         markEventPosted(eventId);
     }
 }
@@ -152,6 +248,7 @@ export function markExistingEventsAsSeen(matchId, events) {
 function shouldPostEvent(category) {
     switch (category) {
         case 'GOAL':
+        case 'PENALTY_MISSED':
             return config.events.goals;
         case 'YELLOW_CARD':
             return config.events.yellowCards;
@@ -172,6 +269,9 @@ function shouldPostEvent(category) {
             return config.events.matchStart;
         case 'HALF_TIME':
             return config.events.interval;
+        case 'MATCH_DELAY_START':
+        case 'MATCH_DELAY_END':
+            return config.events.matchDelay;
         case 'MATCH_END':
             return config.events.matchEnd;
         default:
@@ -198,30 +298,21 @@ function isFavoriteTeam(event, match) {
     return false;
 }
 
-/** Type substrings that mean the event is a goal (reuses EVENT_TYPES.GOAL) — used to catch goals
- * whose category resolved to null because they're currently flagged disallowed. */
+/** Type substrings that mean the event is a goal (reuses EVENT_TYPES.GOAL). */
 function looksLikeGoalType(type) {
     const lower = (type || '').toLowerCase();
     return EVENT_TYPES.GOAL.some((kw) => lower.includes(kw));
 }
 
+/** Type substrings that mean a penalty was missed/saved. */
+function looksLikePenaltyMissedType(type) {
+    const lower = (type || '').toLowerCase();
+    return EVENT_TYPES.PENALTY_MISSED.some((kw) => lower.includes(kw));
+}
+
 /**
- * Handle a goal event through its ESPN-confirmation lifecycle:
- * - Not seen before, text still placeholder-shaped (e.g. "Gol temporário aos 36'") → post
- *   "aguardando confirmação" and remember the toot id.
- * - Previously pending, ESPN has since filled in the real narrative → post the actual
- *   "⚽ GOOOOL!" as a reply.
- * - Previously pending, ESPN now flags it disallowed/overturned → post a retraction as a reply.
- * - Previously pending, neither happened within config.delays.goalConfirmationTimeoutMs → post
- *   the goal anyway with whatever text we have, so a real goal is never silently lost.
- * Not seen before with an already-confirmed narrative (the common case) is left to the normal
- * postable pipeline in processEvents — this only intercepts the placeholder/pending cases.
- * @param {Object} event
- * @param {string} eventId
- * @param {string|null} category - categorizeEvent() result (null for currently-disallowed goals)
- * @param {Object} match
- * @returns {Promise<{ handled: boolean, posted: boolean }>} handled: true if the caller should
- *   skip this event entirely (already dealt with here); posted: true if a toot went out.
+ * Handle a goal event through its ESPN-confirmation lifecycle (pending → reply).
+ * @returns {Promise<{ handled: boolean, posted: boolean }>}
  */
 async function handleGoalConfirmationLifecycle(event, eventId, category, match) {
     if (isEventPosted(eventId)) return { handled: false, posted: false };
@@ -231,15 +322,12 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
 
     const pending = getPendingGoal(eventId);
     const isDisallowedNow = DISALLOWED_GOAL_KEYWORDS.some((kw) => rawType.includes(kw));
-    // No description at all (e.g. PT descriptions disabled) is NOT a placeholder — it's the
-    // normal, already-final shape for that config. Only a description that matches ESPN's
-    // transient short-form template counts as still-pending.
     const isPlaceholder = isPlaceholderEventText(event.description);
 
     if (pending) {
         if (isDisallowedNow) {
             const result = await postStatus(formatGoalDisallowed(event, match), { inReplyToId: pending.statusId });
-            if (!result) return { handled: true, posted: false }; // keep pending — retry next poll
+            if (!result) return { handled: true, posted: false };
             markEventPosted(eventId);
             resolvePendingGoal(eventId);
             console.log(`[EventProcessor] Gol anulado (evento ${eventId}, partida ${match.id})`);
@@ -250,14 +338,13 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
         if (!isPlaceholder || timedOut) {
             const isFavorite = isFavoriteTeam(event, match);
             const result = await postStatus(formatGoal(event, match, { isFavoriteTeam: isFavorite }), { inReplyToId: pending.statusId });
-            if (!result) return { handled: true, posted: false }; // keep pending — retry next poll
+            if (!result) return { handled: true, posted: false };
             markEventPosted(eventId);
             resolvePendingGoal(eventId);
             console.log(`[EventProcessor] Gol confirmado${isPlaceholder ? ' (timeout, texto ainda pendente)' : ''} (evento ${eventId}, partida ${match.id})`);
             return { handled: true, posted: true };
         }
 
-        // Still awaiting ESPN — nothing to post this poll.
         return { handled: true, posted: false };
     }
 
@@ -274,6 +361,51 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
 }
 
 /**
+ * Handle a penalty-missed event through the same ESPN-confirmation lifecycle as goals.
+ * @returns {Promise<{ handled: boolean, posted: boolean }>}
+ */
+async function handlePenaltyConfirmationLifecycle(event, eventId, category, match) {
+    if (isEventPosted(eventId)) return { handled: false, posted: false };
+
+    const rawType = (event.type || '').toLowerCase();
+    if (category !== 'PENALTY_MISSED' && !looksLikePenaltyMissedType(rawType)) {
+        return { handled: false, posted: false };
+    }
+
+    const pending = getPendingPenalty(eventId);
+    const isPlaceholder = isPlaceholderEventText(event.description);
+
+    if (pending) {
+        const timedOut = Date.now() - pending.firstSeenAt > config.delays.goalConfirmationTimeoutMs;
+        if (!isPlaceholder || timedOut) {
+            const isFavorite = isFavoriteTeam(event, match);
+            const result = await postStatus(
+                formatPenaltyMissed(event, match, { isFavoriteTeam: isFavorite }),
+                { inReplyToId: pending.statusId }
+            );
+            if (!result) return { handled: true, posted: false };
+            markEventPosted(eventId);
+            resolvePendingPenalty(eventId);
+            console.log(`[EventProcessor] Pênalti defendido confirmado${isPlaceholder ? ' (timeout, texto ainda pendente)' : ''} (evento ${eventId}, partida ${match.id})`);
+            return { handled: true, posted: true };
+        }
+
+        return { handled: true, posted: false };
+    }
+
+    if (category === 'PENALTY_MISSED' && isPlaceholder && shouldPostEvent('PENALTY_MISSED')) {
+        const result = await postStatus(formatPenaltyMissedPending(event, match));
+        if (result) {
+            markPenaltyPending(eventId, { matchId: String(match.id), statusId: result.id, firstSeenAt: Date.now() });
+            console.log(`[EventProcessor] Pênalti aguardando confirmação (evento ${eventId}, partida ${match.id})`);
+        }
+        return { handled: true, posted: !!result };
+    }
+
+    return { handled: false, posted: false };
+}
+
+/**
  * Process a list of events for a match (goals and red cards first)
  * @param {Array} events - List of events from API
  * @param {Object} match - Match data
@@ -282,11 +414,14 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
 export async function processEvents(events, match) {
     let postedCount = 0;
 
-    const withIds = events.map((event) => ({
-        event,
-        eventId: generateEventId(match.id, event),
-        category: categorizeEvent(event.type, event.typeId),
-    }));
+    const withIds = resolveDelayEvents(
+        events.map((event) => ({
+            event,
+            eventId: generateEventId(match.id, event),
+            category: categorizeEvent(event.type, event.typeId, event.description),
+        })),
+        match.id
+    );
 
     for (let i = 0; i < withIds.length; i++) {
         const { event, eventId, category } = withIds[i];
@@ -302,23 +437,28 @@ export async function processEvents(events, match) {
         );
     }
 
-    // Placeholder/pending/disallowed goal handling runs first and outside the normal postable
-    // pipeline: these need to reply to a prior toot (or wait silently) rather than post fresh,
-    // and must not be marked "posted" until truly resolved.
     const handledEventIds = new Set();
     for (const { event, eventId, category } of withIds) {
-        const { handled, posted } = await handleGoalConfirmationLifecycle(event, eventId, category, match);
-        if (handled) {
+        const goalResult = await handleGoalConfirmationLifecycle(event, eventId, category, match);
+        if (goalResult.handled) {
             handledEventIds.add(eventId);
-            if (posted) {
+            if (goalResult.posted) {
+                postedCount++;
+                await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
+            }
+            continue;
+        }
+
+        const penaltyResult = await handlePenaltyConfirmationLifecycle(event, eventId, category, match);
+        if (penaltyResult.handled) {
+            handledEventIds.add(eventId);
+            if (penaltyResult.posted) {
                 postedCount++;
                 await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
             }
         }
     }
 
-    // MATCH_START pode ser postado por dois caminhos: action match_start (ID {matchId}-match-start)
-    // ou evento kickoff da API (ID {matchId}-{event.id}). Evitar duplicata tratando o ID sintético.
     const postable = withIds.filter(({ eventId, category }) => {
         if (handledEventIds.has(eventId)) return false;
         if (isEventPosted(eventId)) return false;
@@ -392,6 +532,8 @@ function formatEventPost(category, event, match, options = {}) {
     switch (category) {
         case 'GOAL':
             return formatGoal(event, match, options);
+        case 'PENALTY_MISSED':
+            return formatPenaltyMissed(event, match, options);
         case 'YELLOW_CARD':
         case 'RED_CARD':
             return formatCard(event, match, options);
@@ -417,6 +559,10 @@ function formatEventPost(category, event, match, options = {}) {
             return formatHalfTime(match, event);
         case 'MATCH_END':
             return formatMatchEnd(match);
+        case 'MATCH_DELAY_START':
+            return formatMatchDelayStart(event, match);
+        case 'MATCH_DELAY_END':
+            return formatMatchDelayEnd(event, match);
         default:
             return null;
     }
@@ -433,41 +579,36 @@ export async function handleMatchEnd(match) {
         return;
     }
 
-    // Post final score
     const endText = formatMatchEnd(match);
     await postStatus(endText);
     markEventPosted(matchEndId);
 
     console.log(`[EventProcessor] Partida ${match.id} finalizada`);
 
-    // Wait a bit and then check for highlights
     await new Promise((resolve) => setTimeout(resolve, config.delays.beforeHighlights));
 
     const highlights = await getHighlights(match.id, match.league?.code);
     if (highlights.length > 0) {
         const highlightsId = `${match.id}-highlights`;
         if (!isEventPosted(highlightsId)) {
-            // formatHighlights includes video URLs as text fallback
             const highlightsText = formatHighlights(match, highlights);
-            
-            // Try to upload the first highlight video as an attachment
+
             const firstHighlight = highlights[0];
             let mediaIds = [];
-            
+
             if (firstHighlight.url) {
                 console.log(`[EventProcessor] Baixando vídeo do highlight: ${firstHighlight.url}`);
-                const mediaId = await uploadMediaFromUrl(firstHighlight.url, { 
-                    type: 'video', 
+                const mediaId = await uploadMediaFromUrl(firstHighlight.url, {
+                    type: 'video',
                     description: firstHighlight.title || 'Highlight'
                 });
-                
+
                 if (mediaId) {
                     mediaIds.push(mediaId);
                 } else if (firstHighlight.thumbnail) {
-                    // Fallback to thumbnail if video fails
                     console.log(`[EventProcessor] Fallback para thumbnail: ${firstHighlight.thumbnail}`);
-                    const thumbId = await uploadMediaFromUrl(firstHighlight.thumbnail, { 
-                        type: 'image', 
+                    const thumbId = await uploadMediaFromUrl(firstHighlight.thumbnail, {
+                        type: 'image',
                         description: firstHighlight.title || 'Thumbnail'
                     });
                     if (thumbId) mediaIds.push(thumbId);
