@@ -52,6 +52,14 @@ async function main() {
     // Start monitoring
     botLogger.info({
         pollIntervalMs: config.bot.pollIntervalMs,
+        pollIntervalLiveMs: config.bot.pollIntervalLiveMs,
+        pollIntervalAlertMs: config.bot.pollIntervalAlertMs,
+        pollIntervalHibernationMs: config.bot.pollIntervalHibernationMs,
+        cacheTtlMs: {
+            scoreboard: config.cache.scoreboardTtlMs,
+            events: config.cache.eventsTtlMs,
+            details: config.cache.detailsTtlMs,
+        },
         leagues: config.activeLeagues.map(l => l.name),
     }, 'Bot iniciado com sucesso');
 
