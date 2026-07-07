@@ -397,6 +397,25 @@ export function formatHalfTime(match, event = {}) {
 }
 
 /**
+ * Format end of regular time (second half) announcement
+ * @param {Object} match - Match data
+ * @param {Object} event - Event data (optional, for minute)
+ * @returns {string} Formatted post text
+ */
+export function formatEndRegularTime(match, event = {}) {
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const rawMinute = displayMinute(event?.minute);
+    const minute = rawMinute === '?' ? '90' : rawMinute;
+
+    let text = `${translate('ui.end_regular_time')}\n\n`;
+    text += `🏟️ ${homeTeam.name} ${homeScore ?? 0} x ${awayScore ?? 0} ${awayTeam.name}\n`;
+    text += `⏱️ ${minute}'\n`;
+    text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+
+    return text;
+}
+
+/**
  * Format match end announcement. If the match was decided on penalties (homeShootoutScore/
  * awayShootoutScore present — set once ESPN's header.competitors[].shootoutScore appears),
  * shows the shootout score and winner instead of the regular/extra-time score, which is often

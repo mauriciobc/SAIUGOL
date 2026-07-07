@@ -24,7 +24,7 @@ Mapeamento observado em amostra de 50 partidas de 2026 (`bra.1`, `fifa.world`). 
 | 80 | Kickoff | Começo | MATCH_START | Kickoff também postado via diffEngine (`{matchId}-match-start`) |
 | 81 | Halftime | Intervalo | HALF_TIME | |
 | 82 | Start 2nd Half | Começo do 2º tempo | SECOND_HALF_START | |
-| 83 | End Regular Time | Fim do Tempo Regulamentar | — (SKIP) | Bloqueado por `SKIP_TYPE_IDS`; diffEngine trata fim de jogo |
+| 83 | End Regular Time | Fim do Tempo Regulamentar | END_REGULAR_TIME | Fim do 2º tempo (90 min); distinto de fim de jogo |
 | 84 | Start Extra Time | Começo da prorrogação | EXTRA_TIME_START | |
 | 85 | Halftime Extra Time | Intervalo da prorrogação | EXTRA_TIME_HALF | |
 | 86 | Start 2nd Half Extra Time | Começo do 2º tempo da prorrogação | EXTRA_TIME_SECOND_HALF | |

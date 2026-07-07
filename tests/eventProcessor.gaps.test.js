@@ -52,8 +52,8 @@ describe('categorizeEvent — gap coverage', () => {
         assert.strictEqual(categorizeEvent('var - card upgrade', '167'), 'VAR');
     });
 
-    it('returns null for typeId 83 (skip)', () => {
-        assert.strictEqual(categorizeEvent('fim do tempo regulamentar', '83'), null);
+    it('classifies typeId 83 as END_REGULAR_TIME', () => {
+        assert.strictEqual(categorizeEvent('fim do tempo regulamentar', '83'), 'END_REGULAR_TIME');
     });
 
     it('returns null for typeId 89 even when type text is fim de jogo', () => {
@@ -73,6 +73,46 @@ describe('categorizeEvent — gap coverage', () => {
             '87': 'EXTRA_TIME_END',
             '88': 'SHOOTOUT_START',
         });
+    });
+});
+
+describe('processEvents — end of regular time', () => {
+    let posted = [];
+
+    beforeEach(async () => {
+        resetStateForTesting();
+        await whenReady();
+        posted = [];
+        __setClient({
+            postStatus: async (text) => {
+                posted.push(text);
+                return { data: { id: String(posted.length) } };
+            },
+        });
+    });
+
+    it('posts FIM DO 2º TEMPO for Switzerland x Colombia typeId 83', async () => {
+        const match = {
+            id: '760508',
+            homeTeam: { id: '475', name: 'Suíça' },
+            awayTeam: { id: '208', name: 'Colômbia' },
+            homeScore: 0,
+            awayScore: 0,
+            league: { hashtags: ['#CopaDoMundo'] },
+        };
+
+        await processEvents([{
+            id: '49733915',
+            typeId: '83',
+            type: 'fim do tempo regulamentar',
+            minute: "90'+6'",
+            description: 'Fim do segundo tempo, Suíça 0, Colômbia 0.',
+        }], match);
+
+        assert.strictEqual(posted.length, 1);
+        assert.ok(posted[0].includes('⏱️ FIM DO 2º TEMPO!'));
+        assert.ok(posted[0].includes('Suíça 0 x 0 Colômbia'));
+        assert.ok(posted[0].includes("90'+6'"));
     });
 });
 
@@ -347,7 +387,7 @@ describe('processEvents — delay deduplication and posting', () => {
 
 describe('snapshot typeId coverage', () => {
     it('every typeId in 20260703 and 20260707 snapshots is categorized or explicitly skipped', () => {
-        const skip = new Set(['83', '89']);
+        const skip = new Set(['89']);
         const snapshots = [snapshot20260703, snapshot20260707];
         const typeIds = new Set();
 

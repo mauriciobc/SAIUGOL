@@ -49,13 +49,14 @@ const ID_TO_CATEGORY = {
     '137': 'GOAL', '138': 'GOAL', '173': 'GOAL',
     '93': 'RED_CARD', '94': 'YELLOW_CARD', '76': 'SUBSTITUTION', '167': 'VAR',
     '80': 'MATCH_START', '81': 'HALF_TIME', '82': 'SECOND_HALF_START',
+    '83': 'END_REGULAR_TIME',
     '84': 'EXTRA_TIME_START', '85': 'EXTRA_TIME_HALF',
     '86': 'EXTRA_TIME_SECOND_HALF', '87': 'EXTRA_TIME_END', '88': 'SHOOTOUT_START',
     '129': 'MATCH_DELAY_START', '130': 'MATCH_DELAY_END',
 };
 
 // ESPN timing/housekeeping event IDs that carry no post-worthy content — silently skip
-const IGNORED_TYPE_IDS = new Set(['83', '89']);
+const IGNORED_TYPE_IDS = new Set(['89']);
 
 function isPenaltyMissedType(type, typeId) {
     if (typeId === '114') return true;
@@ -84,6 +85,7 @@ function categorizeEvent(type, typeId) {
     if (t.includes('start 2nd half extra time') || t.includes('começo do 2º tempo da prorrogação')) return 'EXTRA_TIME_SECOND_HALF';
     if (t.includes('end extra time') || t.includes('fim da prorrogação')) return 'EXTRA_TIME_END';
     if (t.includes('start shootout') || t.includes('começo da disputa de pênaltis')) return 'SHOOTOUT_START';
+    if (t.includes('end regular time') || t.includes('fim do tempo regulamentar') || t.includes('fim do segundo tempo')) return 'END_REGULAR_TIME';
     if (t.includes('2nd half') || t.includes('second half') || t.includes('começo do 2º tempo')) return 'SECOND_HALF_START';
     if (t.includes('kickoff') || t.includes('kick off') || t.includes('começo')) return 'MATCH_START';
     if (t.includes('full time') || t.includes('fulltime')) return 'MATCH_END';
@@ -298,6 +300,14 @@ function formatSecondHalfStart(match) {
     return text;
 }
 
+function formatEndRegularTime(match) {
+    let text = `${translate('ui.end_regular_time')}\n\n`;
+    text += `🏟️ ${match.homeTeam.name} ${match.homeScore ?? 0} x ${match.awayScore ?? 0} ${match.awayTeam.name}\n`;
+    text += `⏱️ 90'\n`;
+    text += `\n${getTeamHashtag(match.homeTeam.name)} ${getTeamHashtag(match.awayTeam.name)} ${(match.leagueHashtags || []).join(' ')}`;
+    return text;
+}
+
 function formatMatchEnd(match) {
     const { homeTeam, awayTeam, homeScore, awayScore, homeShootoutScore, awayShootoutScore } = match;
     const hasShootout = homeShootoutScore != null && awayShootoutScore != null;
@@ -495,11 +505,12 @@ function buildTimeline(match, skipLifecycle) {
         timeline.push({ time: 0, type: 'lifecycle', label: 'MATCH_START' });
         timeline.push({ time: 45 * 60, type: 'lifecycle', label: 'HALF_TIME' });
         timeline.push({ time: 46 * 60, type: 'lifecycle', label: 'SECOND_HALF_START' });
+        timeline.push({ time: 90 * 60, type: 'lifecycle', label: 'END_REGULAR_TIME' });
 
         // Detect extra time from events
         const hasExtraTime = events.some(e => e._category === 'EXTRA_TIME_START' || e._category === 'EXTRA_TIME_HALF' || e._category === 'EXTRA_TIME_SECOND_HALF');
         if (hasExtraTime) {
-            timeline.push({ time: 90 * 60, type: 'lifecycle', label: 'EXTRA_TIME_START' });
+            timeline.push({ time: 90 * 60 + 1, type: 'lifecycle', label: 'EXTRA_TIME_START' });
             timeline.push({ time: 105 * 60, type: 'lifecycle', label: 'EXTRA_TIME_HALF' });
             timeline.push({ time: 106 * 60, type: 'lifecycle', label: 'EXTRA_TIME_SECOND_HALF' });
         }
@@ -522,7 +533,7 @@ function buildTimeline(match, skipLifecycle) {
     // (lifecycle is already handled by the injected items above)
     const seenDelayKeys = new Map();
     for (const ev of events) {
-        if (!skipLifecycle && ['MATCH_START', 'HALF_TIME', 'SECOND_HALF_START', 'MATCH_END', 'EXTRA_TIME_START', 'EXTRA_TIME_HALF', 'EXTRA_TIME_SECOND_HALF', 'SHOOTOUT_START'].includes(ev._category)) {
+        if (!skipLifecycle && ['MATCH_START', 'HALF_TIME', 'SECOND_HALF_START', 'END_REGULAR_TIME', 'MATCH_END', 'EXTRA_TIME_START', 'EXTRA_TIME_HALF', 'EXTRA_TIME_SECOND_HALF', 'SHOOTOUT_START'].includes(ev._category)) {
             continue; // covered by injected lifecycle
         }
         if (ev._category === 'MATCH_DELAY_START' || ev._category === 'MATCH_DELAY_END') {
@@ -642,6 +653,10 @@ async function replayMatch(match) {
                 case 'SECOND_HALF_START':
                     text = formatSecondHalfStart(live);
                     await post(text, `SECOND_HALF_START (${title})`);
+                    break;
+                case 'END_REGULAR_TIME':
+                    text = formatEndRegularTime(live);
+                    await post(text, `END_REGULAR_TIME (${title})`);
                     break;
                 case 'EXTRA_TIME_START':
                     text = formatExtraTimeStart(live);
