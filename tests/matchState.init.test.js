@@ -1,4 +1,4 @@
-import { describe, it, before, after, afterEach } from 'node:test';
+import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert';
 import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -9,13 +9,14 @@ import { getMatchStartEventId } from '../src/bot/eventProcessor.js';
 const testDir = mkdtempSync(join(tmpdir(), 'saiugol-matchstate-init-'));
 const originalStateDir = process.env.STATE_DIR;
 
-afterEach(() => {
+after(() => {
     if (originalStateDir !== undefined) process.env.STATE_DIR = originalStateDir;
     else delete process.env.STATE_DIR;
+    rmSync(testDir, { recursive: true, force: true });
 });
 
 describe('matchState initialization and whenReady', () => {
-    before(() => {
+    beforeEach(() => {
         process.env.STATE_DIR = testDir;
     });
 
@@ -49,6 +50,25 @@ describe('matchState initialization and whenReady', () => {
         await whenReady();
         const elapsed = Date.now() - start;
         assert.ok(elapsed < 50, 'Segundo whenReady() deve resolver imediatamente (ja inicializado)');
+    });
+
+    it('restaura gols pendentes persistidos após reinício (evita perder a tréplica de confirmação)', async () => {
+        const stateFile = join(testDir, 'state.json');
+        if (existsSync(stateFile)) rmSync(stateFile);
+
+        await saveState(new Set(), new Map(), [], null, null, new Map([
+            ['m9-ev9', { matchId: 'm9', statusId: '999', firstSeenAt: Date.now() }],
+        ]));
+
+        const { resetStateForTesting, getPendingGoal } = await import('../src/state/matchState.js');
+        resetStateForTesting();
+
+        const { whenReady } = await import('../src/state/matchState.js');
+        await whenReady();
+
+        const restored = getPendingGoal('m9-ev9');
+        assert.ok(restored, 'expected pending goal to be restored');
+        assert.strictEqual(restored.statusId, '999');
     });
 });
 

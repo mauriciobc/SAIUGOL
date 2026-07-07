@@ -6,17 +6,22 @@ import {
     PENALTY_MISSED_KEYWORDS,
     TEMPORARY_ATTEMPT_KEYWORDS,
     isTemporaryAttemptDescription,
+    isPlaceholderEventText,
 } from '../utils/eventKeywords.js';
-import {
-    resolveVarPhasedPost,
-    markVarPhasedEventSeen,
-} from '../utils/eventVarPhase.js';
 import {
     isEventPosted,
     markEventPosted,
+    getPendingGoal,
+    markGoalPending,
+    resolvePendingGoal,
+    getPendingPenalty,
+    markPenaltyPending,
+    resolvePendingPenalty,
 } from '../state/matchState.js';
 import {
     formatGoal,
+    formatGoalPending,
+    formatGoalDisallowed,
     formatCard,
     formatSubstitution,
     formatVAR,
@@ -32,10 +37,7 @@ import {
     formatExtraTimeEnd,
     formatShootoutStart,
     formatPenaltyMissed,
-    formatGoalProvisional,
-    formatGoalConfirmed,
-    formatPenaltyMissedProvisional,
-    formatPenaltyMissedConfirmed,
+    formatPenaltyMissedPending,
     formatMatchDelayStart,
     formatMatchDelayEnd,
 } from './formatter.js';
@@ -231,14 +233,10 @@ function resolveDelayEvents(withIds, matchId) {
 export function markExistingEventsAsSeen(matchId, events) {
     for (const event of events) {
         const category = categorizeEvent(event.type, event.typeId, event.description);
-        const baseEventId = isMatchDelayCategory(category)
+        const eventId = isMatchDelayCategory(category)
             ? getMatchDelayEventId(matchId, category, event.minute)
             : generateEventId(matchId, event);
-        if (isMatchDelayCategory(category)) {
-            markEventPosted(baseEventId);
-        } else {
-            markVarPhasedEventSeen(baseEventId, event, category, markEventPosted);
-        }
+        markEventPosted(eventId);
     }
 }
 
@@ -250,11 +248,7 @@ export function markExistingEventsAsSeen(matchId, events) {
 function shouldPostEvent(category) {
     switch (category) {
         case 'GOAL':
-        case 'GOAL_PROVISIONAL':
-        case 'GOAL_CONFIRMED':
         case 'PENALTY_MISSED':
-        case 'PENALTY_MISSED_PROVISIONAL':
-        case 'PENALTY_MISSED_CONFIRMED':
             return config.events.goals;
         case 'YELLOW_CARD':
             return config.events.yellowCards;
@@ -289,14 +283,8 @@ const PRIORITY_HIGH = 0;  // GOAL, RED_CARD - process first
 const PRIORITY_NORMAL = 1;
 
 function eventPriority(category) {
-    if (category === 'GOAL' || category === 'GOAL_PROVISIONAL' || category === 'GOAL_CONFIRMED' || category === 'RED_CARD') {
-        return PRIORITY_HIGH;
-    }
+    if (category === 'GOAL' || category === 'RED_CARD') return PRIORITY_HIGH;
     return PRIORITY_NORMAL;
-}
-
-function isGoalPostCategory(category) {
-    return category === 'GOAL' || category === 'GOAL_PROVISIONAL' || category === 'GOAL_CONFIRMED';
 }
 
 function isFavoriteTeam(event, match) {
@@ -310,6 +298,113 @@ function isFavoriteTeam(event, match) {
     return false;
 }
 
+/** Type substrings that mean the event is a goal (reuses EVENT_TYPES.GOAL). */
+function looksLikeGoalType(type) {
+    const lower = (type || '').toLowerCase();
+    return EVENT_TYPES.GOAL.some((kw) => lower.includes(kw));
+}
+
+/** Type substrings that mean a penalty was missed/saved. */
+function looksLikePenaltyMissedType(type) {
+    const lower = (type || '').toLowerCase();
+    return EVENT_TYPES.PENALTY_MISSED.some((kw) => lower.includes(kw));
+}
+
+/**
+ * Handle a goal event through its ESPN-confirmation lifecycle (pending → reply).
+ * @returns {Promise<{ handled: boolean, posted: boolean }>}
+ */
+async function handleGoalConfirmationLifecycle(event, eventId, category, match) {
+    if (isEventPosted(eventId)) return { handled: false, posted: false };
+
+    const rawType = (event.type || '').toLowerCase();
+    if (category !== 'GOAL' && !looksLikeGoalType(rawType)) return { handled: false, posted: false };
+
+    const pending = getPendingGoal(eventId);
+    const isDisallowedNow = DISALLOWED_GOAL_KEYWORDS.some((kw) => rawType.includes(kw));
+    const isPlaceholder = isPlaceholderEventText(event.description);
+
+    if (pending) {
+        if (isDisallowedNow) {
+            const result = await postStatus(formatGoalDisallowed(event, match), { inReplyToId: pending.statusId });
+            if (!result) return { handled: true, posted: false };
+            markEventPosted(eventId);
+            resolvePendingGoal(eventId);
+            console.log(`[EventProcessor] Gol anulado (evento ${eventId}, partida ${match.id})`);
+            return { handled: true, posted: true };
+        }
+
+        const timedOut = Date.now() - pending.firstSeenAt > config.delays.goalConfirmationTimeoutMs;
+        if (!isPlaceholder || timedOut) {
+            const isFavorite = isFavoriteTeam(event, match);
+            const result = await postStatus(formatGoal(event, match, { isFavoriteTeam: isFavorite }), { inReplyToId: pending.statusId });
+            if (!result) return { handled: true, posted: false };
+            markEventPosted(eventId);
+            resolvePendingGoal(eventId);
+            console.log(`[EventProcessor] Gol confirmado${isPlaceholder ? ' (timeout, texto ainda pendente)' : ''} (evento ${eventId}, partida ${match.id})`);
+            return { handled: true, posted: true };
+        }
+
+        return { handled: true, posted: false };
+    }
+
+    if (category === 'GOAL' && !isDisallowedNow && isPlaceholder && shouldPostEvent('GOAL')) {
+        const result = await postStatus(formatGoalPending(event, match));
+        if (result) {
+            markGoalPending(eventId, { matchId: String(match.id), statusId: result.id, firstSeenAt: Date.now() });
+            console.log(`[EventProcessor] Gol aguardando confirmação (evento ${eventId}, partida ${match.id})`);
+        }
+        return { handled: true, posted: !!result };
+    }
+
+    return { handled: false, posted: false };
+}
+
+/**
+ * Handle a penalty-missed event through the same ESPN-confirmation lifecycle as goals.
+ * @returns {Promise<{ handled: boolean, posted: boolean }>}
+ */
+async function handlePenaltyConfirmationLifecycle(event, eventId, category, match) {
+    if (isEventPosted(eventId)) return { handled: false, posted: false };
+
+    const rawType = (event.type || '').toLowerCase();
+    if (category !== 'PENALTY_MISSED' && !looksLikePenaltyMissedType(rawType)) {
+        return { handled: false, posted: false };
+    }
+
+    const pending = getPendingPenalty(eventId);
+    const isPlaceholder = isPlaceholderEventText(event.description);
+
+    if (pending) {
+        const timedOut = Date.now() - pending.firstSeenAt > config.delays.goalConfirmationTimeoutMs;
+        if (!isPlaceholder || timedOut) {
+            const isFavorite = isFavoriteTeam(event, match);
+            const result = await postStatus(
+                formatPenaltyMissed(event, match, { isFavoriteTeam: isFavorite }),
+                { inReplyToId: pending.statusId }
+            );
+            if (!result) return { handled: true, posted: false };
+            markEventPosted(eventId);
+            resolvePendingPenalty(eventId);
+            console.log(`[EventProcessor] Pênalti defendido confirmado${isPlaceholder ? ' (timeout, texto ainda pendente)' : ''} (evento ${eventId}, partida ${match.id})`);
+            return { handled: true, posted: true };
+        }
+
+        return { handled: true, posted: false };
+    }
+
+    if (category === 'PENALTY_MISSED' && isPlaceholder && shouldPostEvent('PENALTY_MISSED')) {
+        const result = await postStatus(formatPenaltyMissedPending(event, match));
+        if (result) {
+            markPenaltyPending(eventId, { matchId: String(match.id), statusId: result.id, firstSeenAt: Date.now() });
+            console.log(`[EventProcessor] Pênalti aguardando confirmação (evento ${eventId}, partida ${match.id})`);
+        }
+        return { handled: true, posted: !!result };
+    }
+
+    return { handled: false, posted: false };
+}
+
 /**
  * Process a list of events for a match (goals and red cards first)
  * @param {Array} events - List of events from API
@@ -320,73 +415,82 @@ export async function processEvents(events, match) {
     let postedCount = 0;
 
     const withIds = resolveDelayEvents(
-        events.map((event) => {
-            const baseEventId = generateEventId(match.id, event);
-            const category = categorizeEvent(event.type, event.typeId, event.description);
-            const resolved = resolveVarPhasedPost({
-                baseEventId,
-                baseCategory: category,
-                event,
-                isEventPosted,
-            });
-            return {
-                event,
-                baseEventId,
-                category,
-                eventId: resolved?.eventId ?? baseEventId,
-                postCategory: resolved?.postCategory ?? category,
-                varPhase: resolved?.phase ?? null,
-            };
-        }),
+        events.map((event) => ({
+            event,
+            eventId: generateEventId(match.id, event),
+            category: categorizeEvent(event.type, event.typeId, event.description),
+        })),
         match.id
     );
 
     for (let i = 0; i < withIds.length; i++) {
-        const { event, eventId, category, postCategory, varPhase } = withIds[i];
+        const { event, eventId, category } = withIds[i];
         const posted = isEventPosted(eventId);
         console.log(
             `[EventProcessor] Partida ${match.id} evento ${i + 1}/${events.length}:`,
             JSON.stringify({
                 eventId,
                 category: category ?? '(sem categoria)',
-                postCategory: postCategory ?? '(sem post)',
-                varPhase,
                 alreadyPosted: posted,
                 content: event,
             }, null, 2)
         );
     }
 
-    const postable = withIds.filter(({ eventId, category, postCategory }) => {
-        if (!category || !postCategory) return false;
-        if (isEventPosted(eventId)) return false;
-        if (category === 'MATCH_START' && isEventPosted(getMatchStartEventId(match.id))) return false;
-        return shouldPostEvent(postCategory);
-    });
+    const handledEventIds = new Set();
+    for (const { event, eventId, category } of withIds) {
+        const goalResult = await handleGoalConfirmationLifecycle(event, eventId, category, match);
+        if (goalResult.handled) {
+            handledEventIds.add(eventId);
+            if (goalResult.posted) {
+                postedCount++;
+                await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
+            }
+            continue;
+        }
 
-    if (postable.length === 0 && events.length > 0) {
-        const alreadyPosted = withIds.filter(({ eventId }) => isEventPosted(eventId)).length;
-        const noCategory = withIds.filter(({ category }) => !category).length;
-        const disabledItems = withIds.filter(
-            ({ postCategory }) => postCategory && !shouldPostEvent(postCategory)
-        );
-        const categoryDisabledCount = disabledItems.length;
-        const disabledCategories = [...new Set(disabledItems.map(({ postCategory }) => postCategory))].join(', ');
-        console.log(
-            `[EventProcessor] Partida ${match.id}: ${events.length} eventos recebidos, 0 novos para postar ` +
-            `(já postados: ${alreadyPosted}, sem categoria: ${noCategory}, categoria desativada: ${categoryDisabledCount}${disabledCategories ? ` [${disabledCategories}]` : ''})`
-        );
-        return 0;
+        const penaltyResult = await handlePenaltyConfirmationLifecycle(event, eventId, category, match);
+        if (penaltyResult.handled) {
+            handledEventIds.add(eventId);
+            if (penaltyResult.posted) {
+                postedCount++;
+                await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
+            }
+        }
     }
 
-    postable.sort((a, b) => eventPriority(a.postCategory) - eventPriority(b.postCategory));
+    const postable = withIds.filter(({ eventId, category }) => {
+        if (handledEventIds.has(eventId)) return false;
+        if (isEventPosted(eventId)) return false;
+        if (category === 'MATCH_START' && isEventPosted(getMatchStartEventId(match.id))) return false;
+        return category && shouldPostEvent(category);
+    });
 
-    for (const { event, eventId, postCategory } of postable) {
+    if (postable.length === 0) {
+        if (events.length > 0 && postedCount === 0) {
+            const alreadyPosted = withIds.filter(({ eventId }) => isEventPosted(eventId)).length;
+            const noCategory = withIds.filter(({ category }) => !category).length;
+            const disabledItems = withIds.filter(
+                ({ category }) => category && !shouldPostEvent(category)
+            );
+            const categoryDisabledCount = disabledItems.length;
+            const disabledCategories = [...new Set(disabledItems.map(({ category }) => category))].join(', ');
+            console.log(
+                `[EventProcessor] Partida ${match.id}: ${events.length} eventos recebidos, 0 novos para postar ` +
+                `(já postados: ${alreadyPosted}, sem categoria: ${noCategory}, categoria desativada: ${categoryDisabledCount}${disabledCategories ? ` [${disabledCategories}]` : ''})`
+            );
+        }
+        return postedCount;
+    }
+
+    postable.sort((a, b) => eventPriority(a.category) - eventPriority(b.category));
+
+    for (const { event, eventId, category } of postable) {
         const isFavorite = isFavoriteTeam(event, match);
-        const text = formatEventPost(postCategory, event, match, { isFavoriteTeam: isFavorite });
+        const text = formatEventPost(category, event, match, { isFavoriteTeam: isFavorite });
         if (text) {
             let postOptions = {};
-            if (isGoalPostCategory(postCategory) && config.media.attachCrests) {
+            if (category === 'GOAL' && config.media.attachCrests) {
                 const scoringTeamId = event.teamId || event.team?.id;
                 const scoringTeam =
                     scoringTeamId && String(scoringTeamId) === String(match.homeTeam?.id)
@@ -407,7 +511,7 @@ export async function processEvents(events, match) {
             if (result) {
                 markEventPosted(eventId);
                 postedCount++;
-                console.log(`[EventProcessor] Postado evento ${postCategory} para partida ${match.id}`);
+                console.log(`[EventProcessor] Postado evento ${category} para partida ${match.id}`);
             }
             await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
         }
@@ -428,16 +532,8 @@ function formatEventPost(category, event, match, options = {}) {
     switch (category) {
         case 'GOAL':
             return formatGoal(event, match, options);
-        case 'GOAL_PROVISIONAL':
-            return formatGoalProvisional(event, match, options);
-        case 'GOAL_CONFIRMED':
-            return formatGoalConfirmed(event, match, options);
         case 'PENALTY_MISSED':
             return formatPenaltyMissed(event, match, options);
-        case 'PENALTY_MISSED_PROVISIONAL':
-            return formatPenaltyMissedProvisional(event, match, options);
-        case 'PENALTY_MISSED_CONFIRMED':
-            return formatPenaltyMissedConfirmed(event, match, options);
         case 'YELLOW_CARD':
         case 'RED_CARD':
             return formatCard(event, match, options);
@@ -483,41 +579,36 @@ export async function handleMatchEnd(match) {
         return;
     }
 
-    // Post final score
     const endText = formatMatchEnd(match);
     await postStatus(endText);
     markEventPosted(matchEndId);
 
     console.log(`[EventProcessor] Partida ${match.id} finalizada`);
 
-    // Wait a bit and then check for highlights
     await new Promise((resolve) => setTimeout(resolve, config.delays.beforeHighlights));
 
     const highlights = await getHighlights(match.id, match.league?.code);
     if (highlights.length > 0) {
         const highlightsId = `${match.id}-highlights`;
         if (!isEventPosted(highlightsId)) {
-            // formatHighlights includes video URLs as text fallback
             const highlightsText = formatHighlights(match, highlights);
-            
-            // Try to upload the first highlight video as an attachment
+
             const firstHighlight = highlights[0];
             let mediaIds = [];
-            
+
             if (firstHighlight.url) {
                 console.log(`[EventProcessor] Baixando vídeo do highlight: ${firstHighlight.url}`);
-                const mediaId = await uploadMediaFromUrl(firstHighlight.url, { 
-                    type: 'video', 
+                const mediaId = await uploadMediaFromUrl(firstHighlight.url, {
+                    type: 'video',
                     description: firstHighlight.title || 'Highlight'
                 });
-                
+
                 if (mediaId) {
                     mediaIds.push(mediaId);
                 } else if (firstHighlight.thumbnail) {
-                    // Fallback to thumbnail if video fails
                     console.log(`[EventProcessor] Fallback para thumbnail: ${firstHighlight.thumbnail}`);
-                    const thumbId = await uploadMediaFromUrl(firstHighlight.thumbnail, { 
-                        type: 'image', 
+                    const thumbId = await uploadMediaFromUrl(firstHighlight.thumbnail, {
+                        type: 'image',
                         description: firstHighlight.title || 'Thumbnail'
                     });
                     if (thumbId) mediaIds.push(thumbId);

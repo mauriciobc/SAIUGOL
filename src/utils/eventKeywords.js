@@ -29,3 +29,17 @@ export function isTemporaryAttemptDescription(description) {
     const d = (description || '').toLowerCase();
     return TEMPORARY_ATTEMPT_KEYWORDS.some((kw) => d.includes(kw));
 }
+
+/**
+ * True when `text` looks like ESPN's transient short-form event text (e.g. "Jude Bellingham
+ * (England) Goal at 36'" / "...Gol temporário aos 36'" / "...Tentativa temporária aos 21'")
+ * rather than the full narrative description. ESPN fills in keyEvents[].text asynchronously
+ * under the same event id — polling can catch the placeholder before it's replaced.
+ * @param {string} text - event.text / event.description
+ * @returns {boolean}
+ */
+export function isPlaceholderEventText(text) {
+    if (!text || typeof text !== 'string') return false;
+    if (isTemporaryAttemptDescription(text)) return true;
+    return /\b(?:at|aos)\s+\d+(?:\+\d+)?['’]?\s*$/i.test(text.trim());
+}

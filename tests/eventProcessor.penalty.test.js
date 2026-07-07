@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { __setClient } from '../src/api/mastodon.js';
 import { config } from '../src/config.js';
 import { categorizeEvent, processEvents } from '../src/bot/eventProcessor.js';
-import { formatPenaltyMissed, formatPenaltyMissedProvisional, formatPenaltyMissedConfirmed, formatGoalProvisional, formatGoalConfirmed } from '../src/bot/formatter.js';
+import { formatPenaltyMissed, formatPenaltyMissedPending } from '../src/bot/formatter.js';
 import { initI18n } from '../src/services/i18n.js';
 import { whenReady } from '../src/state/matchState.js';
 
@@ -97,32 +97,29 @@ describe('formatPenaltyMissed', () => {
         assert.ok(text.includes('Pênalti defendido!'));
     });
 
-    it('extracts player from provisional ESPN temporary description', () => {
-        const text = formatPenaltyMissedProvisional(argEgyPenaltyEventTemporary, argEgyMatch);
-        assert.ok(text.includes('aguardando confirmação do VAR'));
+    it('formats pending penalty with awaiting-confirmation announcement', () => {
+        const text = formatPenaltyMissedPending(argEgyPenaltyEventTemporary, argEgyMatch);
+        assert.ok(text.includes('⏳ Pênalti em análise!'));
         assert.ok(text.includes('Lionel Messi'));
-        assert.ok(text.includes('Tentativa temporária'));
-    });
-
-    it('formats confirmed penalty follow-up', () => {
-        const text = formatPenaltyMissedConfirmed(argEgyPenaltyEvent, argEgyMatch);
-        assert.ok(text.includes('Pênalti defendido confirmado'));
-        assert.ok(text.includes('Lionel Messi'));
+        assert.ok(text.includes('Aguardando confirmação'));
     });
 });
 
 describe('processEvents — penalty missed', () => {
-    let posted = [];
+    let postedWith = [];
+    let nextId = 0;
     let origGoals;
 
     beforeEach(() => {
         origGoals = config.events.goals;
         config.events.goals = true;
-        posted = [];
+        postedWith = [];
+        nextId = 0;
         __setClient({
-            postStatus: async (text) => {
-                posted.push(text);
-                return { data: { id: String(posted.length) } };
+            postStatus: async (text, opts) => {
+                nextId += 1;
+                postedWith.push({ text, opts, id: String(nextId) });
+                return { data: { id: String(nextId) } };
             },
         });
     });
@@ -135,30 +132,32 @@ describe('processEvents — penalty missed', () => {
     it('posts penalty missed event for match 760509 payload', async () => {
         const count = await processEvents([argEgyPenaltyEvent], argEgyMatch);
         assert.strictEqual(count, 1);
-        assert.ok(posted[0].includes('❌ Pênalti defendido!'));
-        assert.ok(posted[0].includes('Lionel Messi'));
+        assert.ok(postedWith[0].text.includes('❌ Pênalti defendido!'));
+        assert.ok(postedWith[0].text.includes('Lionel Messi'));
     });
 
-    it('posts provisional penalty with VAR-pending announcement', async () => {
+    it('posts pending notice for provisional penalty text', async () => {
         const provisionalMatch = { ...argEgyMatch, id: '760509-prov' };
         const count = await processEvents([argEgyPenaltyEventTemporary], provisionalMatch);
         assert.strictEqual(count, 1);
-        assert.ok(posted[0].includes('aguardando confirmação do VAR'));
-        assert.ok(posted[0].includes('Lionel Messi'));
+        assert.ok(postedWith[0].text.includes('⏳ Pênalti em análise!'));
+        assert.ok(postedWith[0].text.includes('Lionel Messi'));
+        assert.ok(!postedWith[0].opts?.in_reply_to_id);
     });
 
-    it('posts provisional then confirmed penalty as two updates', async () => {
+    it('posts pending then confirmed penalty as reply thread', async () => {
         const match = { ...argEgyMatch, id: '760509-var' };
         const provCount = await processEvents([argEgyPenaltyEventTemporary], match);
         assert.strictEqual(provCount, 1);
-        assert.ok(posted[0].includes('aguardando confirmação do VAR'));
+        assert.ok(postedWith[0].text.includes('⏳ Pênalti em análise!'));
 
         const confCount = await processEvents([argEgyPenaltyEvent], match);
         assert.strictEqual(confCount, 1);
-        assert.ok(posted[1].includes('Pênalti defendido confirmado'));
+        assert.ok(postedWith[1].text.includes('❌ Pênalti defendido!'));
+        assert.strictEqual(postedWith[1].opts?.in_reply_to_id, postedWith[0].id);
     });
 
-    it('posts provisional then confirmed goal as two updates', async () => {
+    it('posts provisional then confirmed goal as reply thread', async () => {
         const match = {
             id: '760510-var',
             homeTeam: { id: '1', name: 'Brasil' },
@@ -183,11 +182,12 @@ describe('processEvents — penalty missed', () => {
 
         const provCount = await processEvents([provisionalGoal], match);
         assert.strictEqual(provCount, 1);
-        assert.ok(posted[0].includes('aguardando análise do VAR'));
+        assert.ok(postedWith[0].text.includes('⏳ Gol em análise!'));
 
         const confCount = await processEvents([confirmedGoal], match);
         assert.strictEqual(confCount, 1);
-        assert.ok(posted[1].includes('GOL VALIDADO'));
+        assert.ok(postedWith[1].text.includes('⚽ GOOOOL!'));
+        assert.strictEqual(postedWith[1].opts?.in_reply_to_id, postedWith[0].id);
     });
 
     it('matches snapshot event from 20260707.json', () => {
