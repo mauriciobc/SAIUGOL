@@ -21,6 +21,9 @@ const pendingGoals = new Map();
 // Penalties missed/saved with placeholder text, awaiting full ESPN description.
 const pendingPenalties = new Map();
 
+// Match delays (129) seen without ESPN description — wait for hydration/injury text from the other team.
+const pendingDelayStarts = new Map();
+
 // Last known score per match: Map<matchId, { home: number, away: number }>
 const lastScores = new Map();
 
@@ -170,6 +173,7 @@ export function resetStateForTesting() {
     postedEventIds.clear();
     pendingGoals.clear();
     pendingPenalties.clear();
+    pendingDelayStarts.clear();
     lastScores.clear();
     previousSnapshots.clear();
     recoveredActiveKeys.clear();
@@ -305,6 +309,32 @@ export function resolvePendingPenalty(eventId) {
 }
 
 /**
+ * Get a delay start awaiting ESPN description (ESPN often sends one event per team).
+ * @param {string} eventId - Synthetic delay event ID
+ * @returns {{ matchId: string, firstSeenAt: number }|null}
+ */
+export function getPendingDelayStart(eventId) {
+    return pendingDelayStarts.get(eventId) || null;
+}
+
+/**
+ * Mark a delay start as awaiting ESPN description before posting.
+ * @param {string} eventId - Synthetic delay event ID
+ * @param {{ matchId: string, firstSeenAt?: number }} data
+ */
+export function markDelayStartPending(eventId, data) {
+    pendingDelayStarts.set(eventId, { ...data, firstSeenAt: data.firstSeenAt ?? Date.now() });
+}
+
+/**
+ * Clear pending delay start state after posting.
+ * @param {string} eventId - Synthetic delay event ID
+ */
+export function resolvePendingDelayStart(eventId) {
+    pendingDelayStarts.delete(eventId);
+}
+
+/**
  * Get the last known score for a match
  * @param {number|string} matchId - Match ID
  * @returns {Object|null} { home: number, away: number } or null
@@ -349,6 +379,13 @@ function cleanupMatchEvents(matchId) {
     for (const eventId of pendingPenalties.keys()) {
         if (eventId.startsWith(prefix)) {
             pendingPenalties.delete(eventId);
+            cleanedPendingCount++;
+        }
+    }
+
+    for (const eventId of pendingDelayStarts.keys()) {
+        if (eventId.startsWith(prefix)) {
+            pendingDelayStarts.delete(eventId);
             cleanedPendingCount++;
         }
     }
