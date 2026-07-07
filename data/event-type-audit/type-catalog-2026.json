@@ -1,0 +1,664 @@
+{
+  "meta": {
+    "generatedAt": "2026-07-07T17:05:47.726Z",
+    "year": 2026,
+    "seed": 42,
+    "sampleSize": 50,
+    "matchesCollected": 50,
+    "uniqueTypeIds": 16,
+    "gapCount": 0,
+    "leaguesUsed": [
+      "bra.1",
+      "fifa.world"
+    ]
+  },
+  "types": [
+    {
+      "typeId": "70",
+      "typeEN": "Goal",
+      "typePT": "Gol",
+      "typeENVariants": [
+        "Goal"
+      ],
+      "typePTVariants": [
+        "Gol"
+      ],
+      "count": 93,
+      "leagues": [
+        "bra.1",
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "401841097",
+          "leagueCode": "bra.1",
+          "minute": "21'",
+          "descriptionEN": "Goal! RB Bragantino 0, Palmeiras 1. José López (Palmeiras) left footed shot from the centre of the box to the bottom left corner. Assisted by Ramón So",
+          "descriptionPT": "Gol! RB Bragantino 0, Palmeiras 1. José López (Palmeiras) finalização com o pé esquerdo do meio da área no canto inferior esquerdo. Assistência de Ram"
+        },
+        {
+          "matchId": "401841050",
+          "leagueCode": "bra.1",
+          "minute": "40'",
+          "descriptionEN": "Goal! Santos 1, Remo 0. Thaciano (Santos) right footed shot from the centre of the box to the centre of the goal. Assisted by Neymar with a through ba",
+          "descriptionPT": "Gol! Santos 1, Remo 0. Thaciano (Santos) finalização com o pé direito do meio da área para o centro do gol. Assistência de Neymar com um passe em prof"
+        },
+        {
+          "matchId": "401841050",
+          "leagueCode": "bra.1",
+          "minute": "82'",
+          "descriptionEN": "Goal! Santos 2, Remo 0. Moisés (Santos) right footed shot from the centre of the box to the bottom left corner. Assisted by Gonzalo Escobar following ",
+          "descriptionPT": "Gol! Santos 2, Remo 0. Moisés (Santos) finalização com o pé direito do meio da área no canto inferior esquerdo. Assistência de Gonzalo Escobar depois "
+        }
+      ],
+      "currentMapping": "GOAL",
+      "recommendedCategory": "GOAL",
+      "isGap": false
+    },
+    {
+      "typeId": "76",
+      "typeEN": "Substitution",
+      "typePT": "Substituição",
+      "typeENVariants": [
+        "Substitution"
+      ],
+      "typePTVariants": [
+        "Substituição"
+      ],
+      "count": 460,
+      "leagues": [
+        "bra.1",
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "401841097",
+          "leagueCode": "bra.1",
+          "minute": "58'",
+          "descriptionEN": "Substitution, Palmeiras. Maurício Magalhães Prado replaces José López.",
+          "descriptionPT": "Substituição Palmeiras, entra em campo Maurício Magalhães Prado substituindo José López."
+        },
+        {
+          "matchId": "401841097",
+          "leagueCode": "bra.1",
+          "minute": "58'",
+          "descriptionEN": "Substitution, Palmeiras. Felipe Anderson replaces Allan.",
+          "descriptionPT": "Substituição Palmeiras, entra em campo Felipe Anderson substituindo Allan."
+        },
+        {
+          "matchId": "401841097",
+          "leagueCode": "bra.1",
+          "minute": "61'",
+          "descriptionEN": "Substitution, RB Bragantino. Vinicinho replaces Matheus Fernandes.",
+          "descriptionPT": "Substituição RB Bragantino, entra em campo Vinicinho substituindo Matheus Fernandes."
+        }
+      ],
+      "currentMapping": "SUBSTITUTION",
+      "recommendedCategory": "SUBSTITUTION",
+      "isGap": false
+    },
+    {
+      "typeId": "80",
+      "typeEN": "Kickoff",
+      "typePT": "Começo",
+      "typeENVariants": [
+        "Kickoff"
+      ],
+      "typePTVariants": [
+        "Começo"
+      ],
+      "count": 48,
+      "leagues": [
+        "bra.1",
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "401841097",
+          "leagueCode": "bra.1",
+          "minute": "0'",
+          "descriptionEN": "",
+          "descriptionPT": ""
+        },
+        {
+          "matchId": "760472",
+          "leagueCode": "fifa.world",
+          "minute": "0'",
+          "descriptionEN": "First Half begins.",
+          "descriptionPT": "Início do primeiro tempo."
+        }
+      ],
+      "currentMapping": "MATCH_START",
+      "recommendedCategory": "MATCH_START",
+      "isGap": false
+    },
+    {
+      "typeId": "81",
+      "typeEN": "Halftime",
+      "typePT": "Intervalo",
+      "typeENVariants": [
+        "Halftime"
+      ],
+      "typePTVariants": [
+        "Intervalo"
+      ],
+      "count": 48,
+      "leagues": [
+        "bra.1",
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "401841097",
+          "leagueCode": "bra.1",
+          "minute": "45'+4'",
+          "descriptionEN": "",
+          "descriptionPT": ""
+        },
+        {
+          "matchId": "401841050",
+          "leagueCode": "bra.1",
+          "minute": "45'+4'",
+          "descriptionEN": "First Half ends, Santos 1, Remo 0.",
+          "descriptionPT": "Fim do primeiro tempo, Santos 1, Remo 0."
+        },
+        {
+          "matchId": "401841055",
+          "leagueCode": "bra.1",
+          "minute": "45'+8'",
+          "descriptionEN": "First Half ends, Cruzeiro 3, Vitória 0.",
+          "descriptionPT": "Fim do primeiro tempo, Cruzeiro 3, Vitória 0."
+        }
+      ],
+      "currentMapping": "HALF_TIME",
+      "recommendedCategory": "HALF_TIME",
+      "isGap": false
+    },
+    {
+      "typeId": "82",
+      "typeEN": "Start 2nd Half",
+      "typePT": "Começo do 2º tempo",
+      "typeENVariants": [
+        "Start 2nd Half"
+      ],
+      "typePTVariants": [
+        "Começo do 2º tempo"
+      ],
+      "count": 48,
+      "leagues": [
+        "bra.1",
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "401841097",
+          "leagueCode": "bra.1",
+          "minute": "45'",
+          "descriptionEN": "Second Half begins RB Bragantino 0, Palmeiras 1.",
+          "descriptionPT": "Início do segundo tempo RB Bragantino 0, Palmeiras 1."
+        },
+        {
+          "matchId": "401841050",
+          "leagueCode": "bra.1",
+          "minute": "45'",
+          "descriptionEN": "Second Half begins Santos 1, Remo 0.",
+          "descriptionPT": "Início do segundo tempo Santos 1, Remo 0."
+        },
+        {
+          "matchId": "760467",
+          "leagueCode": "fifa.world",
+          "minute": "45'",
+          "descriptionEN": "",
+          "descriptionPT": ""
+        }
+      ],
+      "currentMapping": "SECOND_HALF_START",
+      "recommendedCategory": "SECOND_HALF_START",
+      "isGap": false
+    },
+    {
+      "typeId": "83",
+      "typeEN": "End Regular Time",
+      "typePT": "Fim do Tempo Regulamentar",
+      "typeENVariants": [
+        "End Regular Time"
+      ],
+      "typePTVariants": [
+        "Fim do Tempo Regulamentar"
+      ],
+      "count": 48,
+      "leagues": [
+        "bra.1",
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "401841097",
+          "leagueCode": "bra.1",
+          "minute": "90'+10'",
+          "descriptionEN": "Second Half ends, RB Bragantino 0, Palmeiras 1.",
+          "descriptionPT": "Fim do segundo tempo, RB Bragantino 0, Palmeiras 1."
+        },
+        {
+          "matchId": "401841050",
+          "leagueCode": "bra.1",
+          "minute": "90'+5'",
+          "descriptionEN": "",
+          "descriptionPT": ""
+        },
+        {
+          "matchId": "760472",
+          "leagueCode": "fifa.world",
+          "minute": "90'+6'",
+          "descriptionEN": "Second Half ends, Tunisia 1, Netherlands 3.",
+          "descriptionPT": "Fim do segundo tempo, Tunísia 1, Países Baixos 3."
+        }
+      ],
+      "currentMapping": null,
+      "recommendedCategory": "SKIP",
+      "isGap": false
+    },
+    {
+      "typeId": "93",
+      "typeEN": "Red Card",
+      "typePT": "Cartão vermelho",
+      "typeENVariants": [
+        "Red Card"
+      ],
+      "typePTVariants": [
+        "Cartão vermelho"
+      ],
+      "count": 9,
+      "leagues": [
+        "bra.1",
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "401841090",
+          "leagueCode": "bra.1",
+          "minute": "90'+4'",
+          "descriptionEN": "Doma (Chapecoense) is shown the red card.",
+          "descriptionPT": "Doma (Chapecoense) recebe cartão vermelho."
+        },
+        {
+          "matchId": "760443",
+          "leagueCode": "fifa.world",
+          "minute": "45'+3'",
+          "descriptionEN": "Miguel Almirón (Paraguay) is shown the red card.",
+          "descriptionPT": "Miguel Almirón (Paraguay) recebe cartão vermelho."
+        },
+        {
+          "matchId": "401841110",
+          "leagueCode": "bra.1",
+          "minute": "74'",
+          "descriptionEN": "Zé Ricardo (Remo) is shown the red card for violent conduct.",
+          "descriptionPT": "Zé Ricardo (Remo) recebe cartão vermelho por brigar com outro jogador."
+        }
+      ],
+      "currentMapping": "RED_CARD",
+      "recommendedCategory": "RED_CARD",
+      "isGap": false
+    },
+    {
+      "typeId": "94",
+      "typeEN": "Yellow Card",
+      "typePT": "Cartão amarelo",
+      "typeENVariants": [
+        "Yellow Card"
+      ],
+      "typePTVariants": [
+        "Cartão amarelo"
+      ],
+      "count": 173,
+      "leagues": [
+        "bra.1",
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "401841097",
+          "leagueCode": "bra.1",
+          "minute": "45'+4'",
+          "descriptionEN": "Juninho Capixaba (RB Bragantino) is shown the yellow card for a bad foul.",
+          "descriptionPT": "Juninho Capixaba (RB Bragantino) recebe cartão amarelo por uma entrada perigosa."
+        },
+        {
+          "matchId": "401841097",
+          "leagueCode": "bra.1",
+          "minute": "64'",
+          "descriptionEN": "Felipe Anderson (Palmeiras) is shown the yellow card for a bad foul.",
+          "descriptionPT": "Felipe Anderson (Palmeiras) recebe cartão amarelo por uma entrada perigosa."
+        },
+        {
+          "matchId": "401841097",
+          "leagueCode": "bra.1",
+          "minute": "78'",
+          "descriptionEN": "Agustín Giay (Palmeiras) is shown the yellow card.",
+          "descriptionPT": "Agustín Giay (Palmeiras) recebe cartão amarelo."
+        }
+      ],
+      "currentMapping": "YELLOW_CARD",
+      "recommendedCategory": "YELLOW_CARD",
+      "isGap": false
+    },
+    {
+      "typeId": "97",
+      "typeEN": "Own Goal",
+      "typePT": "Gol contra",
+      "typeENVariants": [
+        "Own Goal"
+      ],
+      "typePTVariants": [
+        "Gol contra"
+      ],
+      "count": 4,
+      "leagues": [
+        "bra.1",
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "760464",
+          "leagueCode": "fifa.world",
+          "minute": "10'",
+          "descriptionEN": "Own Goal by Yassine Bounou, Morocco. Morocco 0, Haiti 1.",
+          "descriptionPT": "Gol contra marcado por Yassine Bounou, Marrocos. Marrocos 0, Haiti 1.."
+        },
+        {
+          "matchId": "760472",
+          "leagueCode": "fifa.world",
+          "minute": "3'",
+          "descriptionEN": "Own Goal by Ellyes Skhiri, Tunisia. Tunisia 0, Netherlands 1.",
+          "descriptionPT": "Gol contra marcado por Ellyes Skhiri, Tunísia. Tunísia 0, Países Baixos 1.."
+        },
+        {
+          "matchId": "760462",
+          "leagueCode": "fifa.world",
+          "minute": "34'",
+          "descriptionEN": "Own Goal by Mahmoud Abunada, Qatar. Bosnia and Herzegovina 2, Qatar 0.",
+          "descriptionPT": "Gol contra marcado por Mahmoud Abunada, Catar. Bósnia-Herzegovina 2, Catar 0.."
+        }
+      ],
+      "currentMapping": "GOAL",
+      "recommendedCategory": "GOAL",
+      "isGap": false
+    },
+    {
+      "typeId": "98",
+      "typeEN": "Penalty - Scored",
+      "typePT": "Gol de pênalti",
+      "typeENVariants": [
+        "Penalty - Scored"
+      ],
+      "typePTVariants": [
+        "Gol de pênalti"
+      ],
+      "count": 9,
+      "leagues": [
+        "bra.1",
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "401841095",
+          "leagueCode": "bra.1",
+          "minute": "22'",
+          "descriptionEN": "Goal! Bahia 0, Santos 1. Benjamín Rollheiser (Santos) converts the penalty with a left footed shot to the bottom left corner.",
+          "descriptionPT": "Gol!!! Bahia 0, Santos 1. Benjamín Rollheiser (Santos) converte o pênalti com um finalização com o pé esquerdo no canto inferior esquerdo."
+        },
+        {
+          "matchId": "401841095",
+          "leagueCode": "bra.1",
+          "minute": "45'+4'",
+          "descriptionEN": "Goal! Bahia 0, Santos 2. Benjamín Rollheiser (Santos) converts the penalty with a left footed shot to the bottom right corner.",
+          "descriptionPT": "Gol!!! Bahia 0, Santos 2. Benjamín Rollheiser (Santos) converte o pênalti com um finalização com o pé esquerdo no lado direito do gol."
+        },
+        {
+          "matchId": "401841090",
+          "leagueCode": "bra.1",
+          "minute": "56'",
+          "descriptionEN": "Goal! Fluminense 1, Chapecoense 0. Jefferson Savarino (Fluminense) converts the penalty with a right footed shot to the bottom right corner.",
+          "descriptionPT": "Gol!!! Fluminense 1, Chapecoense 0. Jefferson Savarino (Fluminense) converte o pênalti com um finalização com o pé direito no lado direito do gol."
+        }
+      ],
+      "currentMapping": "GOAL",
+      "recommendedCategory": "GOAL",
+      "isGap": false
+    },
+    {
+      "typeId": "114",
+      "typeEN": "Penalty - Saved",
+      "typePT": "Pênalti - defendido",
+      "typeENVariants": [
+        "Penalty - Saved"
+      ],
+      "typePTVariants": [
+        "Pênalti - defendido"
+      ],
+      "count": 2,
+      "leagues": [
+        "bra.1"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "401841061",
+          "leagueCode": "bra.1",
+          "minute": "42'",
+          "descriptionEN": "Penalty saved. Alef Manga (Remo) right footed shot saved in the bottom left corner by Weverton (Grêmio).",
+          "descriptionPT": "Pênalti defendido! Alef Manga (Remo) perdeu uma oportunidade única, finalização com o pé direito defendido no lado esquerdo do gol."
+        },
+        {
+          "matchId": "401841061",
+          "leagueCode": "bra.1",
+          "minute": "42'",
+          "descriptionEN": "Weverton (Grêmio) Penalty - Saved at 42'",
+          "descriptionPT": "Weverton (Grêmio) Penalty - Saved at 42'"
+        }
+      ],
+      "currentMapping": "PENALTY_MISSED",
+      "recommendedCategory": "PENALTY_MISSED",
+      "isGap": false
+    },
+    {
+      "typeId": "129",
+      "typeEN": "Start Delay",
+      "typePT": "Jogo atrasado",
+      "typeENVariants": [
+        "Start Delay"
+      ],
+      "typePTVariants": [
+        "Jogo atrasado"
+      ],
+      "count": 161,
+      "leagues": [
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "760467",
+          "leagueCode": "fifa.world",
+          "minute": "22'",
+          "descriptionEN": "Delay in match for a drinks break.",
+          "descriptionPT": "Partida interrompida devido a pausa para hidratação."
+        },
+        {
+          "matchId": "760467",
+          "leagueCode": "fifa.world",
+          "minute": "22'",
+          "descriptionEN": "",
+          "descriptionPT": ""
+        },
+        {
+          "matchId": "760467",
+          "leagueCode": "fifa.world",
+          "minute": "45'",
+          "descriptionEN": "Delay in match because of an injury Michal Sadílek (Czechia).",
+          "descriptionPT": "Partida interrompida devido a uma lesão Michal Sadílek (Tcheca)."
+        }
+      ],
+      "currentMapping": "MATCH_DELAY_START",
+      "recommendedCategory": "MATCH_DELAY_START",
+      "isGap": false
+    },
+    {
+      "typeId": "130",
+      "typeEN": "End Delay",
+      "typePT": "Fim do atraso",
+      "typeENVariants": [
+        "End Delay"
+      ],
+      "typePTVariants": [
+        "Fim do atraso"
+      ],
+      "count": 161,
+      "leagues": [
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "760467",
+          "leagueCode": "fifa.world",
+          "minute": "26'",
+          "descriptionEN": "Delay over. They are ready to continue.",
+          "descriptionPT": "Partida recomeça."
+        },
+        {
+          "matchId": "760467",
+          "leagueCode": "fifa.world",
+          "minute": "26'",
+          "descriptionEN": "",
+          "descriptionPT": ""
+        }
+      ],
+      "currentMapping": "MATCH_DELAY_END",
+      "recommendedCategory": "MATCH_DELAY_END",
+      "isGap": false
+    },
+    {
+      "typeId": "137",
+      "typeEN": "Goal - Header",
+      "typePT": "Gol de cabeça",
+      "typeENVariants": [
+        "Goal - Header"
+      ],
+      "typePTVariants": [
+        "Gol de cabeça"
+      ],
+      "count": 17,
+      "leagues": [
+        "bra.1",
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "760472",
+          "leagueCode": "fifa.world",
+          "minute": "54'",
+          "descriptionEN": "Goal! Tunisia 1, Netherlands 2. Hazem Mastouri (Tunisia) header from the centre of the box to the bottom left corner. Assisted by Hannibal Mejbri with",
+          "descriptionPT": "Gol! Tunísia 1, Países Baixos 2. Hazem Mastouri (Tunísia) de cabeça do meio da área no canto inferior esquerdo. Assistência de Hannibal Mejbri com um "
+        },
+        {
+          "matchId": "760472",
+          "leagueCode": "fifa.world",
+          "minute": "62'",
+          "descriptionEN": "Goal! Tunisia 1, Netherlands 3. Jan Paul van Hecke (Netherlands) header from the left side of the six yard box to the top right corner. Assisted by Ti",
+          "descriptionPT": "Gol! Tunísia 1, Países Baixos 3. Jan Paul van Hecke (Países Baixos) de cabeça do lado esquerdo da pequena área no ângulo superior direito. Assistência"
+        },
+        {
+          "matchId": "401841055",
+          "leagueCode": "bra.1",
+          "minute": "39'",
+          "descriptionEN": "Goal! Cruzeiro 3, Vitória 0. Kaio Jorge (Cruzeiro) header from very close range to the centre of the goal. Assisted by Christian with a headed pass.",
+          "descriptionPT": "Gol! Cruzeiro 3, Vitória 0. Kaio Jorge (Cruzeiro) de cabeça de muito perto para o centro do gol. Assistência de Christian com um passe de cabeça."
+        }
+      ],
+      "currentMapping": "GOAL",
+      "recommendedCategory": "GOAL",
+      "isGap": false
+    },
+    {
+      "typeId": "138",
+      "typeEN": "Goal - Free-kick",
+      "typePT": "Goal - Falta",
+      "typeENVariants": [
+        "Goal - Free-kick"
+      ],
+      "typePTVariants": [
+        "Goal - Falta"
+      ],
+      "count": 4,
+      "leagues": [
+        "bra.1",
+        "fifa.world"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "401841095",
+          "leagueCode": "bra.1",
+          "minute": "76'",
+          "descriptionEN": "Goal! Bahia 1, Santos 2. Luciano Juba (Bahia) from a free kick with a left footed shot to the top left corner.",
+          "descriptionPT": "Gol! Bahia 1, Santos 2. Luciano Juba (Bahia) Gol de falta com um finalização com o pé esquerdo ao ângulo superior esquerdo."
+        },
+        {
+          "matchId": "760483",
+          "leagueCode": "fifa.world",
+          "minute": "19'",
+          "descriptionEN": "Goal! Jordan 0, Argentina 1. Giovani Lo Celso (Argentina) from a free kick with a left footed shot to the top left corner.",
+          "descriptionPT": "Gol! Jordania 0, Argentina 1. Giovani Lo Celso (Argentina) Gol de falta com um finalização com o pé esquerdo ao ângulo superior esquerdo."
+        },
+        {
+          "matchId": "760483",
+          "leagueCode": "fifa.world",
+          "minute": "80'",
+          "descriptionEN": "Goal! Jordan 1, Argentina 3. Lionel Messi (Argentina) from a free kick with a left footed shot to the bottom left corner.",
+          "descriptionPT": "Gol! Jordania 1, Argentina 3. Lionel Messi (Argentina) Gol de falta com um finalização com o pé esquerdo no canto inferior esquerdo."
+        }
+      ],
+      "currentMapping": "GOAL",
+      "recommendedCategory": "GOAL",
+      "isGap": false
+    },
+    {
+      "typeId": "173",
+      "typeEN": "Goal - Volley",
+      "typePT": "Gol - Voleio",
+      "typeENVariants": [
+        "Goal - Volley"
+      ],
+      "typePTVariants": [
+        "Gol - Voleio"
+      ],
+      "count": 9,
+      "leagues": [
+        "bra.1"
+      ],
+      "sampleDescriptions": [
+        {
+          "matchId": "401841053",
+          "leagueCode": "bra.1",
+          "minute": "87'",
+          "descriptionEN": "Goal! Internacional 1, São Paulo 1. Jonathan Calleri (São Paulo) right footed shot from the right side of the six yard box to the bottom right corner.",
+          "descriptionPT": "Gol! Internacional 1, São Paulo 1. Jonathan Calleri (São Paulo) finalização com o pé direito do lado direito da pequena área no lado direito do gol. A"
+        },
+        {
+          "matchId": "401841057",
+          "leagueCode": "bra.1",
+          "minute": "21'",
+          "descriptionEN": "Goal! Botafogo 1, Mirassol 1. Shaylon (Mirassol) left footed shot from outside the box to the top right corner following a corner.",
+          "descriptionPT": "Gol! Botafogo 1, Mirassol 1. Shaylon (Mirassol) finalização com o pé esquerdo de fora da área no ângulo superior direito após escanteio."
+        },
+        {
+          "matchId": "401841117",
+          "leagueCode": "bra.1",
+          "minute": "68'",
+          "descriptionEN": "Goal! Grêmio 0, Flamengo 1. Jorge Carrascal (Flamengo) left footed shot from the centre of the box to the high centre of the goal. Assisted by Emerson",
+          "descriptionPT": "Gol! Grêmio 0, Flamengo 1. Jorge Carrascal (Flamengo) finalização com o pé esquerdo do meio da área acertando no centro do gol. Assistência de Emerson"
+        }
+      ],
+      "currentMapping": "GOAL",
+      "recommendedCategory": "GOAL",
+      "isGap": false
+    }
+  ]
+}

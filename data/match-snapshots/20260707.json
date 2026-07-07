@@ -1,0 +1,164 @@
+{
+  "fetchedAt": "2026-07-07T16:37:02.450Z",
+  "date": "20260707",
+  "matchCount": 2,
+  "matches": [
+    {
+      "id": "760509",
+      "leagueCode": "fifa.world",
+      "leagueName": "FIFA World Cup",
+      "leagueHashtags": [
+        "#WorldCup",
+        "#CopaDoMundo"
+      ],
+      "homeTeam": {
+        "id": "202",
+        "name": "Argentina",
+        "logo": "https://a.espncdn.com/i/teamlogos/countries/500/arg.png",
+        "form": "WWWWW"
+      },
+      "awayTeam": {
+        "id": "2620",
+        "name": "Egypt",
+        "logo": "https://a.espncdn.com/i/teamlogos/countries/500/egy.png",
+        "form": "WDWDL"
+      },
+      "homeScore": 0,
+      "awayScore": 1,
+      "status": "STATUS_FIRST_HALF",
+      "state": "in",
+      "venue": "Mercedes-Benz Stadium",
+      "venueCity": "Atlanta, Georgia",
+      "startTime": "2026-07-07T16:00Z",
+      "minute": "35'",
+      "boxscore": {
+        "home": {
+          "possessionPct": "53.3",
+          "totalShots": "4",
+          "shotsOnTarget": "2",
+          "wonCorners": "0",
+          "yellowCards": "0",
+          "redCards": "0",
+          "saves": "0"
+        },
+        "away": {
+          "possessionPct": "46.7",
+          "totalShots": "1",
+          "shotsOnTarget": "1",
+          "wonCorners": "1",
+          "yellowCards": "0",
+          "redCards": "0",
+          "saves": "2"
+        }
+      },
+      "keyEvents": [
+        {
+          "id": "49730711",
+          "typeId": "80",
+          "type": "começo",
+          "minute": "0'"
+        },
+        {
+          "id": "49730975",
+          "typeId": "137",
+          "type": "gol de cabeça",
+          "minute": "15'",
+          "teamId": "2620",
+          "description": "Gol! Argentina 0, Egito 1. Yasser Ibrahim (Egito) de cabeça do meio da área no lado direito do gol. Assistência de Marwan Attia com um cruzamento após escanteio.",
+          "player": {
+            "name": "Yasser Ibrahim"
+          }
+        },
+        {
+          "id": "49731038",
+          "typeId": "114",
+          "type": "pênalti - defendido",
+          "minute": "21'",
+          "teamId": "202",
+          "description": "Pênalti defendido! Lionel Messi (Argentina) perdeu uma oportunidade única, finalização com o pé esquerdo defendido junto ao lado inferior direito do gol.",
+          "player": {
+            "name": "Lionel Messi"
+          }
+        },
+        {
+          "id": "49731076",
+          "typeId": "129",
+          "type": "jogo atrasado",
+          "minute": "23'",
+          "teamId": "202",
+          "description": "Partida interrompida devido a pausa para hidratação."
+        },
+        {
+          "id": "49731077",
+          "typeId": "129",
+          "type": "jogo atrasado",
+          "minute": "23'",
+          "teamId": "2620"
+        },
+        {
+          "id": "49731081",
+          "typeId": "130",
+          "type": "fim do atraso",
+          "minute": "26'",
+          "teamId": "202",
+          "description": "Partida recomeça."
+        },
+        {
+          "id": "49731080",
+          "typeId": "130",
+          "type": "fim do atraso",
+          "minute": "26'",
+          "teamId": "2620"
+        },
+        {
+          "id": "49731166",
+          "typeId": "129",
+          "type": "jogo atrasado",
+          "minute": "31'",
+          "teamId": "202"
+        },
+        {
+          "id": "49731169",
+          "typeId": "130",
+          "type": "fim do atraso",
+          "minute": "32'",
+          "teamId": "202"
+        }
+      ]
+    },
+    {
+      "id": "760508",
+      "leagueCode": "fifa.world",
+      "leagueName": "FIFA World Cup",
+      "leagueHashtags": [
+        "#WorldCup",
+        "#CopaDoMundo"
+      ],
+      "homeTeam": {
+        "id": "475",
+        "name": "Switzerland",
+        "logo": "https://a.espncdn.com/i/teamlogos/countries/500/sui.png",
+        "form": "WWWDD"
+      },
+      "awayTeam": {
+        "id": "208",
+        "name": "Colombia",
+        "logo": "https://a.espncdn.com/i/teamlogos/countries/500/col.png",
+        "form": "WDWWW"
+      },
+      "homeScore": 0,
+      "awayScore": 0,
+      "status": "STATUS_SCHEDULED",
+      "state": "pre",
+      "venue": "BC Place",
+      "venueCity": "Vancouver",
+      "startTime": "2026-07-07T20:00Z",
+      "minute": "0'",
+      "boxscore": {
+        "home": {},
+        "away": {}
+      },
+      "keyEvents": []
+    }
+  ]
+}

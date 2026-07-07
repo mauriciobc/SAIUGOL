@@ -9,4 +9,23 @@
 export const PENALTY_SCORED_KEYWORDS = ['penalty - scored', 'gol de pênalti', 'pênalti convertido'];
 
 /** Phrases meaning a penalty was missed/saved (does not count as a goal). */
-export const PENALTY_MISSED_KEYWORDS = ['penalty - saved', 'penalty - missed', 'pênalti defendido', 'pênalti perdido'];
+export const PENALTY_MISSED_KEYWORDS = [
+    'penalty - saved',
+    'penalty - missed',
+    'pênalti defendido',
+    'pênalti perdido',
+    'pênalti - defendido',
+    'pênalti - perdido',
+];
+
+/** ESPN provisional description while the play is still being written (PT/EN). */
+export const TEMPORARY_ATTEMPT_KEYWORDS = [
+    'tentativa temporária',
+    'tentativa temporaria',
+    'temporary attempt',
+];
+
+export function isTemporaryAttemptDescription(description) {
+    const d = (description || '').toLowerCase();
+    return TEMPORARY_ATTEMPT_KEYWORDS.some((kw) => d.includes(kw));
+}
