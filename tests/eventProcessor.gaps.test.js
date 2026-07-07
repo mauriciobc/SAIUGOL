@@ -14,7 +14,7 @@ import {
     formatMatchDelayEnd,
 } from '../src/bot/formatter.js';
 import { initI18n } from '../src/services/i18n.js';
-import { whenReady } from '../src/state/matchState.js';
+import { whenReady, resetStateForTesting } from '../src/state/matchState.js';
 
 await initI18n('pt-BR');
 await whenReady();
@@ -184,7 +184,7 @@ describe('processEvents — delay deduplication and posting', () => {
         const delayEvents = argEgyMatch.keyEvents.filter((e) =>
             ['129', '130'].includes(e.typeId)
         );
-        const count = await processEvents(delayEvents, {
+        await processEvents(delayEvents, {
             id: argEgyMatch.id,
             homeTeam: argEgyMatch.homeTeam,
             awayTeam: argEgyMatch.awayTeam,
@@ -195,11 +195,28 @@ describe('processEvents — delay deduplication and posting', () => {
 
         const hydrationPosts = posted.filter((t) => t.includes('💧'));
         const resumePosts = posted.filter((t) => t.includes('▶️'));
-        const genericDelayPosts = posted.filter((t) => t.includes('⏸️ PARTIDA PARADA'));
         assert.strictEqual(hydrationPosts.length, 1);
         assert.strictEqual(resumePosts.length, 2);
+
+        // 31' delay has no ESPN description — deferred until timeout on a later poll
+        const origTimeout = config.delays.delayReasonTimeoutMs;
+        config.delays.delayReasonTimeoutMs = 0;
+        await processEvents(
+            delayEvents.filter((e) => e.minute === "31'"),
+            {
+                id: argEgyMatch.id,
+                homeTeam: argEgyMatch.homeTeam,
+                awayTeam: argEgyMatch.awayTeam,
+                homeScore: argEgyMatch.homeScore,
+                awayScore: argEgyMatch.awayScore,
+                league: { hashtags: argEgyMatch.leagueHashtags },
+            }
+        );
+        config.delays.delayReasonTimeoutMs = origTimeout;
+
+        const genericDelayPosts = posted.filter((t) => t.includes('⏸️ PARTIDA PARADA'));
         assert.strictEqual(genericDelayPosts.length, 1);
-        assert.ok(count >= 4);
+        assert.ok(posted.length >= 4);
     });
 
     it('prefers event with description when deduplicating duplicate delay events', async () => {
@@ -233,6 +250,98 @@ describe('processEvents — delay deduplication and posting', () => {
 
         assert.strictEqual(posted.length, 1);
         assert.ok(posted[0].includes('💧 PAUSA PARA HIDRATAÇÃO!'));
+    });
+
+    it('waits for ESPN description when first poll only has empty delay event (Switzerland x Colombia race)', async () => {
+        resetStateForTesting();
+        await whenReady();
+
+        const match = {
+            id: '760508',
+            homeTeam: { id: '208', name: 'Suíça' },
+            awayTeam: { id: '475', name: 'Colômbia' },
+            homeScore: 0,
+            awayScore: 0,
+            league: { hashtags: ['#CopaDoMundo'] },
+        };
+
+        await processEvents([{
+            id: '49732854',
+            typeId: '129',
+            type: 'jogo atrasado',
+            minute: "23'",
+            teamId: '475',
+            description: '',
+        }], match);
+
+        assert.strictEqual(posted.length, 0, 'should not post generic pause before ESPN description arrives');
+
+        await processEvents([
+            {
+                id: '49732854',
+                typeId: '129',
+                type: 'jogo atrasado',
+                minute: "23'",
+                teamId: '475',
+                description: '',
+            },
+            {
+                id: '49732853',
+                typeId: '129',
+                type: 'jogo atrasado',
+                minute: "23'",
+                teamId: '208',
+                description: 'Partida interrompida devido a pausa para hidratação.',
+            },
+        ], match);
+
+        assert.strictEqual(posted.length, 1);
+        assert.ok(posted[0].includes('💧 PAUSA PARA HIDRATAÇÃO!'));
+        assert.ok(!posted[0].includes('⏸️ PARTIDA PARADA'));
+    });
+
+    it('posts generic delay after timeout when ESPN never sends description', async () => {
+        resetStateForTesting();
+        await whenReady();
+
+        const origTimeout = config.delays.delayReasonTimeoutMs;
+        config.delays.delayReasonTimeoutMs = 0;
+
+        try {
+            const match = {
+                id: '760508',
+                homeTeam: { name: 'Suíça' },
+                awayTeam: { name: 'Colômbia' },
+                homeScore: 0,
+                awayScore: 0,
+                league: { hashtags: [] },
+            };
+
+            await processEvents([{
+                id: '49733104',
+                typeId: '129',
+                type: 'jogo atrasado',
+                minute: "40'",
+                teamId: '208',
+                description: '',
+            }], match);
+
+            assert.strictEqual(posted.length, 0, 'first poll defers posting without description');
+
+            await processEvents([{
+                id: '49733104',
+                typeId: '129',
+                type: 'jogo atrasado',
+                minute: "40'",
+                teamId: '208',
+                description: '',
+            }], match);
+
+            assert.strictEqual(posted.length, 1);
+            assert.ok(posted[0].includes('⏸️ PARTIDA PARADA'));
+        } finally {
+            config.delays.delayReasonTimeoutMs = origTimeout;
+        }
     });
 });
 

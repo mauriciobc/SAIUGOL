@@ -17,6 +17,9 @@ import {
     getPendingPenalty,
     markPenaltyPending,
     resolvePendingPenalty,
+    getPendingDelayStart,
+    markDelayStartPending,
+    resolvePendingDelayStart,
 } from '../state/matchState.js';
 import {
     formatGoal,
@@ -310,6 +313,49 @@ function looksLikePenaltyMissedType(type) {
     return EVENT_TYPES.PENALTY_MISSED.some((kw) => lower.includes(kw));
 }
 
+function hasDelayDescription(event) {
+    return Boolean((event.description || '').trim());
+}
+
+/**
+ * Wait for ESPN delay description before posting MATCH_DELAY_START.
+ * ESPN often emits one 129 per team; only one carries hydration/injury text.
+ * @returns {Promise<{ handled: boolean, posted: boolean }>}
+ */
+async function handleMatchDelayStartLifecycle(event, eventId, category, match) {
+    if (category !== 'MATCH_DELAY_START') return { handled: false, posted: false };
+    if (isEventPosted(eventId)) return { handled: false, posted: false };
+    if (!shouldPostEvent('MATCH_DELAY_START')) return { handled: false, posted: false };
+
+    const pending = getPendingDelayStart(eventId);
+    const hasDesc = hasDelayDescription(event);
+
+    if (pending) {
+        const timedOut = Date.now() - pending.firstSeenAt >= config.delays.delayReasonTimeoutMs;
+        if (!hasDesc && !timedOut) {
+            return { handled: true, posted: false };
+        }
+
+        const text = formatMatchDelayStart(event, match);
+        const result = await postStatus(text);
+        if (!result) return { handled: true, posted: false };
+        markEventPosted(eventId);
+        resolvePendingDelayStart(eventId);
+        console.log(
+            `[EventProcessor] Atraso postado${hasDesc ? '' : ' (timeout, sem descrição ESPN)'} (evento ${eventId}, partida ${match.id})`
+        );
+        return { handled: true, posted: true };
+    }
+
+    if (!hasDesc) {
+        markDelayStartPending(eventId, { matchId: String(match.id), firstSeenAt: Date.now() });
+        console.log(`[EventProcessor] Atraso aguardando descrição ESPN (evento ${eventId}, partida ${match.id})`);
+        return { handled: true, posted: false };
+    }
+
+    return { handled: false, posted: false };
+}
+
 /**
  * Handle a goal event through its ESPN-confirmation lifecycle (pending → reply).
  * @returns {Promise<{ handled: boolean, posted: boolean }>}
@@ -453,6 +499,16 @@ export async function processEvents(events, match) {
         if (penaltyResult.handled) {
             handledEventIds.add(eventId);
             if (penaltyResult.posted) {
+                postedCount++;
+                await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
+            }
+            continue;
+        }
+
+        const delayResult = await handleMatchDelayStartLifecycle(event, eventId, category, match);
+        if (delayResult.handled) {
+            handledEventIds.add(eventId);
+            if (delayResult.posted) {
                 postedCount++;
                 await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
             }

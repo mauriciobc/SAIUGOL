@@ -181,6 +181,8 @@ export const config = {
         statePersistence: parseEnvInt(process.env.STATE_SAVE_INTERVAL_MS, 300000, 60000),
         /** Max time a goal can sit "awaiting confirmation" before we post it anyway with whatever text ESPN has given us (default 5 min). */
         goalConfirmationTimeoutMs: parseEnvInt(process.env.GOAL_CONFIRMATION_TIMEOUT_MS, 300000, 30000),
+        /** Max time to wait for ESPN delay description (e.g. hydration) before posting a generic pause (default 2 min). */
+        delayReasonTimeoutMs: parseEnvInt(process.env.DELAY_REASON_TIMEOUT_MS, 120000, 30000),
     },
     // Retry configuration for API calls
     retry: {
