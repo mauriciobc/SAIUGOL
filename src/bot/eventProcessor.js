@@ -519,10 +519,16 @@ export async function processEvents(events, match) {
         }
     }
 
-    const postable = withIds.filter(({ eventId, category }) => {
+    const postable = withIds.filter(({ event, eventId, category }) => {
         if (handledEventIds.has(eventId)) return false;
         if (isEventPosted(eventId)) return false;
         if (category === 'MATCH_START' && isEventPosted(getMatchStartEventId(match.id))) return false;
+        if (isPlaceholderEventText(event.description)) {
+            console.log(
+                `[EventProcessor] Aguardando descrição ESPN definitiva (evento ${eventId}, categoria ${category}, partida ${match.id})`
+            );
+            return false;
+        }
         return category && shouldPostEvent(category);
     });
 
