@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { eventProcessorLogger } from '../utils/logger.js';
 import { postStatus, uploadMediaFromUrl } from '../api/mastodon.js';
 import { getHighlights } from '../api/espn.js';
 import {
@@ -523,9 +524,10 @@ export async function processEvents(events, match) {
         if (handledEventIds.has(eventId)) return false;
         if (isEventPosted(eventId)) return false;
         if (category === 'MATCH_START' && isEventPosted(getMatchStartEventId(match.id))) return false;
-        if (isPlaceholderEventText(event.description)) {
-            console.log(
-                `[EventProcessor] Aguardando descrição ESPN definitiva (evento ${eventId}, categoria ${category}, partida ${match.id})`
+        if (isPlaceholderEventText(event?.description ?? '')) {
+            eventProcessorLogger.debug(
+                { eventId, category, matchId: match.id },
+                'Aguardando descrição ESPN definitiva'
             );
             return false;
         }
