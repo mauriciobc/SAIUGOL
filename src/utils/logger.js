@@ -28,4 +28,5 @@ export function createChild(bindings) {
 export const espnLogger = createChild({ component: 'espn-api' });
 export const mastodonLogger = createChild({ component: 'mastodon-api' });
 export const botLogger = createChild({ component: 'bot' });
+export const eventProcessorLogger = createChild({ component: 'eventProcessor' });
 export const cacheLogger = createChild({ component: 'cache' });

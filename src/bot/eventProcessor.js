@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { eventProcessorLogger } from '../utils/logger.js';
 import { postStatus, uploadMediaFromUrl } from '../api/mastodon.js';
 import { getHighlights } from '../api/espn.js';
 import {
@@ -519,10 +520,17 @@ export async function processEvents(events, match) {
         }
     }
 
-    const postable = withIds.filter(({ eventId, category }) => {
+    const postable = withIds.filter(({ event, eventId, category }) => {
         if (handledEventIds.has(eventId)) return false;
         if (isEventPosted(eventId)) return false;
         if (category === 'MATCH_START' && isEventPosted(getMatchStartEventId(match.id))) return false;
+        if (isPlaceholderEventText(event?.description ?? '')) {
+            eventProcessorLogger.debug(
+                { eventId, category, matchId: match.id },
+                'Aguardando descrição ESPN definitiva'
+            );
+            return false;
+        }
         return category && shouldPostEvent(category);
     });
 
