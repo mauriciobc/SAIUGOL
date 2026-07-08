@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { getTodayMatches } from './api/espn.js';
+import { getTodayMatches } from '../src/api/espn.js';
 
 /**
  * Helper script to find recent Brasileirão match IDs
@@ -7,7 +7,7 @@ import { getTodayMatches } from './api/espn.js';
 async function findMatches() {
     console.log('🔍 Searching for recent Brasileirão matches...\n');
 
-    const matches = await getTodayMatches();
+    const matches = await getTodayMatches('bra.1');
 
     if (matches.length === 0) {
         console.log('❌ No matches found for today.');
@@ -30,7 +30,7 @@ async function findMatches() {
         console.log('');
     }
 
-    console.log('\n💡 Use one of these Match IDs in test-translation.js');
+    console.log('\n💡 Use one of these Match IDs in scripts/test-translation.js');
 }
 
 findMatches().catch(console.error);

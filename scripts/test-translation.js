@@ -2,9 +2,9 @@ import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { config } from './config.js';
-import { initI18n } from './services/i18n.js';
-import { getLiveEvents, getMatchDetails } from './api/espn.js';
+import { config } from '../src/config.js';
+import { initI18n } from '../src/services/i18n.js';
+import { getLiveEvents, getMatchDetails } from '../src/api/espn.js';
 import {
     formatGoal,
     formatCard,
@@ -12,7 +12,7 @@ import {
     formatVAR,
     formatMatchStart,
     formatMatchEnd,
-} from './bot/formatter.js';
+} from '../src/bot/formatter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

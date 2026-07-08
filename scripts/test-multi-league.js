@@ -1,4 +1,4 @@
-import { config } from './config.js';
+import { config } from '../src/config.js';
 
 console.log('--- Multi-League Config Verification ---');
 
