@@ -91,6 +91,12 @@ async function initializeState() {
         }
         console.log(`[State] ${pendingPenalties.size} pênaltis pendentes restaurados`);
     }
+    if (state.pendingDelayStarts && typeof state.pendingDelayStarts === 'object') {
+        for (const [eventId, data] of Object.entries(state.pendingDelayStarts)) {
+            if (data) pendingDelayStarts.set(eventId, data);
+        }
+        console.log(`[State] ${pendingDelayStarts.size} atrasos pendentes restaurados`);
+    }
 
     // Start periodic save timer (skip in test to avoid keeping process alive)
     if (process.env.NODE_ENV !== 'test') {
@@ -121,7 +127,7 @@ export async function saveStateNow() {
     for (const [key, snap] of previousSnapshots) {
         if (snap && snap.status === 'in') activeMatchKeys.push(key);
     }
-    return await persistState(postedEventIds, previousSnapshots, activeMatchKeys, lastDigestDate, lastNotificationId, pendingGoals, pendingPenalties);
+    return await persistState(postedEventIds, previousSnapshots, activeMatchKeys, lastDigestDate, lastNotificationId, pendingGoals, pendingPenalties, pendingDelayStarts);
 }
 
 export function getLastDigestDate() { return lastDigestDate; }

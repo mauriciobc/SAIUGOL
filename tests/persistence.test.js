@@ -122,4 +122,41 @@ describe('persistence', () => {
         const loaded = await loadState();
         assert.deepStrictEqual(loaded.pendingGoals, {});
     });
+
+    it('saveState deve persistir pendingDelayStarts (Map) e loadState deve restaurá-los', async () => {
+        const pendingDelayStarts = new Map([
+            ['760509-delay-start-23', { matchId: '760509', firstSeenAt: 1751765766000 }],
+        ]);
+
+        await saveState(new Set(), new Map(), [], null, null, null, null, pendingDelayStarts);
+        const loaded = await loadState();
+
+        assert.strictEqual(Object.keys(loaded.pendingDelayStarts).length, 1);
+        assert.strictEqual(loaded.pendingDelayStarts['760509-delay-start-23'].matchId, '760509');
+        assert.strictEqual(loaded.pendingDelayStarts['760509-delay-start-23'].firstSeenAt, 1751765766000);
+    });
+
+    it('loadState deve retornar pendingDelayStarts vazio quando não salvo', async () => {
+        const stateFile = join(testDir, 'state.json');
+        if (existsSync(stateFile)) rmSync(stateFile);
+        const loaded = await loadState();
+        assert.deepStrictEqual(loaded.pendingDelayStarts, {});
+    });
+
+    it('saveState deve gravar version 1.2 quando persiste pendingDelayStarts', async () => {
+        const { readFileSync } = await import('node:fs');
+        await saveState(
+            new Set(),
+            new Map(),
+            [],
+            null,
+            null,
+            null,
+            null,
+            new Map([['m1-delay-start-10', { matchId: 'm1', firstSeenAt: 1 }]])
+        );
+        const raw = JSON.parse(readFileSync(join(testDir, 'state.json'), 'utf-8'));
+        assert.strictEqual(raw.version, '1.2');
+        assert.ok(raw.pendingDelayStarts['m1-delay-start-10']);
+    });
 });
