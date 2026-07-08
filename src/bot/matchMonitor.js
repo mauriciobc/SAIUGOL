@@ -19,6 +19,11 @@ import { computeDiff } from '../state/diffEngine.js';
 import { processEvents, handleMatchEnd, markExistingEventsAsSeen, getMatchStartEventId } from './eventProcessor.js';
 import { formatMatchStart, formatDailyDigest, formatMatchPreview } from './formatter.js';
 import { config } from '../config.js';
+import {
+    recordMatchProcessed,
+    recordBotError,
+    logMetrics,
+} from '../utils/metrics.js';
 
 /** Last successfully fetched league match list, updated every poll. */
 let _lastLeagueMatches = [];
@@ -58,6 +63,7 @@ export async function poll() {
             const matches = await getTodayMatches(league.code);
             allLeagueMatches.push({ league, matches });
         } catch (error) {
+            recordBotError();
             console.error(`[MatchMonitor] Erro ao buscar partidas para ${league.name}:`, error.message);
             allLeagueMatches.push({ league, matches: [] });
         }
@@ -76,6 +82,7 @@ export async function poll() {
                     setLastDigestDate(today);
                     console.log('[MatchMonitor] Digest diário postado');
                 } catch (err) {
+                    recordBotError();
                     console.error('[MatchMonitor] Erro ao postar digest diário:', err.message);
                 }
             } else {
@@ -109,6 +116,7 @@ export async function poll() {
                                 markEventPosted(previewId);
                                 console.log(`[MatchMonitor] Preview pré-jogo postado para partida ${matchId}`);
                             } catch (err) {
+                                recordBotError();
                                 console.error(`[MatchMonitor] Erro ao postar preview da partida ${matchId}:`, err.message);
                             }
                         }
@@ -180,6 +188,7 @@ export async function poll() {
                 await pollMatchEvents(matchId, league);
             }
         } catch (error) {
+            recordBotError();
             console.error(`[MatchMonitor] Erro no poll da liga ${league.name}:`, error.message);
         }
     }
@@ -211,6 +220,7 @@ export async function poll() {
         }
     }
     console.log(`[MatchMonitor] Stats: ${stats.activeMatchCount} partidas ativas, ${stats.postedEventCount} eventos postados (próximo poll em ${nextIntervalMs / 1000}s${intervalReason})`);
+    logMetrics();
 
     return { nextIntervalMs };
 }
@@ -259,6 +269,7 @@ async function pollMatchEvents(matchId, league) {
 
     details.league = league;
     const matchData = normalizeMatchData(details);
+    recordMatchProcessed();
 
     if (events.length > 0) {
         const postedCount = await processEvents(events, matchData);

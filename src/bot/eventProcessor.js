@@ -41,6 +41,7 @@ import {
     formatMatchDelayEnd,
 } from './formatter.js';
 import { decideConfirmationStep } from './confirmationLifecycle.js';
+import { recordEventPosted } from '../utils/metrics.js';
 
 import {
     categorizeEvent,
@@ -405,6 +406,7 @@ export async function processEvents(events, match) {
             handledEventIds.add(eventId);
             if (goalResult.posted) {
                 postedCount++;
+                recordEventPosted();
                 await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
             }
             continue;
@@ -415,6 +417,7 @@ export async function processEvents(events, match) {
             handledEventIds.add(eventId);
             if (penaltyResult.posted) {
                 postedCount++;
+                recordEventPosted();
                 await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
             }
             continue;
@@ -425,6 +428,7 @@ export async function processEvents(events, match) {
             handledEventIds.add(eventId);
             if (delayResult.posted) {
                 postedCount++;
+                recordEventPosted();
                 await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
             }
         }
@@ -489,6 +493,7 @@ export async function processEvents(events, match) {
             if (result) {
                 markEventPosted(eventId);
                 postedCount++;
+                recordEventPosted();
                 console.log(`[EventProcessor] Postado evento ${category} para partida ${match.id}`);
             }
             await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));

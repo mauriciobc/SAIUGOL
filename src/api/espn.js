@@ -5,6 +5,7 @@ import { getDateStringFor } from '../utils/dateUtils.js';
 import { config } from '../config.js';
 import { espnLogger } from '../utils/logger.js';
 import { recordEspnRequest } from '../utils/metrics.js';
+import { getBreaker } from '../utils/circuitBreaker.js';
 import {
     parseSubstitutionFromDescription,
     parseScorerFromGoalDescription,
@@ -17,6 +18,21 @@ export {
     parsePlayerFromTemporaryDescription,
     parsePlayerFromEventDescription,
 };
+
+/** Shared ESPN circuit breaker — opens after repeated outbound failures. */
+function espnBreaker() {
+    return getBreaker('espn', { failureThreshold: 5, successThreshold: 2, timeoutMs: 30000 });
+}
+
+/**
+ * Run an ESPN network operation through the circuit breaker.
+ * @template T
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+function withEspnBreaker(fn) {
+    return espnBreaker().execute(fn);
+}
 
 const BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
 /** Web API with lang/region support (e.g. lang=pt&region=br for Brazilian Portuguese) */
@@ -96,7 +112,7 @@ export async function getTodayMatches(leagueCode) {
 
     const startTime = Date.now();
 
-    return await retryWithBackoff(
+    return await withEspnBreaker(() => retryWithBackoff(
         async () => {
             try {
                 const dateStr = getTodayDateString();
@@ -192,7 +208,7 @@ export async function getTodayMatches(leagueCode) {
             shouldRetry: isRetryableError,
             operationName: 'ESPN getTodayMatches',
         }
-    ).then(result => {
+    )).then(result => {
         scoreboardCache.set(cacheKey, result);
         espnLogger.debug({ cacheKey, matchCount: result.length }, 'Scoreboard cache miss - fetched and cached');
         return result;
@@ -281,7 +297,7 @@ export async function getMatchDetails(matchId, leagueCode) {
 
     const startTime = Date.now();
 
-    return await retryWithBackoff(
+    return await withEspnBreaker(() => retryWithBackoff(
         async () => {
             try {
                 const url = getSummaryUrl(leagueCode, matchId);
@@ -357,7 +373,7 @@ export async function getMatchDetails(matchId, leagueCode) {
             shouldRetry: isRetryableError,
             operationName: `ESPN getMatchDetails(${matchId})`,
         }
-    ).then(result => {
+    )).then(result => {
         if (result) {
             detailsCache.set(cacheKey, result);
             espnLogger.debug({ matchId }, 'Match details cached');
@@ -399,7 +415,7 @@ export async function getLiveEvents(matchId, leagueCode) {
 
     const startTime = Date.now();
 
-    return await retryWithBackoff(
+    return await withEspnBreaker(() => retryWithBackoff(
         async () => {
             try {
                 const url = getSummaryUrl(leagueCode, matchId);
@@ -462,7 +478,7 @@ export async function getLiveEvents(matchId, leagueCode) {
             shouldRetry: isRetryableError,
             operationName: `ESPN getLiveEvents(${matchId})`,
         }
-    ).then(result => {
+    )).then(result => {
         eventsCache.set(cacheKey, result);
         espnLogger.debug({ matchId, eventCount: result.length }, 'Live events cached');
         return result;
@@ -498,7 +514,7 @@ export async function getHighlights(matchId, leagueCode) {
 
     const startTime = Date.now();
 
-    return await retryWithBackoff(
+    return await withEspnBreaker(() => retryWithBackoff(
         async () => {
             try {
                 const url = getSummaryUrl(leagueCode, matchId);
@@ -545,7 +561,7 @@ export async function getHighlights(matchId, leagueCode) {
             shouldRetry: isRetryableError,
             operationName: `ESPN getHighlights(${matchId})`,
         }
-    ).then(result => {
+    )).then(result => {
         highlightsCache.set(cacheKey, result);
         espnLogger.debug({ matchId, highlightCount: result.length }, 'Highlights cached');
         return result;
