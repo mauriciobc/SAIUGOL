@@ -2,6 +2,9 @@ import { config } from '../config.js';
 import { getMentions, postStatus, getAccountId } from '../api/mastodon.js';
 import { getLastNotificationId, setLastNotificationId } from '../state/matchState.js';
 import { formatDailyDigest } from './formatter.js';
+import { createChild } from '../utils/logger.js';
+
+const mentionLogger = createChild({ component: 'mentionListener' });
 
 /**
  * Per-account cooldown: Map<accountId, lastReplyTimestampMs>
@@ -93,9 +96,9 @@ export async function processMentions(mentions, botAccountId, leagueMatches) {
         try {
             await handler(notification, leagueMatches);
             cooldowns.set(account.id, Date.now());
-            console.log(`[MentionListener] Respondido "${keyword}" para @${account.acct}`);
+            mentionLogger.info({ keyword, acct: account.acct }, 'Respondido');
         } catch (err) {
-            console.error(`[MentionListener] Erro ao responder menção de @${account.acct}:`, err.message);
+            mentionLogger.error({ acct: account.acct, error: err.message }, 'Erro ao responder menção');
         }
     }
 
@@ -126,7 +129,7 @@ export async function pollMentions(botAccountId, leagueMatches) {
  */
 export function startMentionListener(leagueMatchesProvider) {
     if (!config.mentions.enabled) {
-        console.log('[MentionListener] Desativado pela configuração');
+        mentionLogger.info('Desativado pela configuração');
         return { stop: () => {} };
     }
 
@@ -141,17 +144,17 @@ export function startMentionListener(leagueMatchesProvider) {
             const leagueMatches = _leagueMatchesProvider ? _leagueMatchesProvider() : [];
             await pollMentions(botAccountId, leagueMatches);
         } catch (err) {
-            console.error('[MentionListener] Erro no tick:', err.message);
+            mentionLogger.error({ error: err.message }, 'Erro no tick');
         }
     };
 
     timer = setInterval(tick, config.mentions.pollIntervalMs);
-    console.log(`[MentionListener] Iniciado (intervalo: ${config.mentions.pollIntervalMs}ms)`);
+    mentionLogger.info({ pollIntervalMs: config.mentions.pollIntervalMs }, 'Iniciado');
 
     return {
         stop: () => {
             if (timer) { clearInterval(timer); timer = null; }
-            console.log('[MentionListener] Parado');
+            mentionLogger.info('Parado');
         },
     };
 }

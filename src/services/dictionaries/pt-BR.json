@@ -79,7 +79,12 @@
         "shots": "Chutes",
         "shots_on_target": "Chutes no gol",
         "corners": "Escanteios",
-        "saves": "Defesas"
+        "saves": "Defesas",
+        "yellow_cards": "Amarelos",
+        "red_cards": "Vermelhos",
+        "favorite_goal_alert": "{{emoji}} Gol do {{nickname}}!",
+        "favorite_penalty_missed_alert": "{{emoji}} Pênalti perdido - {{nickname}}!",
+        "favorite_red_card_alert": "{{emoji}} Cartão vermelho - {{nickname}}!"
     },
     "common": {
         "home": "Casa",

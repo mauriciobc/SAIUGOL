@@ -15,6 +15,26 @@ describe('Translation Service', () => {
             assert.strictEqual(translate('ui.draw'), '🤝 Empate!');
         });
 
+        it('should translate match stats card labels', () => {
+            assert.strictEqual(translate('ui.yellow_cards'), 'Amarelos');
+            assert.strictEqual(translate('ui.red_cards'), 'Vermelhos');
+        });
+
+        it('should translate favorite-team alert templates with variables', () => {
+            assert.strictEqual(
+                translate('ui.favorite_goal_alert', { emoji: '⚫🔴', nickname: 'Galo' }),
+                '⚫🔴 Gol do Galo!'
+            );
+            assert.strictEqual(
+                translate('ui.favorite_penalty_missed_alert', { emoji: '⚫🔴', nickname: 'Galo' }),
+                '⚫🔴 Pênalti perdido - Galo!'
+            );
+            assert.strictEqual(
+                translate('ui.favorite_red_card_alert', { emoji: '⚫🔴', nickname: 'Galo' }),
+                '⚫🔴 Cartão vermelho - Galo!'
+            );
+        });
+
         it('should translate common terms correctly', () => {
             assert.strictEqual(translate('common.unknown_player'), 'Jogador desconhecido');
             assert.strictEqual(translate('common.home'), 'Casa');
@@ -278,9 +298,23 @@ describe('Formatter Integration', async () => {
             team: { name: 'Flamengo' }
         };
         const result = formatGoal(event, mockMatch, { isFavoriteTeam: true });
+        const expected = translate('ui.favorite_goal_alert', { emoji: '⚫🔴', nickname: 'Galo' });
         assert.ok(result.includes('⚫🔴'));
         assert.ok(result.includes('Galo'));
-        assert.ok(result.startsWith('⚫🔴 Gol do Galo!'));
+        assert.ok(result.startsWith(expected));
+    });
+
+    it('should include favorite team penalty-missed alert using i18n template', async () => {
+        const { formatPenaltyMissed } = await import('../src/bot/formatter.js');
+        const event = {
+            player: { name: 'Jogador' },
+            minute: '21',
+            type: 'Penalty - Saved',
+            team: { name: 'Flamengo' },
+        };
+        const result = formatPenaltyMissed(event, mockMatch, { isFavoriteTeam: true });
+        const expected = translate('ui.favorite_penalty_missed_alert', { emoji: '⚫🔴', nickname: 'Galo' });
+        assert.ok(result.startsWith(expected));
     });
 
     it('should include favorite team red card alert using config nickname and emoji', () => {
@@ -290,9 +324,10 @@ describe('Formatter Integration', async () => {
             type: 'Red Card'
         };
         const result = formatCard(event, mockMatch, { isFavoriteTeam: true });
+        const expected = translate('ui.favorite_red_card_alert', { emoji: '⚫🔴', nickname: 'Galo' });
         assert.ok(result.includes('⚫🔴'));
         assert.ok(result.includes('Galo'));
-        assert.ok(result.startsWith('⚫🔴 Cartão vermelho - Galo!'));
+        assert.ok(result.startsWith(expected));
     });
 
     it('should not include favorite team alert for yellow card even with isFavoriteTeam', () => {
@@ -352,6 +387,8 @@ describe('Formatter Integration', async () => {
         assert.ok(result.includes('55.0') || result.includes('55%')); // possession bar or raw value
         assert.ok(result.includes('12'));
         assert.ok(result.includes('5')); // shots on target value present
+        assert.ok(result.includes(translate('ui.yellow_cards')), 'yellow card label must come from i18n');
+        assert.ok(result.includes(translate('ui.red_cards')), 'red card label must come from i18n');
     });
 
     it('formatMatchStats handles partial stats gracefully', () => {

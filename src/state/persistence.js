@@ -1,6 +1,9 @@
 import { promises as fs } from 'fs';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createChild } from '../utils/logger.js';
+
+const persistenceLogger = createChild({ component: 'persistence' });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -20,7 +23,7 @@ async function ensureStateDir() {
     try {
         await fs.mkdir(getStateDir(), { recursive: true });
     } catch (error) {
-        console.error('[Persistence] Erro ao criar diretório de estado:', error.message);
+        persistenceLogger.error({ error: error.message }, 'Erro ao criar diretório de estado');
     }
 }
 
@@ -34,7 +37,10 @@ export async function loadState() {
         const data = await fs.readFile(getStateFile(), 'utf-8');
         const state = JSON.parse(data);
         const snapshotCount = state.matchSnapshots ? Object.keys(state.matchSnapshots).length : 0;
-        console.log(`[Persistence] Estado carregado: ${state.postedEventIds?.length || 0} eventos, ${snapshotCount} snapshots`);
+        persistenceLogger.info(
+            { eventCount: state.postedEventIds?.length || 0, snapshotCount },
+            'Estado carregado'
+        );
         return {
             postedEventIds: new Set(state.postedEventIds || []),
             lastSaveTime: state.lastSaveTime,
@@ -47,10 +53,10 @@ export async function loadState() {
         };
     } catch (error) {
         if (error.code === 'ENOENT') {
-            console.log('[Persistence] Nenhum estado anterior encontrado, iniciando novo');
+            persistenceLogger.info('Nenhum estado anterior encontrado, iniciando novo');
             return { postedEventIds: new Set(), matchSnapshots: {}, activeMatchKeys: [], lastDigestDate: null, lastNotificationId: null, pendingGoals: {}, pendingPenalties: {} };
         }
-        console.error('[Persistence] Erro ao carregar estado:', error.message);
+        persistenceLogger.error({ error: error.message }, 'Erro ao carregar estado');
         return { postedEventIds: new Set(), matchSnapshots: {}, activeMatchKeys: [], lastDigestDate: null, lastNotificationId: null, pendingGoals: {}, pendingPenalties: {} };
     }
 }
@@ -96,10 +102,13 @@ export async function saveState(postedEventIds, matchSnapshots = null, activeMat
         await fs.rename(tempFile, getStateFile());
 
         const snapshotCount = Object.keys(snapshotObj).length;
-        console.log(`[Persistence] Estado salvo: ${state.postedEventIds.length} eventos, ${snapshotCount} snapshots`);
+        persistenceLogger.info(
+            { eventCount: state.postedEventIds.length, snapshotCount },
+            'Estado salvo'
+        );
         return true;
     } catch (error) {
-        console.error('[Persistence] Erro ao salvar estado:', error.message);
+        persistenceLogger.error({ error: error.message }, 'Erro ao salvar estado');
         return false;
     }
 }
