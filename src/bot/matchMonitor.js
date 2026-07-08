@@ -306,19 +306,39 @@ function normalizeMatchData(apiMatch) {
     };
 }
 
+/** @type {ReturnType<typeof setTimeout>|null} */
+let pollTimer = null;
+let monitoringStopped = false;
+
+/**
+ * Stop the elastic polling loop (clears the pending setTimeout).
+ * Safe to call when monitoring was never started.
+ */
+export function stopMonitoring() {
+    monitoringStopped = true;
+    if (pollTimer != null) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+    }
+}
+
 /**
  * Start the continuous monitoring loop with elastic polling (setTimeout rescheduled after each poll).
  */
 export async function startMonitoring() {
+    monitoringStopped = false;
     console.log('[MatchMonitor] Iniciando monitoramento (polling elástico)');
 
     function scheduleNext() {
+        if (monitoringStopped) return;
         poll().then((result) => {
+            if (monitoringStopped) return;
             const ms = result?.nextIntervalMs ?? config.bot.pollIntervalLiveMs;
-            setTimeout(scheduleNext, ms);
+            pollTimer = setTimeout(scheduleNext, ms);
         }).catch((err) => {
+            if (monitoringStopped) return;
             console.error('[MatchMonitor] Erro no poll:', err.message);
-            setTimeout(scheduleNext, config.bot.pollIntervalAlertMs);
+            pollTimer = setTimeout(scheduleNext, config.bot.pollIntervalAlertMs);
         });
     }
 
@@ -330,5 +350,6 @@ export async function startMonitoring() {
         console.error('[MatchMonitor] Erro no poll:', err.message);
         firstDelay = config.bot.pollIntervalLiveMs;
     }
-    setTimeout(scheduleNext, firstDelay);
+    if (monitoringStopped) return;
+    pollTimer = setTimeout(scheduleNext, firstDelay);
 }
