@@ -46,6 +46,7 @@ import {
     formatMatchDelayStart,
     formatMatchDelayEnd,
 } from './formatter.js';
+import { decideConfirmationStep } from './confirmationLifecycle.js';
 
 /**
  * ESPN keyEvents[].type.id → category. Numeric ids are stable across languages, unlike
@@ -328,37 +329,43 @@ function hasDelayDescription(event) {
  * @returns {Promise<{ handled: boolean, posted: boolean }>}
  */
 async function handleMatchDelayStartLifecycle(event, eventId, category, match) {
-    if (category !== 'MATCH_DELAY_START') return { handled: false, posted: false };
-    if (isEventPosted(eventId)) return { handled: false, posted: false };
-    if (!shouldPostEvent('MATCH_DELAY_START')) return { handled: false, posted: false };
-
+    const applies = category === 'MATCH_DELAY_START' && shouldPostEvent('MATCH_DELAY_START');
     const pending = getPendingDelayStart(eventId);
     const hasDesc = hasDelayDescription(event);
+    const timedOut = pending
+        ? Date.now() - pending.firstSeenAt >= config.delays.delayReasonTimeoutMs
+        : false;
 
-    if (pending) {
-        const timedOut = Date.now() - pending.firstSeenAt >= config.delays.delayReasonTimeoutMs;
-        if (!hasDesc && !timedOut) {
+    const decision = decideConfirmationStep({
+        alreadyPosted: isEventPosted(eventId),
+        applies,
+        pending,
+        isReady: hasDesc,
+        timedOut,
+        shouldStartPending: !hasDesc,
+    });
+
+    switch (decision.action) {
+        case 'wait':
             return { handled: true, posted: false };
+        case 'start_pending':
+            markDelayStartPending(eventId, { matchId: String(match.id), firstSeenAt: Date.now() });
+            console.log(`[EventProcessor] Atraso aguardando descrição ESPN (evento ${eventId}, partida ${match.id})`);
+            return { handled: true, posted: false };
+        case 'confirm': {
+            const text = formatMatchDelayStart(event, match);
+            const result = await postStatus(text);
+            if (!result) return { handled: true, posted: false };
+            markEventPosted(eventId);
+            resolvePendingDelayStart(eventId);
+            console.log(
+                `[EventProcessor] Atraso postado${hasDesc ? '' : ' (timeout, sem descrição ESPN)'} (evento ${eventId}, partida ${match.id})`
+            );
+            return { handled: true, posted: true };
         }
-
-        const text = formatMatchDelayStart(event, match);
-        const result = await postStatus(text);
-        if (!result) return { handled: true, posted: false };
-        markEventPosted(eventId);
-        resolvePendingDelayStart(eventId);
-        console.log(
-            `[EventProcessor] Atraso postado${hasDesc ? '' : ' (timeout, sem descrição ESPN)'} (evento ${eventId}, partida ${match.id})`
-        );
-        return { handled: true, posted: true };
+        default:
+            return { handled: false, posted: false };
     }
-
-    if (!hasDesc) {
-        markDelayStartPending(eventId, { matchId: String(match.id), firstSeenAt: Date.now() });
-        console.log(`[EventProcessor] Atraso aguardando descrição ESPN (evento ${eventId}, partida ${match.id})`);
-        return { handled: true, posted: false };
-    }
-
-    return { handled: false, posted: false };
 }
 
 /**
@@ -366,17 +373,29 @@ async function handleMatchDelayStartLifecycle(event, eventId, category, match) {
  * @returns {Promise<{ handled: boolean, posted: boolean }>}
  */
 async function handleGoalConfirmationLifecycle(event, eventId, category, match) {
-    if (isEventPosted(eventId)) return { handled: false, posted: false };
-
     const rawType = (event.type || '').toLowerCase();
-    if (category !== 'GOAL' && !looksLikeGoalType(rawType)) return { handled: false, posted: false };
-
+    const applies = category === 'GOAL' || looksLikeGoalType(rawType);
     const pending = getPendingGoal(eventId);
     const isDisallowedNow = DISALLOWED_GOAL_KEYWORDS.some((kw) => rawType.includes(kw));
     const isPlaceholder = isPlaceholderEventText(event.description);
+    const timedOut = pending
+        ? Date.now() - pending.firstSeenAt > config.delays.goalConfirmationTimeoutMs
+        : false;
 
-    if (pending) {
-        if (isDisallowedNow) {
+    const decision = decideConfirmationStep({
+        alreadyPosted: isEventPosted(eventId),
+        applies,
+        pending,
+        isReady: !isPlaceholder,
+        timedOut,
+        isDisallowed: isDisallowedNow,
+        shouldStartPending: category === 'GOAL' && !isDisallowedNow && isPlaceholder && shouldPostEvent('GOAL'),
+    });
+
+    switch (decision.action) {
+        case 'wait':
+            return { handled: true, posted: false };
+        case 'disallow': {
             const result = await postStatus(formatGoalDisallowed(event, match), { inReplyToId: pending.statusId });
             if (!result) return { handled: true, posted: false };
             markEventPosted(eventId);
@@ -384,9 +403,7 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
             console.log(`[EventProcessor] Gol anulado (evento ${eventId}, partida ${match.id})`);
             return { handled: true, posted: true };
         }
-
-        const timedOut = Date.now() - pending.firstSeenAt > config.delays.goalConfirmationTimeoutMs;
-        if (!isPlaceholder || timedOut) {
+        case 'confirm': {
             const isFavorite = isFavoriteTeam(event, match);
             const result = await postStatus(formatGoal(event, match, { isFavoriteTeam: isFavorite }), { inReplyToId: pending.statusId });
             if (!result) return { handled: true, posted: false };
@@ -395,20 +412,17 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
             console.log(`[EventProcessor] Gol confirmado${isPlaceholder ? ' (timeout, texto ainda pendente)' : ''} (evento ${eventId}, partida ${match.id})`);
             return { handled: true, posted: true };
         }
-
-        return { handled: true, posted: false };
-    }
-
-    if (category === 'GOAL' && !isDisallowedNow && isPlaceholder && shouldPostEvent('GOAL')) {
-        const result = await postStatus(formatGoalPending(event, match));
-        if (result) {
-            markGoalPending(eventId, { matchId: String(match.id), statusId: result.id, firstSeenAt: Date.now() });
-            console.log(`[EventProcessor] Gol aguardando confirmação (evento ${eventId}, partida ${match.id})`);
+        case 'start_pending': {
+            const result = await postStatus(formatGoalPending(event, match));
+            if (result) {
+                markGoalPending(eventId, { matchId: String(match.id), statusId: result.id, firstSeenAt: Date.now() });
+                console.log(`[EventProcessor] Gol aguardando confirmação (evento ${eventId}, partida ${match.id})`);
+            }
+            return { handled: true, posted: !!result };
         }
-        return { handled: true, posted: !!result };
+        default:
+            return { handled: false, posted: false };
     }
-
-    return { handled: false, posted: false };
 }
 
 /**
@@ -416,19 +430,27 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
  * @returns {Promise<{ handled: boolean, posted: boolean }>}
  */
 async function handlePenaltyConfirmationLifecycle(event, eventId, category, match) {
-    if (isEventPosted(eventId)) return { handled: false, posted: false };
-
     const rawType = (event.type || '').toLowerCase();
-    if (category !== 'PENALTY_MISSED' && !looksLikePenaltyMissedType(rawType)) {
-        return { handled: false, posted: false };
-    }
-
+    const applies = category === 'PENALTY_MISSED' || looksLikePenaltyMissedType(rawType);
     const pending = getPendingPenalty(eventId);
     const isPlaceholder = isPlaceholderEventText(event.description);
+    const timedOut = pending
+        ? Date.now() - pending.firstSeenAt > config.delays.goalConfirmationTimeoutMs
+        : false;
 
-    if (pending) {
-        const timedOut = Date.now() - pending.firstSeenAt > config.delays.goalConfirmationTimeoutMs;
-        if (!isPlaceholder || timedOut) {
+    const decision = decideConfirmationStep({
+        alreadyPosted: isEventPosted(eventId),
+        applies,
+        pending,
+        isReady: !isPlaceholder,
+        timedOut,
+        shouldStartPending: category === 'PENALTY_MISSED' && isPlaceholder && shouldPostEvent('PENALTY_MISSED'),
+    });
+
+    switch (decision.action) {
+        case 'wait':
+            return { handled: true, posted: false };
+        case 'confirm': {
             const isFavorite = isFavoriteTeam(event, match);
             const result = await postStatus(
                 formatPenaltyMissed(event, match, { isFavoriteTeam: isFavorite }),
@@ -440,20 +462,17 @@ async function handlePenaltyConfirmationLifecycle(event, eventId, category, matc
             console.log(`[EventProcessor] Pênalti defendido confirmado${isPlaceholder ? ' (timeout, texto ainda pendente)' : ''} (evento ${eventId}, partida ${match.id})`);
             return { handled: true, posted: true };
         }
-
-        return { handled: true, posted: false };
-    }
-
-    if (category === 'PENALTY_MISSED' && isPlaceholder && shouldPostEvent('PENALTY_MISSED')) {
-        const result = await postStatus(formatPenaltyMissedPending(event, match));
-        if (result) {
-            markPenaltyPending(eventId, { matchId: String(match.id), statusId: result.id, firstSeenAt: Date.now() });
-            console.log(`[EventProcessor] Pênalti aguardando confirmação (evento ${eventId}, partida ${match.id})`);
+        case 'start_pending': {
+            const result = await postStatus(formatPenaltyMissedPending(event, match));
+            if (result) {
+                markPenaltyPending(eventId, { matchId: String(match.id), statusId: result.id, firstSeenAt: Date.now() });
+                console.log(`[EventProcessor] Pênalti aguardando confirmação (evento ${eventId}, partida ${match.id})`);
+            }
+            return { handled: true, posted: !!result };
         }
-        return { handled: true, posted: !!result };
+        default:
+            return { handled: false, posted: false };
     }
-
-    return { handled: false, posted: false };
 }
 
 /**
