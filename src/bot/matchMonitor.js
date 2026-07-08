@@ -24,6 +24,7 @@ import { markExistingCommentaryAsSeen, processCommentaryWithEvents } from './com
 import { updateDayPlan, getPlannedLevel, canPost, TIER } from './postPlanner.js';
 import { formatMatchStart, formatDailyDigest, formatMatchPreview, formatMatchOfficials } from './formatter.js';
 import { config } from '../config.js';
+import { botLogger } from '../utils/logger.js';
 
 /**
  * Pure gate for pre-match officials posts (testable without full poll).
@@ -60,16 +61,16 @@ async function finishMatch(matchId, league) {
             details.league = league;
             done = await handleMatchEnd(normalizeMatchData(details));
         } else {
-            console.log(`[MatchMonitor] Detalhes não disponíveis para partida finalizada ${matchId} (pode ter sido removida do ESPN)`);
+            botLogger.warn({ matchId }, 'Detalhes não disponíveis para partida finalizada (pode ter sido removida do ESPN)');
         }
     } catch (err) {
-        console.error(`[MatchMonitor] Erro ao processar fim da partida ${matchId}:`, err.message);
+        botLogger.error({ matchId, error: err.message }, 'Erro ao processar fim da partida');
         done = false;
     }
 
     const attempts = (pendingMatchEnds.get(key)?.attempts ?? 0) + 1;
     if (done || attempts >= MAX_MATCH_END_ATTEMPTS) {
-        if (!done) console.error(`[MatchMonitor] Fim da partida ${matchId} não postado após ${attempts} tentativas; desistindo`);
+        if (!done) botLogger.error({ matchId, attempts }, 'Fim da partida não postado após várias tentativas; desistindo');
         pendingMatchEnds.delete(key);
         clearMatchState(matchId);
     } else {
@@ -84,9 +85,9 @@ export function getLastLeagueMatches() { return _lastLeagueMatches; }
  * Initialize the match monitor
  */
 export async function initialize() {
-    console.log('[MatchMonitor] Inicializando...');
+    botLogger.info('Inicializando');
     const activeLeagues = config.activeLeagues || [];
-    console.log(`[MatchMonitor] Ligas ativas: ${activeLeagues.map(l => l.name).join(', ')}`);
+    botLogger.info({ leagues: activeLeagues.map(l => l.name) }, 'Ligas ativas');
     return true;
 }
 
@@ -96,7 +97,7 @@ export async function initialize() {
  */
 export async function poll() {
     if (!config.activeLeagues || config.activeLeagues.length === 0) {
-        console.warn('[MatchMonitor] Nenhuma liga configurada, pulando poll');
+        botLogger.warn('Nenhuma liga configurada, pulando poll');
         return { nextIntervalMs: config.bot.pollIntervalHibernationMs };
     }
 
@@ -112,7 +113,7 @@ export async function poll() {
             const matches = await getTodayMatches(league.code);
             allLeagueMatches.push({ league, matches });
         } catch (error) {
-            console.error(`[MatchMonitor] Erro ao buscar partidas para ${league.name}:`, error.message);
+            botLogger.error({ league: league.name, error: error.message }, 'Erro ao buscar partidas');
             allLeagueMatches.push({ league, matches: [] });
         }
     }
@@ -142,12 +143,12 @@ export async function poll() {
                     // Only mark the day done once it went out; otherwise the next poll retries
                     if (await postStatus(digestText)) {
                         setLastDigestDate(today);
-                        console.log('[MatchMonitor] Digest diário postado');
+                        botLogger.info('Digest diário postado');
                     } else {
-                        console.error('[MatchMonitor] Digest diário não publicado; nova tentativa no próximo poll');
+                        botLogger.error('Digest diário não publicado; nova tentativa no próximo poll');
                     }
                 } catch (err) {
-                    console.error('[MatchMonitor] Erro ao postar digest diário:', err.message);
+                    botLogger.error({ error: err.message }, 'Erro ao postar digest diário');
                 }
             } else {
                 // No matches today — still mark as seen so we don't retry every poll
@@ -158,7 +159,7 @@ export async function poll() {
 
     for (const { league, matches } of allLeagueMatches) {
         try {
-            console.log(`[MatchMonitor] ${matches.length} partidas encontradas para ${league.name}`);
+            botLogger.info({ league: league.name, matchCount: matches.length }, 'Partidas encontradas');
 
             const newSnapshotMap = matchesToSnapshotMap(matches);
             for (const match of matches) {
@@ -179,10 +180,10 @@ export async function poll() {
                                 const previewText = formatMatchPreview(matchData);
                                 if (await postMatchStatus(matchId, previewText)) {
                                     markEventPosted(previewId);
-                                    console.log(`[MatchMonitor] Preview pré-jogo postado para partida ${matchId}`);
+                                    botLogger.info({ matchId }, 'Preview pré-jogo postado');
                                 }
                             } catch (err) {
-                                console.error(`[MatchMonitor] Erro ao postar preview da partida ${matchId}:`, err.message);
+                                botLogger.error({ matchId, error: err.message }, 'Erro ao postar preview');
                             }
                         }
                     }
@@ -204,12 +205,12 @@ export async function poll() {
                                         const posted = await postMatchStatus(matchId, text);
                                         if (posted) {
                                             markEventPosted(officialsId);
-                                            console.log(`[MatchMonitor] Árbitros postados para partida ${matchId}`);
+                                            botLogger.info({ matchId }, 'Árbitros postados');
                                         }
                                     }
                                 }
                             } catch (err) {
-                                console.error(`[MatchMonitor] Erro ao postar árbitros da partida ${matchId}:`, err.message);
+                                botLogger.error({ matchId, error: err.message }, 'Erro ao postar árbitros');
                             }
                         }
                     }
@@ -226,7 +227,7 @@ export async function poll() {
             for (const action of actions) {
                 if (action.type === 'match_start') {
                     const matchId = String(action.snapshot.id);
-                    console.log(`[MatchMonitor] Partida iniciada: ${matchId} (${league.name})`);
+                    botLogger.info({ matchId, league: league.name }, 'Partida iniciada');
                     const details = await getMatchDetails(action.snapshot.id, league.code);
                     if (details) {
                         details.league = league;
@@ -240,7 +241,7 @@ export async function poll() {
                         }
                     }
                 } else if (action.type === 'match_end') {
-                    console.log(`[MatchMonitor] Partida finalizada: ${action.snapshot.id}`);
+                    botLogger.info({ matchId: action.snapshot.id }, 'Partida finalizada');
                     await finishMatch(action.snapshot.id, league);
                 }
             }
@@ -258,7 +259,7 @@ export async function poll() {
                     if (details) {
                         details.league = league;
                         addActiveMatch(matchId, details);
-                        console.log(`[MatchMonitor] Partida já em andamento adicionada: ${matchId} (${league.name})`);
+                        botLogger.info({ matchId, league: league.name }, 'Partida já em andamento adicionada');
                         const matchStartEventId = getMatchStartEventId(matchId);
                         if (!isEventPosted(matchStartEventId) && config.events.matchStart) {
                             const matchData = normalizeMatchData(details);
@@ -282,7 +283,7 @@ export async function poll() {
                 await pollMatchEvents(matchId, league);
             }
         } catch (error) {
-            console.error(`[MatchMonitor] Erro no poll da liga ${league.name}:`, error.message);
+            botLogger.error({ league: league.name, error: error.message }, 'Erro no poll da liga');
         }
     }
 
@@ -312,7 +313,12 @@ export async function poll() {
             intervalReason = ' (timeslot antes da partida)';
         }
     }
-    console.log(`[MatchMonitor] Stats: ${stats.activeMatchCount} partidas ativas, ${stats.postedEventCount} eventos postados (próximo poll em ${nextIntervalMs / 1000}s${intervalReason})`);
+    botLogger.info({
+        activeMatchCount: stats.activeMatchCount,
+        postedEventCount: stats.postedEventCount,
+        nextIntervalSec: nextIntervalMs / 1000,
+        intervalReason: intervalReason || undefined,
+    }, 'Stats do poll');
 
     return { nextIntervalMs };
 }
@@ -363,7 +369,7 @@ async function pollMatchEvents(matchId, league) {
     ]);
 
     if (!details) {
-        console.warn(`[MatchMonitor] Não foi possível obter detalhes da partida ${matchId}`);
+        botLogger.warn({ matchId }, 'Não foi possível obter detalhes da partida');
         return;
     }
 
@@ -373,19 +379,19 @@ async function pollMatchEvents(matchId, league) {
     if (commentary) {
         const counts = await processCommentaryWithEvents(commentary, events, matchData);
         if (counts.events + counts.commentary > 0) {
-            console.log(`[MatchMonitor] ${counts.events} eventos e ${counts.commentary} comentários postados para partida ${matchId}`);
+            botLogger.info({ matchId, events: counts.events, commentary: counts.commentary }, 'Eventos e comentários postados');
         }
     } else if (events.length > 0) {
         const postedCount = await processEvents(events, matchData);
         if (postedCount > 0) {
-            console.log(`[MatchMonitor] ${postedCount} eventos postados para partida ${matchId}`);
+            botLogger.info({ matchId, postedCount }, 'Eventos postados');
         }
     }
 
     if (plays && plays.length > 0) {
         const enhancedCount = await processEnhancedPlays(plays, matchData);
         if (enhancedCount > 0) {
-            console.log(`[MatchMonitor] ${enhancedCount} plays aprimorados postados para partida ${matchId}`);
+            botLogger.info({ matchId, plays: enhancedCount }, 'Plays aprimorados postados');
         }
     }
 }
@@ -433,14 +439,14 @@ function normalizeMatchData(apiMatch) {
  * Start the continuous monitoring loop with elastic polling (setTimeout rescheduled after each poll).
  */
 export async function startMonitoring() {
-    console.log('[MatchMonitor] Iniciando monitoramento (polling elástico)');
+    botLogger.info('Iniciando monitoramento (polling elástico)');
 
     function scheduleNext() {
         poll().then((result) => {
             const ms = result?.nextIntervalMs ?? config.bot.pollIntervalLiveMs;
             setTimeout(scheduleNext, ms);
         }).catch((err) => {
-            console.error('[MatchMonitor] Erro no poll:', err.message);
+            botLogger.error({ error: err.message }, 'Erro no poll');
             setTimeout(scheduleNext, config.bot.pollIntervalAlertMs);
         });
     }
@@ -450,7 +456,7 @@ export async function startMonitoring() {
         const result = await poll();
         firstDelay = result?.nextIntervalMs ?? config.bot.pollIntervalLiveMs;
     } catch (err) {
-        console.error('[MatchMonitor] Erro no poll:', err.message);
+        botLogger.error({ error: err.message }, 'Erro no poll');
         firstDelay = config.bot.pollIntervalLiveMs;
     }
     setTimeout(scheduleNext, firstDelay);

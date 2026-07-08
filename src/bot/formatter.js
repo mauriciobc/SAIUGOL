@@ -53,7 +53,7 @@ export function formatGoal(event, match, options = {}) {
     let text = '';
     if (options.isFavoriteTeam) {
         const { favoriteTeamEmoji: emoji, favoriteTeamNickname: nickname } = config.bot;
-        text += `${emoji} Gol do ${nickname}!\n\n`;
+        text += `${translate('ui.favorite_goal_alert', { emoji, nickname })}\n\n`;
     }
     if (isOwnGoal) {
         text += translate('ui.own_goal_announcement');
@@ -143,7 +143,7 @@ export function formatPenaltyMissed(event, match, options = {}) {
     let text = '';
     if (options.isFavoriteTeam) {
         const { favoriteTeamEmoji: emoji, favoriteTeamNickname: nickname } = config.bot;
-        text += `${emoji} Pênalti perdido - ${nickname}!\n\n`;
+        text += `${translate('ui.favorite_penalty_missed_alert', { emoji, nickname })}\n\n`;
     }
     text += `${translate('ui.penalty_missed_announcement')}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
@@ -203,7 +203,7 @@ export function formatCard(event, match, options = {}) {
     let text = '';
     if (isRed && options.isFavoriteTeam) {
         const { favoriteTeamEmoji: emoji, favoriteTeamNickname: nickname } = config.bot;
-        text += `${emoji} Cartão vermelho - ${nickname}!\n\n`;
+        text += `${translate('ui.favorite_red_card_alert', { emoji, nickname })}\n\n`;
     }
     text += `${cardType}\n\n`;
     text += `🏟️ ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}\n`;
@@ -564,8 +564,8 @@ export function formatMatchStats(match) {
     lines.push(statLine('🎯', translate('ui.shots_on_target'), h?.shotsOnTarget, a?.shotsOnTarget));
     lines.push(statLine('🚩', translate('ui.corners'), h?.wonCorners, a?.wonCorners));
     lines.push(statLine('🧤', translate('ui.saves'), h?.saves, a?.saves));
-    lines.push(statLine('🟨', 'Amarelos', h?.yellowCards, a?.yellowCards, { lowerIsBetter: true }));
-    lines.push(statLine('🟥', 'Vermelhos', h?.redCards, a?.redCards, { lowerIsBetter: true }));
+    lines.push(statLine('🟨', translate('ui.yellow_cards'), h?.yellowCards, a?.yellowCards, { lowerIsBetter: true }));
+    lines.push(statLine('🟥', translate('ui.red_cards'), h?.redCards, a?.redCards, { lowerIsBetter: true }));
 
     const validLines = lines.filter(Boolean);
     if (validLines.length === 0) return null;
