@@ -438,6 +438,21 @@ export function mergePreviousSnapshots(entries) {
 }
 
 /**
+ * Get all previous snapshot composite keys for a specific league.
+ * Used by the diff engine to detect orphaned live matches.
+ * @param {string} leagueCode - League code (e.g. 'bra.1')
+ * @returns {string[]} Array of composite keys (e.g. ['bra.1:m1', 'bra.1:m2'])
+ */
+export function getPreviousKeysForLeague(leagueCode) {
+    const prefix = `${leagueCode}:`;
+    const keys = [];
+    for (const key of previousSnapshots.keys()) {
+        if (key.startsWith(prefix)) keys.push(key);
+    }
+    return keys;
+}
+
+/**
  * Get all previous snapshots (for persistence).
  * @returns {Map<string, import('./snapshotContract.js').MatchSnapshot>}
  */

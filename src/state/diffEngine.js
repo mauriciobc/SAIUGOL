@@ -29,13 +29,16 @@ function scoreEqual(a, b) {
 /**
  * Compute diff between new snapshots and previous cache for one league.
  * Returns actions only when there is a change (status or score).
+ * Also detects orphaned live matches — previously live matches that ESPN
+ * no longer returns (e.g. tournament ended, match dropped from scoreboard).
  *
  * @param {string} leagueCode - League code (e.g. 'bra.1')
  * @param {Map<string, import('./snapshotContract.js').MatchSnapshot>} newSnapshotMap - New snapshots keyed by match id
  * @param {(key: string) => import('./snapshotContract.js').MatchSnapshot|undefined} getPreviousSnapshot - Get previous snapshot by composite key
+ * @param {() => string[]} [getAllPreviousKeysForLeague] - Returns all previous composite keys for this league (used for orphan detection)
  * @returns {{ actions: DiffAction[], snapshotEntries: Array<[string, import('./snapshotContract.js').MatchSnapshot]> }}
  */
-export function computeDiff(leagueCode, newSnapshotMap, getPreviousSnapshot) {
+export function computeDiff(leagueCode, newSnapshotMap, getPreviousSnapshot, getAllPreviousKeysForLeague) {
     /** @type {DiffAction[]} */
     const actions = [];
     /** @type {Array<[string, import('./snapshotContract.js').MatchSnapshot]>} */
@@ -54,8 +57,26 @@ export function computeDiff(leagueCode, newSnapshotMap, getPreviousSnapshot) {
             actions.push({ type: 'match_start', snapshot: newSnap, leagueCode });
         } else if (oldStatus === 'in' && newStatus === 'post') {
             actions.push({ type: 'match_end', snapshot: newSnap, leagueCode });
+        } else if (oldStatus === 'pre' && newStatus === 'post') {
+            // Match was scheduled but is now finished (e.g. played while bot was offline)
+            actions.push({ type: 'match_end', snapshot: newSnap, leagueCode });
         } else if (newStatus === 'in' && scoreChanged) {
             actions.push({ type: 'score_changed', snapshot: newSnap, leagueCode });
+        }
+    }
+
+    // Orphan detection: find previously live matches that ESPN no longer returns.
+    // These need a synthetic match_end so their state is cleaned up.
+    if (getAllPreviousKeysForLeague) {
+        const previousKeys = getAllPreviousKeysForLeague();
+        for (const compositeKey of previousKeys) {
+            if (snapshotEntries.some(([k]) => k === compositeKey)) continue;
+            const oldSnap = getPreviousSnapshot(compositeKey);
+            if (oldSnap?.status === 'in') {
+                const endedSnap = { ...oldSnap, status: 'post' };
+                actions.push({ type: 'match_end', snapshot: endedSnap, leagueCode });
+                snapshotEntries.push([compositeKey, endedSnap]);
+            }
         }
     }
 

@@ -7,6 +7,7 @@ import {
     clearMatchState,
     getStateStats,
     getPreviousSnapshot,
+    getPreviousKeysForLeague,
     mergePreviousSnapshots,
     isEventPosted,
     markEventPosted,
@@ -118,7 +119,8 @@ export async function poll() {
             const { actions, snapshotEntries } = computeDiff(
                 league.code,
                 newSnapshotMap,
-                (key) => getPreviousSnapshot(key)
+                (key) => getPreviousSnapshot(key),
+                () => getPreviousKeysForLeague(league.code)
             );
             allSnapshotEntries.push(...snapshotEntries);
 
@@ -144,7 +146,11 @@ export async function poll() {
                         if (details) {
                             details.league = league;
                             await handleMatchEnd(normalizeMatchData(details));
+                        } else {
+                            console.log(`[MatchMonitor] Detalhes não disponíveis para partida finalizada ${action.snapshot.id} (pode ter sido removida do ESPN)`);
                         }
+                    } catch (err) {
+                        console.error(`[MatchMonitor] Erro ao processar fim da partida ${action.snapshot.id}:`, err.message);
                     } finally {
                         clearMatchState(action.snapshot.id);
                     }

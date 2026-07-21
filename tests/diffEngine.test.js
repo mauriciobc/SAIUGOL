@@ -102,5 +102,99 @@ describe('diffEngine', () => {
             assert.strictEqual(actions.length, 1);
             assert.strictEqual(actions[0].type, 'score_changed');
         });
+
+        it('deve emitir match_end quando status muda de pre para post (partida jogada offline)', () => {
+            const newMap = new Map([['m1', snapshot('m1', { home: 2, away: 1 }, 'post', 'FT')]]);
+            const getPrevious = (key) => {
+                if (key === 'bra.1:m1') return snapshot('m1', { home: 0, away: 0 }, 'pre', '-');
+                return undefined;
+            };
+
+            const { actions } = computeDiff(leagueCode, newMap, getPrevious);
+
+            assert.strictEqual(actions.length, 1);
+            assert.strictEqual(actions[0].type, 'match_end');
+            assert.strictEqual(actions[0].snapshot.status, 'post');
+        });
+
+        it('deve emitir match_end para partida in que sumiu do ESPN (orphan)', () => {
+            const newMap = new Map(); // ESPN returns 0 matches
+            const getPrevious = (key) => {
+                if (key === 'bra.1:m1') return snapshot('m1', { home: 1, away: 0 }, 'in', "66'");
+                return undefined;
+            };
+            const getAllPreviousKeys = () => ['bra.1:m1'];
+
+            const { actions, snapshotEntries } = computeDiff(leagueCode, newMap, getPrevious, getAllPreviousKeys);
+
+            assert.strictEqual(actions.length, 1);
+            assert.strictEqual(actions[0].type, 'match_end');
+            assert.strictEqual(actions[0].snapshot.status, 'post');
+            // The orphaned match's snapshot should be updated to 'post' in snapshotEntries
+            assert.strictEqual(snapshotEntries.length, 1);
+            assert.strictEqual(snapshotEntries[0][0], 'bra.1:m1');
+            assert.strictEqual(snapshotEntries[0][1].status, 'post');
+        });
+
+        it('deve emitir match_end para múltiplas partidas in que sumiram do ESPN', () => {
+            const newMap = new Map();
+            const getPrevious = (key) => {
+                if (key === 'bra.1:m1') return snapshot('m1', { home: 1, away: 0 }, 'in', "45'");
+                if (key === 'bra.1:m2') return snapshot('m2', { home: 0, away: 0 }, 'in', "45'");
+                if (key === 'bra.1:m3') return snapshot('m3', { home: 2, away: 1 }, 'post', 'FT');
+                return undefined;
+            };
+            const getAllPreviousKeys = () => ['bra.1:m1', 'bra.1:m2', 'bra.1:m3'];
+
+            const { actions, snapshotEntries } = computeDiff(leagueCode, newMap, getPrevious, getAllPreviousKeys);
+
+            // Only m1 and m2 are 'in' and orphaned; m3 is 'post' (not orphaned)
+            assert.strictEqual(actions.length, 2);
+            assert.strictEqual(actions[0].type, 'match_end');
+            assert.strictEqual(actions[1].type, 'match_end');
+            assert.strictEqual(snapshotEntries.length, 2);
+        });
+
+        it('não deve emitir match_end para partida pre que sumiu do ESPN', () => {
+            const newMap = new Map();
+            const getPrevious = (key) => {
+                if (key === 'bra.1:m1') return snapshot('m1', { home: 0, away: 0 }, 'pre', '-');
+                return undefined;
+            };
+            const getAllPreviousKeys = () => ['bra.1:m1'];
+
+            const { actions, snapshotEntries } = computeDiff(leagueCode, newMap, getPrevious, getAllPreviousKeys);
+
+            // pre matches that disappear should not trigger match_end
+            assert.strictEqual(actions.length, 0);
+            assert.strictEqual(snapshotEntries.length, 0);
+        });
+
+        it('não deve emitir match_end para partida in que continua no ESPN', () => {
+            const newMap = new Map([['m1', snapshot('m1', { home: 1, away: 0 }, 'in', "50'")]]);
+            const getPrevious = (key) => {
+                if (key === 'bra.1:m1') return snapshot('m1', { home: 1, away: 0 }, 'in', "45'");
+                return undefined;
+            };
+            const getAllPreviousKeys = () => ['bra.1:m1'];
+
+            const { actions } = computeDiff(leagueCode, newMap, getPrevious, getAllPreviousKeys);
+
+            // m1 is still in newMap, so it's not orphaned
+            assert.strictEqual(actions.length, 0);
+        });
+
+        it('não deve fazer orphan detection quando getAllPreviousKeysForLeague não é fornecido', () => {
+            const newMap = new Map();
+            const getPrevious = (key) => {
+                if (key === 'bra.1:m1') return snapshot('m1', { home: 1, away: 0 }, 'in', "45'");
+                return undefined;
+            };
+
+            const { actions } = computeDiff(leagueCode, newMap, getPrevious);
+
+            // Without getAllPreviousKeysForLeague, no orphan detection
+            assert.strictEqual(actions.length, 0);
+        });
     });
 });
