@@ -47,6 +47,11 @@ import {
     formatMatchDelayEnd,
 } from './formatter.js';
 
+/** True when DEBUG_EVENTS=true (full per-event JSON dumps). */
+export function isEventDebugEnabled(env = process.env) {
+    return env?.DEBUG_EVENTS === 'true';
+}
+
 /**
  * ESPN keyEvents[].type.id → category. Numeric ids are stable across languages, unlike
  * type.text substrings (e.g. "Halftime Extra Time" contains "halftime", "Start 2nd Half Extra
@@ -346,15 +351,16 @@ async function handleMatchDelayStartLifecycle(event, eventId, category, match) {
         if (!result) return { handled: true, posted: false };
         markEventPosted(eventId);
         resolvePendingDelayStart(eventId);
-        console.log(
-            `[EventProcessor] Atraso postado${hasDesc ? '' : ' (timeout, sem descrição ESPN)'} (evento ${eventId}, partida ${match.id})`
+        eventProcessorLogger.info(
+            { eventId, matchId: match.id, timedOut: !hasDesc },
+            'Atraso postado'
         );
         return { handled: true, posted: true };
     }
 
     if (!hasDesc) {
         markDelayStartPending(eventId, { matchId: String(match.id), firstSeenAt: Date.now() });
-        console.log(`[EventProcessor] Atraso aguardando descrição ESPN (evento ${eventId}, partida ${match.id})`);
+        eventProcessorLogger.info({ eventId, matchId: match.id }, 'Atraso aguardando descrição ESPN');
         return { handled: true, posted: false };
     }
 
@@ -381,7 +387,7 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
             if (!result) return { handled: true, posted: false };
             markEventPosted(eventId);
             resolvePendingGoal(eventId);
-            console.log(`[EventProcessor] Gol anulado (evento ${eventId}, partida ${match.id})`);
+            eventProcessorLogger.info({ eventId, matchId: match.id }, 'Gol anulado');
             return { handled: true, posted: true };
         }
 
@@ -392,7 +398,10 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
             if (!result) return { handled: true, posted: false };
             markEventPosted(eventId);
             resolvePendingGoal(eventId);
-            console.log(`[EventProcessor] Gol confirmado${isPlaceholder ? ' (timeout, texto ainda pendente)' : ''} (evento ${eventId}, partida ${match.id})`);
+            eventProcessorLogger.info(
+                { eventId, matchId: match.id, timedOut: isPlaceholder },
+                'Gol confirmado'
+            );
             return { handled: true, posted: true };
         }
 
@@ -403,7 +412,7 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
         const result = await postStatus(formatGoalPending(event, match));
         if (result) {
             markGoalPending(eventId, { matchId: String(match.id), statusId: result.id, firstSeenAt: Date.now() });
-            console.log(`[EventProcessor] Gol aguardando confirmação (evento ${eventId}, partida ${match.id})`);
+            eventProcessorLogger.info({ eventId, matchId: match.id }, 'Gol aguardando confirmação');
         }
         return { handled: true, posted: !!result };
     }
@@ -437,7 +446,10 @@ async function handlePenaltyConfirmationLifecycle(event, eventId, category, matc
             if (!result) return { handled: true, posted: false };
             markEventPosted(eventId);
             resolvePendingPenalty(eventId);
-            console.log(`[EventProcessor] Pênalti defendido confirmado${isPlaceholder ? ' (timeout, texto ainda pendente)' : ''} (evento ${eventId}, partida ${match.id})`);
+            eventProcessorLogger.info(
+                { eventId, matchId: match.id, timedOut: isPlaceholder },
+                'Pênalti defendido confirmado'
+            );
             return { handled: true, posted: true };
         }
 
@@ -448,7 +460,7 @@ async function handlePenaltyConfirmationLifecycle(event, eventId, category, matc
         const result = await postStatus(formatPenaltyMissedPending(event, match));
         if (result) {
             markPenaltyPending(eventId, { matchId: String(match.id), statusId: result.id, firstSeenAt: Date.now() });
-            console.log(`[EventProcessor] Pênalti aguardando confirmação (evento ${eventId}, partida ${match.id})`);
+            eventProcessorLogger.info({ eventId, matchId: match.id }, 'Pênalti aguardando confirmação');
         }
         return { handled: true, posted: !!result };
     }
@@ -474,18 +486,20 @@ export async function processEvents(events, match) {
         match.id
     );
 
-    for (let i = 0; i < withIds.length; i++) {
-        const { event, eventId, category } = withIds[i];
-        const posted = isEventPosted(eventId);
-        console.log(
-            `[EventProcessor] Partida ${match.id} evento ${i + 1}/${events.length}:`,
-            JSON.stringify({
+    if (isEventDebugEnabled()) {
+        for (let i = 0; i < withIds.length; i++) {
+            const { event, eventId, category } = withIds[i];
+            const posted = isEventPosted(eventId);
+            eventProcessorLogger.debug({
+                matchId: match.id,
+                index: i + 1,
+                total: events.length,
                 eventId,
                 category: category ?? '(sem categoria)',
                 alreadyPosted: posted,
                 content: event,
-            }, null, 2)
-        );
+            }, 'Evento recebido');
+        }
     }
 
     const handledEventIds = new Set();
@@ -543,10 +557,14 @@ export async function processEvents(events, match) {
             );
             const categoryDisabledCount = disabledItems.length;
             const disabledCategories = [...new Set(disabledItems.map(({ category }) => category))].join(', ');
-            console.log(
-                `[EventProcessor] Partida ${match.id}: ${events.length} eventos recebidos, 0 novos para postar ` +
-                `(já postados: ${alreadyPosted}, sem categoria: ${noCategory}, categoria desativada: ${categoryDisabledCount}${disabledCategories ? ` [${disabledCategories}]` : ''})`
-            );
+            eventProcessorLogger.info({
+                matchId: match.id,
+                received: events.length,
+                alreadyPosted,
+                noCategory,
+                categoryDisabledCount,
+                disabledCategories: disabledCategories || undefined,
+            }, 'Nenhum evento novo para postar');
         }
         return postedCount;
     }
@@ -579,7 +597,7 @@ export async function processEvents(events, match) {
             if (result) {
                 markEventPosted(eventId);
                 postedCount++;
-                console.log(`[EventProcessor] Postado evento ${category} para partida ${match.id}`);
+                eventProcessorLogger.info({ category, matchId: match.id, eventId }, 'Evento postado');
             }
             await new Promise((resolve) => setTimeout(resolve, config.delays.betweenPosts));
         }
@@ -653,7 +671,7 @@ export async function handleMatchEnd(match) {
     await postStatus(endText);
     markEventPosted(matchEndId);
 
-    console.log(`[EventProcessor] Partida ${match.id} finalizada`);
+    eventProcessorLogger.info({ matchId: match.id }, 'Partida finalizada');
 
     await new Promise((resolve) => setTimeout(resolve, config.delays.beforeHighlights));
 
@@ -667,7 +685,7 @@ export async function handleMatchEnd(match) {
             let mediaIds = [];
 
             if (firstHighlight.url) {
-                console.log(`[EventProcessor] Baixando vídeo do highlight: ${firstHighlight.url}`);
+                eventProcessorLogger.info({ matchId: match.id, url: firstHighlight.url }, 'Baixando vídeo do highlight');
                 const mediaId = await uploadMediaFromUrl(firstHighlight.url, {
                     type: 'video',
                     description: firstHighlight.title || 'Highlight'
@@ -676,7 +694,7 @@ export async function handleMatchEnd(match) {
                 if (mediaId) {
                     mediaIds.push(mediaId);
                 } else if (firstHighlight.thumbnail) {
-                    console.log(`[EventProcessor] Fallback para thumbnail: ${firstHighlight.thumbnail}`);
+                    eventProcessorLogger.info({ matchId: match.id, thumbnail: firstHighlight.thumbnail }, 'Fallback para thumbnail');
                     const thumbId = await uploadMediaFromUrl(firstHighlight.thumbnail, {
                         type: 'image',
                         description: firstHighlight.title || 'Thumbnail'
@@ -688,7 +706,7 @@ export async function handleMatchEnd(match) {
             const postOptions = mediaIds.length > 0 ? { mediaIds } : {};
             await postStatus(highlightsText, postOptions);
             markEventPosted(highlightsId);
-            console.log(`[EventProcessor] Highlights postados para partida ${match.id}`);
+            eventProcessorLogger.info({ matchId: match.id }, 'Highlights postados');
         }
     }
 
@@ -699,7 +717,7 @@ export async function handleMatchEnd(match) {
             if (statsText) {
                 await postStatus(statsText);
                 markEventPosted(statsId);
-                console.log(`[EventProcessor] Estatísticas postadas para partida ${match.id}`);
+                eventProcessorLogger.info({ matchId: match.id }, 'Estatísticas postadas');
             }
         }
     }

@@ -4,9 +4,9 @@
 
 import { loadState, saveState as persistState } from './persistence.js';
 import { config } from '../config.js';
+import { createChild } from '../utils/logger.js';
 
-// Cached league ID
-let cachedLeagueId = null;
+const stateLogger = createChild({ component: 'state' });
 
 // Active matches being monitored: Map<matchId, matchData>
 const activeMatches = new Map();
@@ -52,7 +52,7 @@ let initialized = false;
  */
 async function initializeState() {
     if (initialized) {
-        console.log('[State] Já inicializado, ignorando');
+        stateLogger.info('Já inicializado, ignorando');
         return;
     }
     initialized = true;
@@ -61,17 +61,17 @@ async function initializeState() {
     if (state.postedEventIds && state.postedEventIds.size > 0) {
         // Restore posted events
         state.postedEventIds.forEach(id => postedEventIds.add(id));
-        console.log(`[State] ${postedEventIds.size} eventos restaurados do estado persistido`);
+        stateLogger.info({ count: postedEventIds.size }, 'Eventos restaurados do estado persistido');
     }
     if (state.matchSnapshots && typeof state.matchSnapshots === 'object') {
         for (const [key, snap] of Object.entries(state.matchSnapshots)) {
             if (snap && snap.id != null) previousSnapshots.set(key, snap);
         }
-        console.log(`[State] ${previousSnapshots.size} snapshots restaurados`);
+        stateLogger.info({ count: previousSnapshots.size }, 'Snapshots restaurados');
     }
     if (state.activeMatchKeys && state.activeMatchKeys.length > 0) {
         state.activeMatchKeys.forEach((k) => recoveredActiveKeys.add(k));
-        console.log(`[State] ${recoveredActiveKeys.size} chaves de partidas ativas restauradas`);
+        stateLogger.info({ count: recoveredActiveKeys.size }, 'Chaves de partidas ativas restauradas');
     }
     if (state.lastDigestDate) {
         lastDigestDate = state.lastDigestDate;
@@ -83,13 +83,13 @@ async function initializeState() {
         for (const [eventId, data] of Object.entries(state.pendingGoals)) {
             if (data) pendingGoals.set(eventId, data);
         }
-        console.log(`[State] ${pendingGoals.size} gols pendentes restaurados`);
+        stateLogger.info({ count: pendingGoals.size }, 'Gols pendentes restaurados');
     }
     if (state.pendingPenalties && typeof state.pendingPenalties === 'object') {
         for (const [eventId, data] of Object.entries(state.pendingPenalties)) {
             if (data) pendingPenalties.set(eventId, data);
         }
-        console.log(`[State] ${pendingPenalties.size} pênaltis pendentes restaurados`);
+        stateLogger.info({ count: pendingPenalties.size }, 'Pênaltis pendentes restaurados');
     }
 
     // Start periodic save timer (skip in test to avoid keeping process alive)
@@ -109,7 +109,7 @@ function startPeriodicSave() {
         await saveStateNow();
     }, interval);
 
-    console.log(`[State] Auto-save iniciado (intervalo: ${interval}ms)`);
+    stateLogger.info({ intervalMs: interval }, 'Auto-save iniciado');
 }
 
 /**
@@ -136,7 +136,7 @@ export function stopPeriodicSave() {
     if (saveTimer) {
         clearInterval(saveTimer);
         saveTimer = null;
-        console.log('[State] Auto-save parado');
+        stateLogger.info('Auto-save parado');
     }
 }
 
@@ -145,7 +145,7 @@ let initPromise = null;
 
 // Start loading on module load; callers must await whenReady() before first poll
 initPromise = initializeState().catch((error) => {
-    console.error('[State] Erro na inicialização:', error.message);
+    stateLogger.error({ error: error.message }, 'Erro na inicialização');
     throw error;
 });
 
@@ -182,18 +182,6 @@ export function resetStateForTesting() {
     stopPeriodicSave();
 }
 
-/**
- * Get or set the cached league ID
- * @param {number|null} id - League ID to cache (optional)
- * @returns {number|null} Cached league ID
- */
-export function getLeagueId(id = undefined) {
-    if (id !== undefined) {
-        cachedLeagueId = id;
-    }
-    return cachedLeagueId;
-}
-
 /** Normalize match id so Map lookups work whether callers pass string or number. */
 function mid(matchId) {
     if (matchId == null) {
@@ -219,7 +207,7 @@ export function isMatchActive(matchId) {
 export function addActiveMatch(matchId, matchData) {
     const key = mid(matchId);
     activeMatches.set(key, matchData);
-    console.log(`[State] Partida ${key} adicionada ao monitoramento`);
+    stateLogger.info({ matchId: key }, 'Partida adicionada ao monitoramento');
 }
 
 /**
@@ -228,7 +216,7 @@ export function addActiveMatch(matchId, matchData) {
  */
 export function removeActiveMatch(matchId) {
     activeMatches.delete(mid(matchId));
-    console.log(`[State] Partida ${matchId} removida do monitoramento`);
+    stateLogger.info({ matchId: mid(matchId) }, 'Partida removida do monitoramento');
 }
 
 /**
@@ -391,7 +379,10 @@ function cleanupMatchEvents(matchId) {
     }
 
     if (cleanedCount > 0 || cleanedPendingCount > 0) {
-        console.log(`[State] Removidos ${cleanedCount} eventos antigos e ${cleanedPendingCount} confirmações pendentes da partida ${matchId}`);
+        stateLogger.info(
+            { matchId: mid(matchId), cleanedCount, cleanedPendingCount },
+            'Eventos antigos e confirmações pendentes removidos'
+        );
     }
 }
 
@@ -466,7 +457,6 @@ export function getPreviousSnapshotsMap() {
  */
 export function getStateStats() {
     return {
-        leagueId: cachedLeagueId,
         activeMatchCount: activeMatches.size,
         postedEventCount: postedEventIds.size,
         snapshotCount: previousSnapshots.size,
@@ -478,8 +468,8 @@ export function getStateStats() {
  * @returns {Promise<void>}
  */
 export async function shutdown() {
-    console.log('[State] Encerrando e salvando estado...');
+    stateLogger.info('Encerrando e salvando estado...');
     stopPeriodicSave();
     await saveStateNow();
-    console.log('[State] Estado salvo com sucesso');
+    stateLogger.info('Estado salvo com sucesso');
 }

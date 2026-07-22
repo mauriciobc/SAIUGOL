@@ -4,7 +4,6 @@ import { config } from '../config.js';
 import { retryWithBackoff, isRetryableError } from '../utils/retry.js';
 import { mastodonLogger } from '../utils/logger.js';
 import { recordMastodonPost } from '../utils/metrics.js';
-import { Readable } from 'stream';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
