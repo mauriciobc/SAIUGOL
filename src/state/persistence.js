@@ -44,14 +44,15 @@ export async function loadState() {
             lastNotificationId: state.lastNotificationId || null,
             pendingGoals: state.pendingGoals && typeof state.pendingGoals === 'object' ? state.pendingGoals : {},
             pendingPenalties: state.pendingPenalties && typeof state.pendingPenalties === 'object' ? state.pendingPenalties : {},
+            pendingDelayStarts: state.pendingDelayStarts && typeof state.pendingDelayStarts === 'object' ? state.pendingDelayStarts : {},
         };
     } catch (error) {
         if (error.code === 'ENOENT') {
             console.log('[Persistence] Nenhum estado anterior encontrado, iniciando novo');
-            return { postedEventIds: new Set(), matchSnapshots: {}, activeMatchKeys: [], lastDigestDate: null, lastNotificationId: null, pendingGoals: {}, pendingPenalties: {} };
+            return { postedEventIds: new Set(), matchSnapshots: {}, activeMatchKeys: [], lastDigestDate: null, lastNotificationId: null, pendingGoals: {}, pendingPenalties: {}, pendingDelayStarts: {} };
         }
         console.error('[Persistence] Erro ao carregar estado:', error.message);
-        return { postedEventIds: new Set(), matchSnapshots: {}, activeMatchKeys: [], lastDigestDate: null, lastNotificationId: null, pendingGoals: {}, pendingPenalties: {} };
+        return { postedEventIds: new Set(), matchSnapshots: {}, activeMatchKeys: [], lastDigestDate: null, lastNotificationId: null, pendingGoals: {}, pendingPenalties: {}, pendingDelayStarts: {} };
     }
 }
 
@@ -64,9 +65,10 @@ export async function loadState() {
  * @param {string} [lastNotificationId]
  * @param {Map<string, Object>} [pendingGoals] - Goals awaiting ESPN confirmation (key: eventId)
  * @param {Map<string, Object>} [pendingPenalties] - Penalties awaiting ESPN confirmation (key: eventId)
+ * @param {Map<string, Object>} [pendingDelayStarts] - Delay starts awaiting ESPN description (key: eventId)
  * @returns {Promise<boolean>} Success status
  */
-export async function saveState(postedEventIds, matchSnapshots = null, activeMatchKeys = null, lastDigestDate = null, lastNotificationId = null, pendingGoals = null, pendingPenalties = null) {
+export async function saveState(postedEventIds, matchSnapshots = null, activeMatchKeys = null, lastDigestDate = null, lastNotificationId = null, pendingGoals = null, pendingPenalties = null, pendingDelayStarts = null) {
     try {
         await ensureStateDir();
         const snapshotObj = matchSnapshots instanceof Map
@@ -78,16 +80,20 @@ export async function saveState(postedEventIds, matchSnapshots = null, activeMat
         const pendingPenaltiesObj = pendingPenalties instanceof Map
             ? Object.fromEntries(pendingPenalties)
             : (pendingPenalties && typeof pendingPenalties === 'object' ? pendingPenalties : {});
+        const pendingDelayStartsObj = pendingDelayStarts instanceof Map
+            ? Object.fromEntries(pendingDelayStarts)
+            : (pendingDelayStarts && typeof pendingDelayStarts === 'object' ? pendingDelayStarts : {});
         const state = {
             postedEventIds: Array.from(postedEventIds),
             lastSaveTime: new Date().toISOString(),
-            version: '1.1',
+            version: '1.2',
             matchSnapshots: snapshotObj,
             activeMatchKeys: Array.isArray(activeMatchKeys) ? activeMatchKeys : [],
             lastDigestDate: lastDigestDate || null,
             lastNotificationId: lastNotificationId || null,
             pendingGoals: pendingGoalsObj,
             pendingPenalties: pendingPenaltiesObj,
+            pendingDelayStarts: pendingDelayStartsObj,
         };
 
         // Write to temp file first, then rename for atomic write
