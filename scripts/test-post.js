@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import { config } from './config.js';
-import { postStatus, verifyCredentials, uploadMediaFromUrl } from './api/mastodon.js';
+import { config } from '../src/config.js';
+import { postStatus, verifyCredentials, uploadMediaFromUrl } from '../src/api/mastodon.js';
 
 /**
  * Test script to verify Mastodon posting works with video URL (downloading via curl and uploading natively)

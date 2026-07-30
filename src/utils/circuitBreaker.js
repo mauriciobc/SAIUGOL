@@ -127,6 +127,7 @@ export function resetAllBreakers() {
     for (const breaker of breakers.values()) {
         breaker.reset();
     }
+    breakers.clear();
     circuitLogger.info('All circuit breakers reset');
 }
 

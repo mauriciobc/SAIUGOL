@@ -20,6 +20,11 @@ import { computeDiff } from '../state/diffEngine.js';
 import { processEvents, handleMatchEnd, markExistingEventsAsSeen, getMatchStartEventId } from './eventProcessor.js';
 import { formatMatchStart, formatDailyDigest, formatMatchPreview } from './formatter.js';
 import { config } from '../config.js';
+import {
+    recordMatchProcessed,
+    recordBotError,
+    logMetrics,
+} from '../utils/metrics.js';
 
 /** Last successfully fetched league match list, updated every poll. */
 let _lastLeagueMatches = [];
@@ -59,6 +64,7 @@ export async function poll() {
             const matches = await getTodayMatches(league.code);
             allLeagueMatches.push({ league, matches });
         } catch (error) {
+            recordBotError();
             console.error(`[MatchMonitor] Erro ao buscar partidas para ${league.name}:`, error.message);
             allLeagueMatches.push({ league, matches: [] });
         }
@@ -77,6 +83,7 @@ export async function poll() {
                     setLastDigestDate(today);
                     console.log('[MatchMonitor] Digest diário postado');
                 } catch (err) {
+                    recordBotError();
                     console.error('[MatchMonitor] Erro ao postar digest diário:', err.message);
                 }
             } else {
@@ -110,6 +117,7 @@ export async function poll() {
                                 markEventPosted(previewId);
                                 console.log(`[MatchMonitor] Preview pré-jogo postado para partida ${matchId}`);
                             } catch (err) {
+                                recordBotError();
                                 console.error(`[MatchMonitor] Erro ao postar preview da partida ${matchId}:`, err.message);
                             }
                         }
@@ -186,6 +194,7 @@ export async function poll() {
                 await pollMatchEvents(matchId, league);
             }
         } catch (error) {
+            recordBotError();
             console.error(`[MatchMonitor] Erro no poll da liga ${league.name}:`, error.message);
         }
     }
@@ -217,6 +226,7 @@ export async function poll() {
         }
     }
     console.log(`[MatchMonitor] Stats: ${stats.activeMatchCount} partidas ativas, ${stats.postedEventCount} eventos postados (próximo poll em ${nextIntervalMs / 1000}s${intervalReason})`);
+    logMetrics();
 
     return { nextIntervalMs };
 }
@@ -265,6 +275,7 @@ async function pollMatchEvents(matchId, league) {
 
     details.league = league;
     const matchData = normalizeMatchData(details);
+    recordMatchProcessed();
 
     if (events.length > 0) {
         const postedCount = await processEvents(events, matchData);
@@ -312,19 +323,39 @@ function normalizeMatchData(apiMatch) {
     };
 }
 
+/** @type {ReturnType<typeof setTimeout>|null} */
+let pollTimer = null;
+let monitoringStopped = false;
+
+/**
+ * Stop the elastic polling loop (clears the pending setTimeout).
+ * Safe to call when monitoring was never started.
+ */
+export function stopMonitoring() {
+    monitoringStopped = true;
+    if (pollTimer != null) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+    }
+}
+
 /**
  * Start the continuous monitoring loop with elastic polling (setTimeout rescheduled after each poll).
  */
 export async function startMonitoring() {
+    monitoringStopped = false;
     console.log('[MatchMonitor] Iniciando monitoramento (polling elástico)');
 
     function scheduleNext() {
+        if (monitoringStopped) return;
         poll().then((result) => {
+            if (monitoringStopped) return;
             const ms = result?.nextIntervalMs ?? config.bot.pollIntervalLiveMs;
-            setTimeout(scheduleNext, ms);
+            pollTimer = setTimeout(scheduleNext, ms);
         }).catch((err) => {
+            if (monitoringStopped) return;
             console.error('[MatchMonitor] Erro no poll:', err.message);
-            setTimeout(scheduleNext, config.bot.pollIntervalAlertMs);
+            pollTimer = setTimeout(scheduleNext, config.bot.pollIntervalAlertMs);
         });
     }
 
@@ -336,5 +367,6 @@ export async function startMonitoring() {
         console.error('[MatchMonitor] Erro no poll:', err.message);
         firstDelay = config.bot.pollIntervalLiveMs;
     }
-    setTimeout(scheduleNext, firstDelay);
+    if (monitoringStopped) return;
+    pollTimer = setTimeout(scheduleNext, firstDelay);
 }

@@ -1,4 +1,4 @@
-import { leagues } from './data/leagues.js';
+import { leagues } from '../src/data/leagues.js';
 
 console.log('--- Checking All Leagues ---');
 let errors = 0;

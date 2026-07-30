@@ -1,4 +1,4 @@
-import { config } from './config.js';
+import { config } from '../src/config.js';
 
 console.log('--- Config Verification ---');
 console.log(`League Code: ${process.env.LEAGUE_CODE || 'Default (bra.1)'}`);
