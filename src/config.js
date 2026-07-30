@@ -66,23 +66,20 @@ function parseEnvInt(value, defaultValue, min = 0, max = Infinity) {
     return Math.max(min, Math.min(parsed, max));
 }
 
-/** Resolved token for config (validated once). */
-let resolvedToken;
-
 /**
- * Validate configuration
+ * Validate configuration values before building the config object.
+ * @param {string|undefined} token
  * @throws {Error} If configuration is invalid
  */
-function validateConfig() {
+function validateConfig(token) {
     const errors = [];
 
-    resolvedToken = resolveAccessToken();
-    if (!resolvedToken) {
+    if (!token) {
         errors.push(
             'MASTODON_ACCESS_TOKEN is required. Set the env var, or MASTODON_ACCESS_TOKEN_FILE, ' +
             'or add a Docker secret "mastodon_access_token". See .env.example for local dev.'
         );
-    } else if (resolvedToken.length < 10) {
+    } else if (token.length < 10) {
         errors.push('MASTODON_ACCESS_TOKEN appears to be invalid (too short)');
     }
 
@@ -106,118 +103,172 @@ function validateConfig() {
     }
 }
 
-// Resolve league configuration
-const leagueCodesStr = process.env.LEAGUE_CODES || process.env.LEAGUE_CODE || 'bra.1';
-const leagueCodes = leagueCodesStr.split(',').map(s => s.trim()).filter(Boolean);
+/**
+ * Resolve active leagues from LEAGUE_CODES / LEAGUE_CODE.
+ * @returns {Array<object>}
+ */
+function resolveActiveLeagues() {
+    const leagueCodesStr = process.env.LEAGUE_CODES || process.env.LEAGUE_CODE || 'bra.1';
+    const leagueCodes = leagueCodesStr.split(',').map(s => s.trim()).filter(Boolean);
+    const activeLeagues = [];
+    const configErrors = [];
 
-const activeLeagues = [];
-const configErrors = [];
-
-if (leagueCodes.length === 0) {
-    configErrors.push(`LEAGUE_CODES must specify at least one valid league; supported: ${Object.keys(leagues).join(', ')}`);
-} else {
-    for (const code of leagueCodes) {
-        const leagueData = leagues[code];
-        if (!leagueData) {
-            configErrors.push(`Invalid league code: ${code}. Supported: ${Object.keys(leagues).join(', ')}`);
-        } else {
-            activeLeagues.push({
-                code: code,
-                ...leagueData
-            });
+    if (leagueCodes.length === 0) {
+        configErrors.push(`LEAGUE_CODES must specify at least one valid league; supported: ${Object.keys(leagues).join(', ')}`);
+    } else {
+        for (const code of leagueCodes) {
+            const leagueData = leagues[code];
+            if (!leagueData) {
+                configErrors.push(`Invalid league code: ${code}. Supported: ${Object.keys(leagues).join(', ')}`);
+            } else {
+                activeLeagues.push({
+                    code: code,
+                    ...leagueData
+                });
+            }
         }
     }
+
+    if (configErrors.length > 0) {
+        throw new Error(`Configuration Validation Failed:\n${configErrors.join('\n')}`);
+    }
+
+    return activeLeagues;
 }
 
-if (configErrors.length > 0) {
-    throw new Error(`Configuration Validation Failed:\n${configErrors.join('\n')}`);
+/**
+ * Build the full config object from the current environment.
+ * @returns {object}
+ */
+function buildConfig() {
+    const token = resolveAccessToken();
+    validateConfig(token);
+    const activeLeagues = resolveActiveLeagues();
+
+    return {
+        timezone: resolveTimezone(),
+        mastodon: {
+            instance: process.env.MASTODON_INSTANCE || 'https://mastodon.social',
+            accessToken: token,
+        },
+        espn: {
+            baseUrl: 'https://site.api.espn.com/apis/site/v2/sports/soccer',
+            usePortugueseDescriptions: process.env.ESPN_USE_PT_DESCRIPTIONS === 'true',
+            requestTimeoutMs: 10000,
+        },
+        activeLeagues,
+        cache: {
+            scoreboardTtlMs: parseEnvInt(process.env.CACHE_SCOREBOARD_TTL_MS, 30000, 5000),
+            detailsTtlMs: parseEnvInt(process.env.CACHE_DETAILS_TTL_MS, 60000, 5000),
+            eventsTtlMs: parseEnvInt(process.env.CACHE_EVENTS_TTL_MS, 30000, 5000),
+            highlightsTtlMs: parseEnvInt(process.env.CACHE_HIGHLIGHTS_TTL_MS, 120000, 10000),
+        },
+        bot: {
+            pollIntervalMs: parseEnvInt(process.env.POLL_INTERVAL_MS, 60000, 10000),
+            dryRun: process.env.DRY_RUN === 'true',
+            pollIntervalLiveMs: parseEnvInt(process.env.POLL_INTERVAL_LIVE_MS, 60000, 10000),
+            pollIntervalAlertMs: parseEnvInt(process.env.POLL_INTERVAL_ALERT_MS, 120000, 30000),
+            pollIntervalHibernationMs: parseEnvInt(process.env.POLL_INTERVAL_HIBERNATION_MS, 1800000, 300000),
+            pollWindowBeforeMatchMs: parseEnvInt(process.env.POLL_WINDOW_BEFORE_MATCH_MS, 600000, 60000, 3600000),
+            pollScheduleRefreshMaxMs: parseEnvInt(process.env.POLL_SCHEDULE_REFRESH_MAX_MS, 3600000, 300000, 86400000),
+            favoriteTeamIds: (process.env.FAVORITE_TEAM_IDS || '').split(',').map(s => s.trim()).filter(Boolean),
+            favoriteTeamNames: (process.env.FAVORITE_TEAM_NAMES || '').split(',').map(s => s.trim()).filter(Boolean),
+            favoriteTeamNickname: process.env.FAVORITE_TEAM_NICKNAME ?? 'Galo',
+            favoriteTeamEmoji: process.env.FAVORITE_TEAM_EMOJI ?? '⚫🔴',
+        },
+        delays: {
+            betweenPosts: parseEnvInt(process.env.DELAY_BETWEEN_POSTS_MS, 2000, 500),
+            betweenThreadPosts: parseEnvInt(process.env.DELAY_BETWEEN_THREAD_POSTS_MS, 1000, 500),
+            beforeHighlights: parseEnvInt(process.env.DELAY_BEFORE_HIGHLIGHTS_MS, 30000, 5000),
+            statePersistence: parseEnvInt(process.env.STATE_SAVE_INTERVAL_MS, 300000, 60000),
+            goalConfirmationTimeoutMs: parseEnvInt(process.env.GOAL_CONFIRMATION_TIMEOUT_MS, 300000, 30000),
+            delayReasonTimeoutMs: parseEnvInt(process.env.DELAY_REASON_TIMEOUT_MS, 120000, 30000),
+        },
+        retry: {
+            maxAttempts: parseEnvInt(process.env.RETRY_MAX_ATTEMPTS, 3, 1, 10),
+            initialDelayMs: parseEnvInt(process.env.RETRY_INITIAL_DELAY_MS, 1000, 100),
+            maxDelayMs: parseEnvInt(process.env.RETRY_MAX_DELAY_MS, 10000, 1000),
+        },
+        mentions: {
+            pollIntervalMs: parseEnvInt(process.env.MENTION_POLL_INTERVAL_MS, 60000, 10000),
+            cooldownMs: parseEnvInt(process.env.MENTION_COOLDOWN_MS, 300000, 10000),
+            enabled: process.env.MENTION_LISTENER !== 'false',
+        },
+        media: {
+            attachCrests: process.env.ATTACH_CRESTS !== 'false',
+        },
+        events: {
+            goals: true,
+            yellowCards: true,
+            redCards: true,
+            substitutions: true,
+            varReviews: true,
+            matchStart: true,
+            interval: true,
+            matchEnd: true,
+            extraTime: true,
+            matchDelay: process.env.EVENT_MATCH_DELAY !== 'false',
+            matchStats: true,
+            dailyDigest: process.env.DAILY_DIGEST !== 'false',
+            matchPreview: process.env.MATCH_PREVIEW !== 'false',
+        },
+        i18n: {
+            defaultLanguage: process.env.DEFAULT_LANGUAGE || 'pt-BR',
+        },
+    };
 }
 
-validateConfig();
+/** @type {object|null} */
+let cachedConfig = null;
 
-export const config = {
-    timezone: resolveTimezone(),
-    mastodon: {
-        instance: process.env.MASTODON_INSTANCE || 'https://mastodon.social',
-        accessToken: resolvedToken,
-    },
-    // ESPN API configuration
-    espn: {
-        baseUrl: 'https://site.api.espn.com/apis/site/v2/sports/soccer',
-        /** Use Brazilian Portuguese event descriptions (site.web.api.espn.com with lang=pt&region=br) */
-        usePortugueseDescriptions: process.env.ESPN_USE_PT_DESCRIPTIONS === 'true',
-        requestTimeoutMs: 10000, // Request timeout
-    },
-    // Active leagues to monitor
-    activeLeagues: activeLeagues,
+/**
+ * Lazily build and cache configuration. First call validates env (token, leagues, etc.).
+ * @returns {object}
+ */
+export function getConfig() {
+    if (!cachedConfig) {
+        cachedConfig = buildConfig();
+    }
+    return cachedConfig;
+}
 
-    // Response caching configuration
-    cache: {
-        scoreboardTtlMs: parseEnvInt(process.env.CACHE_SCOREBOARD_TTL_MS, 30000, 5000),
-        detailsTtlMs: parseEnvInt(process.env.CACHE_DETAILS_TTL_MS, 60000, 5000),
-        eventsTtlMs: parseEnvInt(process.env.CACHE_EVENTS_TTL_MS, 30000, 5000),
-        highlightsTtlMs: parseEnvInt(process.env.CACHE_HIGHLIGHTS_TTL_MS, 120000, 10000),
+/**
+ * Reset cached config (tests only).
+ */
+export function __resetConfigForTesting() {
+    if (process.env.NODE_ENV !== 'test') {
+        throw new Error('__resetConfigForTesting is only allowed in test environment');
+    }
+    cachedConfig = null;
+}
+
+/**
+ * Lazy config proxy — preserves `import { config } from './config.js'` and nested mutation
+ * used by tests, without validating env at module import time.
+ */
+export const config = new Proxy({}, {
+    get(_target, prop) {
+        if (prop === Symbol.toStringTag) return 'Object';
+        return getConfig()[prop];
     },
-    bot: {
-        pollIntervalMs: parseEnvInt(process.env.POLL_INTERVAL_MS, 60000, 10000),
-        dryRun: process.env.DRY_RUN === 'true',
-        pollIntervalLiveMs: parseEnvInt(process.env.POLL_INTERVAL_LIVE_MS, 60000, 10000),
-        pollIntervalAlertMs: parseEnvInt(process.env.POLL_INTERVAL_ALERT_MS, 120000, 30000),
-        pollIntervalHibernationMs: parseEnvInt(process.env.POLL_INTERVAL_HIBERNATION_MS, 1800000, 300000),
-        /** Start polling this many ms before scheduled match start (default 10 min). */
-        pollWindowBeforeMatchMs: parseEnvInt(process.env.POLL_WINDOW_BEFORE_MATCH_MS, 600000, 60000, 3600000),
-        /** Max ms between polls when only pre matches (schedule refresh cap, default 1h). */
-        pollScheduleRefreshMaxMs: parseEnvInt(process.env.POLL_SCHEDULE_REFRESH_MAX_MS, 3600000, 300000, 86400000),
-        favoriteTeamIds: (process.env.FAVORITE_TEAM_IDS || '').split(',').map(s => s.trim()).filter(Boolean),
-        favoriteTeamNames: (process.env.FAVORITE_TEAM_NAMES || '').split(',').map(s => s.trim()).filter(Boolean),
-        favoriteTeamNickname: process.env.FAVORITE_TEAM_NICKNAME ?? 'Galo',
-        favoriteTeamEmoji: process.env.FAVORITE_TEAM_EMOJI ?? '⚫🔴',
+    set(_target, prop, value) {
+        getConfig()[prop] = value;
+        return true;
     },
-    // Timing delays (milliseconds)
-    delays: {
-        betweenPosts: parseEnvInt(process.env.DELAY_BETWEEN_POSTS_MS, 2000, 500),
-        betweenThreadPosts: parseEnvInt(process.env.DELAY_BETWEEN_THREAD_POSTS_MS, 1000, 500),
-        beforeHighlights: parseEnvInt(process.env.DELAY_BEFORE_HIGHLIGHTS_MS, 30000, 5000),
-        statePersistence: parseEnvInt(process.env.STATE_SAVE_INTERVAL_MS, 300000, 60000),
-        /** Max time a goal can sit "awaiting confirmation" before we post it anyway with whatever text ESPN has given us (default 5 min). */
-        goalConfirmationTimeoutMs: parseEnvInt(process.env.GOAL_CONFIRMATION_TIMEOUT_MS, 300000, 30000),
-        /** Max time to wait for ESPN delay description (e.g. hydration) before posting a generic pause (default 2 min). */
-        delayReasonTimeoutMs: parseEnvInt(process.env.DELAY_REASON_TIMEOUT_MS, 120000, 30000),
+    has(_target, prop) {
+        return prop in getConfig();
     },
-    // Retry configuration for API calls
-    retry: {
-        maxAttempts: parseEnvInt(process.env.RETRY_MAX_ATTEMPTS, 3, 1, 10),
-        initialDelayMs: parseEnvInt(process.env.RETRY_INITIAL_DELAY_MS, 1000, 100),
-        maxDelayMs: parseEnvInt(process.env.RETRY_MAX_DELAY_MS, 10000, 1000),
+    ownKeys() {
+        return Reflect.ownKeys(getConfig());
     },
-    // Mention listener
-    mentions: {
-        pollIntervalMs: parseEnvInt(process.env.MENTION_POLL_INTERVAL_MS, 60000, 10000),
-        cooldownMs: parseEnvInt(process.env.MENTION_COOLDOWN_MS, 300000, 10000),
-        enabled: process.env.MENTION_LISTENER !== 'false',
+    getOwnPropertyDescriptor(_target, prop) {
+        const cfg = getConfig();
+        if (!(prop in cfg)) return undefined;
+        return {
+            configurable: true,
+            enumerable: true,
+            writable: true,
+            value: cfg[prop],
+        };
     },
-    // Media attachment settings
-    media: {
-        attachCrests: process.env.ATTACH_CRESTS !== 'false',
-    },
-    // Event types to post
-    events: {
-        goals: true,
-        yellowCards: true,
-        redCards: true,
-        substitutions: true,
-        varReviews: true,
-        matchStart: true,
-        interval: true,
-        matchEnd: true,
-        extraTime: true,
-        matchDelay: process.env.EVENT_MATCH_DELAY !== 'false',
-        matchStats: true,
-        dailyDigest: process.env.DAILY_DIGEST !== 'false',
-        matchPreview: process.env.MATCH_PREVIEW !== 'false',
-    },
-    // Internationalization configuration (valid values: docs/linguagens-validas.md)
-    i18n: {
-        defaultLanguage: process.env.DEFAULT_LANGUAGE || 'pt-BR',
-    },
-};
+});

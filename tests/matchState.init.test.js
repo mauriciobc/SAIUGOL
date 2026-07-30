@@ -70,6 +70,52 @@ describe('matchState initialization and whenReady', () => {
         assert.ok(restored, 'expected pending goal to be restored');
         assert.strictEqual(restored.statusId, '999');
     });
+
+    it('restaura atrasos pendentes persistidos após reinício (evita perder a janela de hidratação/lesão)', async () => {
+        const stateFile = join(testDir, 'state.json');
+        if (existsSync(stateFile)) rmSync(stateFile);
+
+        const firstSeenAt = 1751765766000;
+        await saveState(
+            new Set(),
+            new Map(),
+            [],
+            null,
+            null,
+            null,
+            null,
+            new Map([['760509-delay-start-23', { matchId: '760509', firstSeenAt }]])
+        );
+
+        const { resetStateForTesting, getPendingDelayStart } = await import('../src/state/matchState.js');
+        resetStateForTesting();
+
+        const { whenReady } = await import('../src/state/matchState.js');
+        await whenReady();
+
+        const restored = getPendingDelayStart('760509-delay-start-23');
+        assert.ok(restored, 'expected pending delay start to be restored');
+        assert.strictEqual(restored.matchId, '760509');
+        assert.strictEqual(restored.firstSeenAt, firstSeenAt);
+    });
+
+    it('saveStateNow persiste pendingDelayStarts em memória', async () => {
+        const stateFile = join(testDir, 'state.json');
+        if (existsSync(stateFile)) rmSync(stateFile);
+
+        const { resetStateForTesting, whenReady, markDelayStartPending, saveStateNow } = await import('../src/state/matchState.js');
+        resetStateForTesting();
+        await whenReady();
+
+        markDelayStartPending('m2-delay-start-45', { matchId: 'm2', firstSeenAt: 42 });
+        const saved = await saveStateNow();
+        assert.strictEqual(saved, true);
+
+        const { loadState } = await import('../src/state/persistence.js');
+        const loaded = await loadState();
+        assert.strictEqual(loaded.pendingDelayStarts['m2-delay-start-45'].matchId, 'm2');
+        assert.strictEqual(loaded.pendingDelayStarts['m2-delay-start-45'].firstSeenAt, 42);
+    });
 });
 
 describe('catch-up match start event id', () => {

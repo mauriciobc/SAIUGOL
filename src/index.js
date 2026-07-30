@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { config } from './config.js';
 import { verifyCredentials } from './api/mastodon.js';
-import { initialize, startMonitoring, getLastLeagueMatches } from './bot/matchMonitor.js';
+import { initialize, startMonitoring, stopMonitoring, getLastLeagueMatches } from './bot/matchMonitor.js';
 import { startMentionListener } from './bot/mentionListener.js';
 import { whenReady, shutdown as shutdownState } from './state/matchState.js';
 import { logger, botLogger } from './utils/logger.js';
@@ -80,6 +80,7 @@ async function gracefulShutdown(signal) {
 
     isShuttingDown = true;
     botLogger.info({ signal }, 'Recebido sinal de shutdown, encerrando bot...');
+    stopMonitoring();
     try {
         await shutdownState();
         botLogger.info('Estado salvo com sucesso');
