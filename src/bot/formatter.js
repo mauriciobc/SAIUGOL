@@ -2,6 +2,12 @@ import { config } from '../config.js';
 import { translate } from '../services/i18n.js';
 import { parsePlayerFromEventDescription } from '../api/espn.js';
 import { PENALTY_SCORED_KEYWORDS } from '../utils/eventKeywords.js';
+import {
+    parseSubstitutionFromDescription,
+    parseDelayReason,
+} from '../domain/eventTextParsers.js';
+
+export { parseSubstitutionFromDescription, parseDelayReason };
 
 function playerName(player) {
     if (player == null) return undefined;
@@ -207,40 +213,6 @@ export function formatCard(event, match, options = {}) {
     text += `\n\n${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
-}
-
-/**
- * Parse player in/out from substitution description.
- * Supports English ("X replaces Y." / "X on for Y.") and others (e.g. Italian "X sostituisce Y.").
- *
- * The player-out capture matches only consecutive Title-Case words rather than "up to the next
- * period": ESPN often appends an untagged, lowercase reason clause after the name with no
- * separating punctuation (e.g. "...substituindo Jordan Bos uma lesão." or "...replaces Jordan
- * Bos because of an injury."), which a period-anchored capture would swallow into the name.
- * The player-in capture is lazy (bounded by the following keyword) so it doesn't greedily eat
- * into an optional keyword prefix (e.g. "comes" in "comes on for").
- * @param {string} text
- * @returns {{ playerIn: string, playerOut: string }|null}
- */
-export function parseSubstitutionFromDescription(text) {
-    if (!text || typeof text !== 'string') return null;
-    const namePart = '[\\p{L}\\p{M}][\\p{L}\\p{M}\\s\'-]+?';
-    const strictName = '\\p{Lu}[\\p{L}\\p{M}\'-]*(?:\\s\\p{Lu}[\\p{L}\\p{M}\'-]*)*';
-    // Ordem: variantes por idioma primeiro; fallback genérico por último. O último padrão
-    // exige contexto de substituição ("on for" / "comes on for") para evitar falsos
-    // positivos com "for" solto (ex.: "Assist for X.").
-    const patterns = [
-        new RegExp(`entra em campo\\s+(${namePart})\\s+substituindo\\s+(${strictName})`, 'u'),
-        new RegExp(`(${namePart}) replaces (${strictName})`, 'u'),
-        new RegExp(`(${namePart}) sostituisce (${strictName})`, 'u'),
-        new RegExp(`(${namePart}) in per (${strictName})`, 'u'),
-        new RegExp(`(${namePart}) (?:comes )?on for (${strictName})`, 'u'),
-    ];
-    for (const re of patterns) {
-        const m = text.match(re);
-        if (m) return { playerIn: m[1].trim(), playerOut: m[2].trim() };
-    }
-    return null;
 }
 
 /**
@@ -688,18 +660,6 @@ export function formatShootoutStart(match) {
     text += `\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
-}
-
-/**
- * Parse delay reason from ESPN description (PT or EN).
- * @param {string} [description]
- * @returns {'hydration'|'injury'|'generic'}
- */
-export function parseDelayReason(description) {
-    const d = (description || '').toLowerCase();
-    if (d.includes('hidratação') || d.includes('drinks break')) return 'hydration';
-    if (d.includes('lesão') || d.includes('lesao') || d.includes('injury')) return 'injury';
-    return 'generic';
 }
 
 /**
