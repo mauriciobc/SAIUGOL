@@ -5,6 +5,18 @@ import { getDateStringFor } from '../utils/dateUtils.js';
 import { config } from '../config.js';
 import { espnLogger } from '../utils/logger.js';
 import { recordEspnRequest } from '../utils/metrics.js';
+import {
+    parseSubstitutionFromDescription,
+    parseScorerFromGoalDescription,
+    parsePlayerFromTemporaryDescription,
+    parsePlayerFromEventDescription,
+} from '../domain/eventTextParsers.js';
+
+export {
+    parseScorerFromGoalDescription,
+    parsePlayerFromTemporaryDescription,
+    parsePlayerFromEventDescription,
+};
 
 const BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
 /** Web API with lang/region support (e.g. lang=pt&region=br for Brazilian Portuguese) */
@@ -369,71 +381,6 @@ function getParticipantDisplayName(participant) {
 }
 
 /**
- * Parse player in/out names from substitution description text.
- * Supports English and other common formats (e.g. Italian "X sostituisce Y").
- *
- * The player-out capture matches only consecutive Title-Case words (not "up to the next
- * period"): ESPN often appends an untagged, lowercase reason clause after the name with no
- * separating punctuation (e.g. "...substituindo Jordan Bos uma lesão." or "...replaces Jordan
- * Bos because of an injury."), which a period-anchored capture would swallow into the name.
- * @param {string} text - Event description
- * @returns {{ playerIn: string, playerOut: string }|null}
- */
-function parseSubstitutionFromText(text) {
-    if (!text || typeof text !== 'string') return null;
-    const namePart = '[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\\s\'-]+?';
-    const strictName = '[A-ZÀ-Þ][A-Za-zà-ÿ\'-]*(?:\\s[A-ZÀ-Þ][A-Za-zà-ÿ\'-]*)*';
-    const patterns = [
-        { re: new RegExp(`entra em campo\\s+(${namePart})\\s+substituindo\\s+(${strictName})`), playerIn: 1, playerOut: 2 },
-        { re: new RegExp(`(${namePart}) replaces (${strictName})`), playerIn: 1, playerOut: 2 },
-        { re: new RegExp(`(${namePart}) on for (${strictName})`), playerIn: 1, playerOut: 2 },
-        { re: new RegExp(`(${namePart}) sostituisce (${strictName})`), playerIn: 1, playerOut: 2 },
-        { re: new RegExp(`(${namePart}) in per (${strictName})`), playerIn: 1, playerOut: 2 },
-        { re: new RegExp(`(${namePart}) for (${strictName})`), playerIn: 1, playerOut: 2 },
-    ];
-    for (const { re, playerIn: i, playerOut: o } of patterns) {
-        const m = text.match(re);
-        if (m) return { playerIn: m[i].trim(), playerOut: m[o].trim() };
-    }
-    return null;
-}
-
-/**
- * Parse scorer name from goal description.
- * ESPN format: "Goal! TeamA N, TeamB M. Scorer Name (Team) right footed shot..."
- * Supports names with initials (e.g. "J. Smith").
- * @param {string} text - Event description
- * @returns {string|null} Scorer name or null
- */
-export function parseScorerFromGoalDescription(text) {
-    if (!text || typeof text !== 'string') return null;
-    const m = text.match(/(?:Goal|Gol)![\s\S]*?\.\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.\s'-]+?)\s*\(/);
-    return m ? m[1].trim() : null;
-}
-
-/**
- * Parse player name from ESPN provisional text before the final description is ready.
- * PT: "Lionel Messi (Argentina) Tentativa temporária aos 21'"
- * EN: "Lionel Messi (Argentina) Temporary attempt at 21'"
- * @param {string} text
- * @returns {string|null}
- */
-export function parsePlayerFromTemporaryDescription(text) {
-    if (!text || typeof text !== 'string') return null;
-    const m = text.match(/^(.+?)\s*\([^)]+\)\s+(?:Tentativa tempor[aá]ria|Temporary attempt)/i);
-    return m ? m[1].trim() : null;
-}
-
-/**
- * Extract player name from goal or provisional penalty descriptions.
- * @param {string} text
- * @returns {string|null}
- */
-export function parsePlayerFromEventDescription(text) {
-    return parseScorerFromGoalDescription(text) || parsePlayerFromTemporaryDescription(text);
-}
-
-/**
  * Get live events for a match (goals, cards, etc.)
  * @param {string} matchId - The match ID
  * @param {string} leagueCode - The league code
@@ -484,7 +431,7 @@ export async function getLiveEvents(matchId, leagueCode) {
                         player: p0Name != null ? { name: p0Name } : undefined,
                     };
                     if (type.includes('substitution') || type.includes('sub') || type.includes('substituição')) {
-                        const parsed = parseSubstitutionFromText(description);
+                        const parsed = parseSubstitutionFromDescription(description);
                         if (parsed) {
                             base.playerIn = { name: parsed.playerIn };
                             base.playerOut = { name: parsed.playerOut };
