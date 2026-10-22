@@ -37,6 +37,46 @@ export function shouldPostMatchOfficials({ inWindow, enabled, alreadyPosted, off
 /** Last successfully fetched league match list, updated every poll. */
 let _lastLeagueMatches = [];
 
+/**
+ * Matches whose full-time post failed (Mastodon down after every retry): Map<matchId, { league, attempts }>.
+ * The diff only emits match_end once, so they are retried at the start of later polls instead of being
+ * cleared with the final score never posted. In memory only.
+ */
+const pendingMatchEnds = new Map();
+const MAX_MATCH_END_ATTEMPTS = 10;
+
+/**
+ * Post a finished match's full time (then highlights and stats) and clear its state, or keep it pending
+ * for the next poll when the full-time post did not go out.
+ * @param {string|number} matchId
+ * @param {Object} league
+ */
+async function finishMatch(matchId, league) {
+    const key = String(matchId);
+    let done = true;
+    try {
+        const details = await getMatchDetails(matchId, league.code);
+        if (details) {
+            details.league = league;
+            done = await handleMatchEnd(normalizeMatchData(details));
+        } else {
+            console.log(`[MatchMonitor] Detalhes não disponíveis para partida finalizada ${matchId} (pode ter sido removida do ESPN)`);
+        }
+    } catch (err) {
+        console.error(`[MatchMonitor] Erro ao processar fim da partida ${matchId}:`, err.message);
+        done = false;
+    }
+
+    const attempts = (pendingMatchEnds.get(key)?.attempts ?? 0) + 1;
+    if (done || attempts >= MAX_MATCH_END_ATTEMPTS) {
+        if (!done) console.error(`[MatchMonitor] Fim da partida ${matchId} não postado após ${attempts} tentativas; desistindo`);
+        pendingMatchEnds.delete(key);
+        clearMatchState(matchId);
+    } else {
+        pendingMatchEnds.set(key, { league, attempts });
+    }
+}
+
 /** Returns the most recent cross-league match list (for mention listener schedule replies). */
 export function getLastLeagueMatches() { return _lastLeagueMatches; }
 
@@ -86,6 +126,11 @@ export async function poll() {
         updateDayPlan(allLeagueMatches);
     }
 
+    // Full-time posts that failed on an earlier poll: retry so the final score is not lost
+    for (const [matchId, { league }] of [...pendingMatchEnds]) {
+        await finishMatch(matchId, league);
+    }
+
     // Daily digest — fire once per calendar day across all leagues
     if (config.events.dailyDigest) {
         const today = getDateStringFor(new Date(), config.timezone);
@@ -94,9 +139,13 @@ export async function poll() {
             if (hasMatches) {
                 try {
                     const digestText = formatDailyDigest(allLeagueMatches);
-                    await postStatus(digestText);
-                    setLastDigestDate(today);
-                    console.log('[MatchMonitor] Digest diário postado');
+                    // Only mark the day done once it went out; otherwise the next poll retries
+                    if (await postStatus(digestText)) {
+                        setLastDigestDate(today);
+                        console.log('[MatchMonitor] Digest diário postado');
+                    } else {
+                        console.error('[MatchMonitor] Digest diário não publicado; nova tentativa no próximo poll');
+                    }
                 } catch (err) {
                     console.error('[MatchMonitor] Erro ao postar digest diário:', err.message);
                 }
@@ -128,9 +177,10 @@ export async function poll() {
                         if (inWindow && !isEventPosted(previewId) && canPost(matchId, TIER.STANDARD)) {
                             try {
                                 const previewText = formatMatchPreview(matchData);
-                                await postMatchStatus(matchId, previewText);
-                                markEventPosted(previewId);
-                                console.log(`[MatchMonitor] Preview pré-jogo postado para partida ${matchId}`);
+                                if (await postMatchStatus(matchId, previewText)) {
+                                    markEventPosted(previewId);
+                                    console.log(`[MatchMonitor] Preview pré-jogo postado para partida ${matchId}`);
+                                }
                             } catch (err) {
                                 console.error(`[MatchMonitor] Erro ao postar preview da partida ${matchId}:`, err.message);
                             }
@@ -184,25 +234,14 @@ export async function poll() {
                         const matchStartEventId = getMatchStartEventId(matchId);
                         if (!isEventPosted(matchStartEventId) && config.events.matchStart) {
                             const matchData = normalizeMatchData(details);
-                            await postMatchStatus(matchId, formatMatchStart(matchData));
-                            markEventPosted(matchStartEventId);
+                            if (await postMatchStatus(matchId, formatMatchStart(matchData))) {
+                                markEventPosted(matchStartEventId);
+                            }
                         }
                     }
                 } else if (action.type === 'match_end') {
                     console.log(`[MatchMonitor] Partida finalizada: ${action.snapshot.id}`);
-                    try {
-                        const details = await getMatchDetails(action.snapshot.id, league.code);
-                        if (details) {
-                            details.league = league;
-                            await handleMatchEnd(normalizeMatchData(details));
-                        } else {
-                            console.log(`[MatchMonitor] Detalhes não disponíveis para partida finalizada ${action.snapshot.id} (pode ter sido removida do ESPN)`);
-                        }
-                    } catch (err) {
-                        console.error(`[MatchMonitor] Erro ao processar fim da partida ${action.snapshot.id}:`, err.message);
-                    } finally {
-                        clearMatchState(action.snapshot.id);
-                    }
+                    await finishMatch(action.snapshot.id, league);
                 }
             }
 
@@ -223,8 +262,9 @@ export async function poll() {
                         const matchStartEventId = getMatchStartEventId(matchId);
                         if (!isEventPosted(matchStartEventId) && config.events.matchStart) {
                             const matchData = normalizeMatchData(details);
-                            await postMatchStatus(matchId, formatMatchStart(matchData));
-                            markEventPosted(matchStartEventId);
+                            if (await postMatchStatus(matchId, formatMatchStart(matchData))) {
+                                markEventPosted(matchStartEventId);
+                            }
                         }
                         const currentEvents = await getLiveEvents(matchId, league.code);
                         if (currentEvents.length > 0) {
