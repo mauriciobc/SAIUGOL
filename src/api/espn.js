@@ -116,12 +116,12 @@ export async function getTodayMatches(leagueCode) {
                 const latencyMs = Date.now() - startTime;
                 recordEspnRequest(true, latencyMs, false);
 
-                if (!hasProps(response, ['data.events'])) {
-                    espnLogger.warn({ response }, 'Resposta inesperada da API (sem events)');
+                // Site API returns `events` at the top level; the CDN (?xhr=1) nests them under content.sbData.
+                const events = response.data?.events ?? response.data?.content?.sbData?.events;
+                if (!Array.isArray(events)) {
+                    espnLogger.warn({ url }, 'Resposta inesperada da API (sem events)');
                     return [];
                 }
-
-                const events = response.data.events || [];
 
                 if (DEBUG_API) {
                     espnLogger.debug({ eventCount: events.length }, 'ESPN API response received');
@@ -145,6 +145,7 @@ export async function getTodayMatches(leagueCode) {
                     const venueAddr = competition.venue?.address;
                     return {
                         id: event.id,
+                        tie: parseTie(competition),
                         homeTeam: {
                             id: home.team?.id,
                             name: home.team?.displayName || 'Casa',
@@ -200,9 +201,11 @@ export async function getTodayMatches(leagueCode) {
  */
 function parseStandingForTeam(standings, teamId) {
     if (!standings || !teamId) return undefined;
-    const entries = standings.groups?.[0]?.standings?.entries;
-    if (!entries?.length) return undefined;
-    const entry = entries.find(e => String(e.team?.id) === String(teamId));
+    const entries = (standings.groups || []).flatMap(g => g.standings?.entries || []);
+    if (!entries.length) return undefined;
+    // Summary entries carry `team` as a display-name string with the id alongside it
+    // ({ team: "Juventus", id: "111" }); the /apis/v2 standings endpoint nests it as team.id.
+    const entry = entries.find(e => String(e.team?.id ?? e.id) === String(teamId));
     if (!entry) return undefined;
     const stat = (name) => {
         const s = entry.stats?.find(s => s.name === name);
@@ -248,6 +251,45 @@ function parseBoxscore(rawBoxscore) {
         };
     }
     return (result.home || result.away) ? result : undefined;
+}
+
+/**
+ * Parse two-legged tie info (Copa do Brasil, Libertadores/Sul-Americana knockouts) from a scoreboard
+ * competition or summary header competition. Returns undefined for single-match fixtures.
+ * `series` is an object on the scoreboard and a one-element array in the summary header. ESPN only
+ * fills aggregateScore from the 2nd leg on, and marks the tie winner once series.completed is true.
+ * @param {Object|undefined} competition
+ * @returns {{ leg: number, totalLegs: number, title?: string, homeAggregate?: number, awayAggregate?: number, completed: boolean, winnerTeamId?: string }|undefined}
+ */
+export function parseTie(competition) {
+    if (!competition) return undefined;
+    const series = Array.isArray(competition.series) ? competition.series[0] : competition.series;
+    const leg = parseInt(competition.leg?.value ?? series?.leg, 10);
+    if (!Number.isFinite(leg) || leg < 1) return undefined;
+    const totalLegs = parseInt(series?.totalCompetitions, 10) || leg;
+    if (totalLegs < 2) return undefined;
+
+    const toInt = (v) => {
+        const n = parseInt(v, 10);
+        return Number.isFinite(n) ? n : undefined;
+    };
+    const seriesEntry = (id) => series?.competitors?.find(c => String(c.id) === String(id));
+    const aggregateFor = (side) => {
+        const c = competition.competitors?.find(x => x.homeAway === side);
+        if (!c) return undefined;
+        return toInt(seriesEntry(c.id ?? c.team?.id)?.aggregateScore ?? c.aggregateScore);
+    };
+    const winner = series?.completed ? series.competitors?.find(c => c.winner === true) : undefined;
+
+    return {
+        leg,
+        totalLegs,
+        title: series?.title || undefined,
+        homeAggregate: aggregateFor('home'),
+        awayAggregate: aggregateFor('away'),
+        completed: Boolean(series?.completed),
+        winnerTeamId: winner?.id != null ? String(winner.id) : undefined,
+    };
 }
 
 /**
@@ -328,6 +370,7 @@ export async function getMatchDetails(matchId, leagueCode) {
                     awayScore: parseInt(away.score, 10) || 0,
                     homeShootoutScore,
                     awayShootoutScore,
+                    tie: parseTie(competition),
                     status: competition.status?.type?.name || 'unknown',
                     venue: competition.venue?.fullName,
                     startTime: header.date,

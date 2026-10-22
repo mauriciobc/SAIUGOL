@@ -302,6 +302,7 @@ function normalizeMatchData(apiMatch) {
         awayScore: apiMatch.awayScore ?? apiMatch.awayGoals ?? 0,
         homeShootoutScore: apiMatch.homeShootoutScore,
         awayShootoutScore: apiMatch.awayShootoutScore,
+        tie: apiMatch.tie,
         status: apiMatch.status || apiMatch.state,
         venue: apiMatch.venue?.name || apiMatch.stadium,
         minute: apiMatch.minute || apiMatch.clock,

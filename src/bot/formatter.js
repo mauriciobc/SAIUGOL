@@ -339,6 +339,56 @@ function standingAnnotation(standing) {
 }
 
 /**
+ * Two-legged tie line, e.g. "🔁 Jogo de volta · Agregado: 2 x 3\n". The aggregate is only shown from
+ * the 2nd leg on (ESPN leaves it empty on the 1st leg, where it would just repeat the score).
+ * Returns '' for single-match fixtures.
+ */
+function tieLine(tie) {
+    if (!tie) return '';
+    const parts = [];
+    if (tie.leg === 1) parts.push(translate('ui.first_leg'));
+    else if (tie.leg === 2) parts.push(translate('ui.second_leg'));
+    if (tie.leg > 1 && tie.homeAggregate != null && tie.awayAggregate != null) {
+        parts.push(`${translate('ui.aggregate')}: ${tie.homeAggregate} x ${tie.awayAggregate}`);
+    }
+    return parts.length ? `🔁 ${parts.join(' · ')}\n` : '';
+}
+
+/**
+ * Team that won a two-legged tie, once its final leg is over. Prefers ESPN's series winner flag,
+ * then the aggregate, then the shootout. Returns null for single matches or undecided ties.
+ */
+function tieWinner(match) {
+    const { tie, homeTeam, awayTeam, homeShootoutScore, awayShootoutScore } = match;
+    if (!tie || tie.leg < tie.totalLegs) return null;
+    if (tie.winnerTeamId != null) {
+        if (String(homeTeam.id) === tie.winnerTeamId) return homeTeam;
+        if (String(awayTeam.id) === tie.winnerTeamId) return awayTeam;
+    }
+    if (tie.homeAggregate != null && tie.awayAggregate != null && tie.homeAggregate !== tie.awayAggregate) {
+        return tie.homeAggregate > tie.awayAggregate ? homeTeam : awayTeam;
+    }
+    if (homeShootoutScore != null && awayShootoutScore != null && homeShootoutScore !== awayShootoutScore) {
+        return homeShootoutScore > awayShootoutScore ? homeTeam : awayTeam;
+    }
+    return null;
+}
+
+/**
+ * Closing line for a decided tie. ESPN titles deciding rounds "Final"/"Finals", or "<trophy> - Finals"
+ * for state-championship side trophies (e.g. "Troféu Inconfidência - Finals"), which get the trophy
+ * named so it doesn't read as the state title. Anything else (e.g. "Taça Guanabara - Semifinals")
+ * means the team just goes through.
+ */
+function tieOutcome(title, team) {
+    const final = /^(?:(.+?)\s+-\s+)?finals?$/i.exec((title || '').trim());
+    if (!final) return translate('ui.team_advances', { team });
+    return final[1]
+        ? translate('ui.team_wins_trophy', { team, trophy: final[1] })
+        : translate('ui.team_champion', { team });
+}
+
+/**
  * Format match start announcement
  * @param {Object} match - Match data
  * @returns {string} Formatted post text
@@ -348,6 +398,7 @@ export function formatMatchStart(match) {
 
     let text = `${translate('ui.match_start')}\n\n`;
     text += `🏟️ ${homeTeam.name}${standingAnnotation(homeTeam.standing)} x ${awayTeam.name}${standingAnnotation(awayTeam.standing)}\n`;
+    text += tieLine(match.tie);
 
     if (venue) {
         text += `📍 ${venue}\n`;
@@ -444,7 +495,14 @@ export function formatMatchEnd(match) {
     if (hasShootout) {
         text += ` (${homeShootoutScore} x ${awayShootoutScore} ${translate('ui.penalties')})`;
     }
+    const tieInfo = tieLine(match.tie);
+    if (tieInfo) text += `\n${tieInfo.trimEnd()}`;
     text += `\n\n${result}`;
+
+    const advancing = tieWinner(match);
+    if (advancing) {
+        text += `\n${tieOutcome(match.tie.title, advancing.name)}`;
+    }
 
     text += `\n\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
@@ -559,6 +617,7 @@ export function formatMatchPreview(match) {
     text += `⚽ ${homeTeam.name} x ${awayTeam.name}`;
     if (kickoff) text += ` — ${kickoff}`;
     text += '\n';
+    text += tieLine(match.tie);
     if (venueCity) text += `📍 ${venueCity}\n`;
     text += '\n';
 

@@ -1,0 +1,1097 @@
+{
+  "_source": "Trimmed from live ESPN site API responses fetched 2026-10-22",
+  "sudamericanaSecondLegSummary": {
+    "header": {
+      "id": "401913956",
+      "competitions": [
+        {
+          "id": "401913956",
+          "leg": {
+            "value": 2,
+            "displayValue": "2nd Leg"
+          },
+          "series": [
+            {
+              "title": "Semifinals",
+              "completed": true,
+              "leg": 2,
+              "totalCompetitions": 2,
+              "competitors": [
+                {
+                  "id": "19002",
+                  "uid": "s:600~l:680~t:19002",
+                  "aggregateScore": 2,
+                  "winner": false,
+                  "team": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/uru.1/seasons/2026/teams/19002?lang=en&region=us"
+                  }
+                },
+                {
+                  "id": "7632",
+                  "uid": "s:600~l:630~t:7632",
+                  "aggregateScore": 3,
+                  "winner": true,
+                  "team": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/7632?lang=en&region=us"
+                  }
+                }
+              ],
+              "events": [
+                {
+                  "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/conmebol.sudamericana/events/401913916?lang=en&region=us",
+                  "id": "401913916"
+                },
+                {
+                  "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/conmebol.sudamericana/events/401913956?lang=en&region=us",
+                  "id": "401913956"
+                }
+              ]
+            }
+          ],
+          "notes": [
+            {
+              "type": "event",
+              "headline": "2nd Leg - Atlético-MG win 3-2 on aggregate"
+            },
+            {
+              "type": "event-ingest-note",
+              "date": "2026-10-22T08:23Z",
+              "text": "Atlético-MG wins.",
+              "source": "38"
+            }
+          ],
+          "status": {
+            "type": {
+              "id": "28",
+              "name": "STATUS_FULL_TIME",
+              "state": "post",
+              "completed": true,
+              "description": "Full Time",
+              "detail": "FT",
+              "shortDetail": "FT"
+            }
+          },
+          "competitors": [
+            {
+              "id": "19002",
+              "homeAway": "home",
+              "winner": false,
+              "score": "2",
+              "aggregateScore": 2,
+              "team": {
+                "id": "19002",
+                "displayName": "Montevideo City Torque"
+              }
+            },
+            {
+              "id": "7632",
+              "homeAway": "away",
+              "winner": true,
+              "score": "0",
+              "aggregateScore": 3,
+              "team": {
+                "id": "7632",
+                "displayName": "Atlético-MG"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "libertadoresShootoutSummary": {
+    "header": {
+      "id": "401912520",
+      "competitions": [
+        {
+          "id": "401912520",
+          "leg": {
+            "value": 2,
+            "displayValue": "2nd Leg"
+          },
+          "series": [
+            {
+              "title": "Semifinals",
+              "completed": true,
+              "leg": 2,
+              "totalCompetitions": 2,
+              "competitors": [
+                {
+                  "id": "2029",
+                  "uid": "s:600~l:630~t:2029",
+                  "aggregateScore": 2,
+                  "shootoutScore": 5,
+                  "winner": true,
+                  "team": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/2029?lang=en&region=us"
+                  }
+                },
+                {
+                  "id": "3445",
+                  "uid": "s:600~l:630~t:3445",
+                  "aggregateScore": 2,
+                  "shootoutScore": 3,
+                  "winner": false,
+                  "team": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/3445?lang=en&region=us"
+                  }
+                }
+              ],
+              "events": [
+                {
+                  "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/conmebol.libertadores/events/401912520?lang=en&region=us",
+                  "id": "401912520"
+                },
+                {
+                  "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/conmebol.libertadores/events/401912522?lang=en&region=us",
+                  "id": "401912522"
+                }
+              ]
+            }
+          ],
+          "notes": [
+            {
+              "type": "event",
+              "headline": "2nd Leg - Tied on aggregate - PAL win 5-3 on penalties"
+            },
+            {
+              "type": "event-ingest-note",
+              "date": "2026-10-22T10:15Z",
+              "text": "Palmeiras wins.",
+              "source": "38"
+            }
+          ],
+          "status": {
+            "type": {
+              "id": "47",
+              "name": "STATUS_FINAL_PEN",
+              "state": "post",
+              "completed": true,
+              "description": "Final Score - After Penalties",
+              "detail": "FT-Pens",
+              "shortDetail": "FT-Pens"
+            }
+          },
+          "competitors": [
+            {
+              "id": "2029",
+              "homeAway": "home",
+              "winner": true,
+              "score": "0",
+              "shootoutScore": 5,
+              "aggregateScore": 2,
+              "team": {
+                "id": "2029",
+                "displayName": "Palmeiras"
+              }
+            },
+            {
+              "id": "3445",
+              "homeAway": "away",
+              "winner": false,
+              "score": "1",
+              "shootoutScore": 3,
+              "aggregateScore": 2,
+              "team": {
+                "id": "3445",
+                "displayName": "Fluminense"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "copaDoBrasilFirstLegSummary": {
+    "header": {
+      "id": "401913109",
+      "competitions": [
+        {
+          "id": "401913109",
+          "leg": {
+            "value": 1,
+            "displayValue": "1st Leg"
+          },
+          "series": [
+            {
+              "title": "Semifinals",
+              "completed": false,
+              "leg": 1,
+              "totalCompetitions": 2,
+              "competitors": [
+                {
+                  "id": "6273",
+                  "uid": "s:600~l:630~t:6273",
+                  "aggregateScore": 0,
+                  "team": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/6273?lang=en&region=us"
+                  }
+                },
+                {
+                  "id": "7632",
+                  "uid": "s:600~l:630~t:7632",
+                  "aggregateScore": 0,
+                  "team": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/7632?lang=en&region=us"
+                  }
+                }
+              ],
+              "events": [
+                {
+                  "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.copa_do_brazil/events/401913108?lang=en&region=us",
+                  "id": "401913108"
+                },
+                {
+                  "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.copa_do_brazil/events/401913109?lang=en&region=us",
+                  "id": "401913109"
+                }
+              ]
+            }
+          ],
+          "notes": [
+            {
+              "type": "event",
+              "headline": "1st Leg"
+            }
+          ],
+          "status": {
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Sun, November 1st at 4:30 PM EST",
+              "shortDetail": "11/1 - 4:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "id": "6273",
+              "homeAway": "home",
+              "winner": false,
+              "team": {
+                "id": "6273",
+                "displayName": "Grêmio"
+              }
+            },
+            {
+              "id": "7632",
+              "homeAway": "away",
+              "winner": false,
+              "team": {
+                "id": "7632",
+                "displayName": "Atlético-MG"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "bra2SummaryWithStandings": {
+    "header": {
+      "id": "401860397",
+      "competitions": [
+        {
+          "id": "401860397",
+          "notes": [],
+          "status": {
+            "type": {
+              "id": "28",
+              "name": "STATUS_FULL_TIME",
+              "state": "post",
+              "completed": true,
+              "description": "Full Time",
+              "detail": "FT",
+              "shortDetail": "FT"
+            }
+          },
+          "competitors": [
+            {
+              "id": "17333",
+              "homeAway": "home",
+              "winner": true,
+              "score": "1",
+              "team": {
+                "id": "17333",
+                "displayName": "Londrina"
+              }
+            },
+            {
+              "id": "17313",
+              "homeAway": "away",
+              "winner": false,
+              "score": "0",
+              "team": {
+                "id": "17313",
+                "displayName": "Cuiabá"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "standings": {
+      "groups": [
+        {
+          "header": "Brazilian Serie B Standings",
+          "standings": {
+            "entries": [
+              {
+                "team": "Vila Nova",
+                "link": "https://www.espn.com/soccer/club/_/id/9973/vila-nova",
+                "id": "9973",
+                "uid": "s:600~t:9973",
+                "stats": [
+                  {
+                    "name": "gamesPlayed",
+                    "displayName": "Games Played",
+                    "shortDisplayName": "GP",
+                    "description": "Number of Games Played",
+                    "abbreviation": "GP",
+                    "type": "gamesplayed",
+                    "value": 34,
+                    "displayValue": "34"
+                  },
+                  {
+                    "name": "losses",
+                    "displayName": "Losses",
+                    "shortDisplayName": "L",
+                    "description": "Losses",
+                    "abbreviation": "L",
+                    "type": "losses",
+                    "value": 8,
+                    "displayValue": "8"
+                  },
+                  {
+                    "name": "pointDifferential",
+                    "displayName": "Goal Difference",
+                    "shortDisplayName": "GD",
+                    "description": "Goal Difference",
+                    "abbreviation": "GD",
+                    "type": "pointdifferential",
+                    "value": 15,
+                    "displayValue": "+15"
+                  },
+                  {
+                    "name": "points",
+                    "displayName": "Points",
+                    "shortDisplayName": "P",
+                    "description": "Points",
+                    "abbreviation": "P",
+                    "type": "points",
+                    "value": 62,
+                    "displayValue": "62"
+                  },
+                  {
+                    "name": "ties",
+                    "displayName": "Draws",
+                    "shortDisplayName": "D",
+                    "description": "Draws",
+                    "abbreviation": "D",
+                    "type": "ties",
+                    "value": 8,
+                    "displayValue": "8"
+                  },
+                  {
+                    "name": "wins",
+                    "displayName": "Wins",
+                    "shortDisplayName": "W",
+                    "description": "Wins",
+                    "abbreviation": "W",
+                    "type": "wins",
+                    "value": 18,
+                    "displayValue": "18"
+                  },
+                  {
+                    "name": "rank",
+                    "displayName": "Rank",
+                    "shortDisplayName": "Rank",
+                    "description": "Rank",
+                    "abbreviation": "R",
+                    "type": "rank",
+                    "value": 1,
+                    "displayValue": "1"
+                  },
+                  {
+                    "id": "0",
+                    "name": "overall",
+                    "abbreviation": "Total",
+                    "displayName": "Overall",
+                    "shortDisplayName": "OVER",
+                    "description": "Overall Record",
+                    "type": "total",
+                    "summary": "18-8-8",
+                    "displayValue": "18-8-8"
+                  }
+                ],
+                "logo": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/9973.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              },
+              {
+                "team": "Novorizontino",
+                "link": "https://www.espn.com/soccer/club/_/id/18127/novorizontino",
+                "id": "18127",
+                "uid": "s:600~t:18127",
+                "stats": [
+                  {
+                    "name": "gamesPlayed",
+                    "displayName": "Games Played",
+                    "shortDisplayName": "GP",
+                    "description": "Number of Games Played",
+                    "abbreviation": "GP",
+                    "type": "gamesplayed",
+                    "value": 34,
+                    "displayValue": "34"
+                  },
+                  {
+                    "name": "losses",
+                    "displayName": "Losses",
+                    "shortDisplayName": "L",
+                    "description": "Losses",
+                    "abbreviation": "L",
+                    "type": "losses",
+                    "value": 7,
+                    "displayValue": "7"
+                  },
+                  {
+                    "name": "pointDifferential",
+                    "displayName": "Goal Difference",
+                    "shortDisplayName": "GD",
+                    "description": "Goal Difference",
+                    "abbreviation": "GD",
+                    "type": "pointdifferential",
+                    "value": 31,
+                    "displayValue": "+31"
+                  },
+                  {
+                    "name": "points",
+                    "displayName": "Points",
+                    "shortDisplayName": "P",
+                    "description": "Points",
+                    "abbreviation": "P",
+                    "type": "points",
+                    "value": 61,
+                    "displayValue": "61"
+                  },
+                  {
+                    "name": "ties",
+                    "displayName": "Draws",
+                    "shortDisplayName": "D",
+                    "description": "Draws",
+                    "abbreviation": "D",
+                    "type": "ties",
+                    "value": 10,
+                    "displayValue": "10"
+                  },
+                  {
+                    "name": "wins",
+                    "displayName": "Wins",
+                    "shortDisplayName": "W",
+                    "description": "Wins",
+                    "abbreviation": "W",
+                    "type": "wins",
+                    "value": 17,
+                    "displayValue": "17"
+                  },
+                  {
+                    "name": "rank",
+                    "displayName": "Rank",
+                    "shortDisplayName": "Rank",
+                    "description": "Rank",
+                    "abbreviation": "R",
+                    "type": "rank",
+                    "value": 2,
+                    "displayValue": "2"
+                  },
+                  {
+                    "id": "0",
+                    "name": "overall",
+                    "abbreviation": "Total",
+                    "displayName": "Overall",
+                    "shortDisplayName": "OVER",
+                    "description": "Overall Record",
+                    "type": "total",
+                    "summary": "17-10-7",
+                    "displayValue": "17-10-7"
+                  }
+                ],
+                "logo": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/18127.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2021-04-30T14:30Z"
+                  }
+                ]
+              },
+              {
+                "team": "Cuiabá",
+                "link": "https://www.espn.com/soccer/club/_/id/17313/cuiaba",
+                "id": "17313",
+                "uid": "s:600~t:17313",
+                "stats": [
+                  {
+                    "name": "gamesPlayed",
+                    "displayName": "Games Played",
+                    "shortDisplayName": "GP",
+                    "description": "Number of Games Played",
+                    "abbreviation": "GP",
+                    "type": "gamesplayed",
+                    "value": 34,
+                    "displayValue": "34"
+                  },
+                  {
+                    "name": "losses",
+                    "displayName": "Losses",
+                    "shortDisplayName": "L",
+                    "description": "Losses",
+                    "abbreviation": "L",
+                    "type": "losses",
+                    "value": 9,
+                    "displayValue": "9"
+                  },
+                  {
+                    "name": "pointDifferential",
+                    "displayName": "Goal Difference",
+                    "shortDisplayName": "GD",
+                    "description": "Goal Difference",
+                    "abbreviation": "GD",
+                    "type": "pointdifferential",
+                    "value": 5,
+                    "displayValue": "+5"
+                  },
+                  {
+                    "name": "points",
+                    "displayName": "Points",
+                    "shortDisplayName": "P",
+                    "description": "Points",
+                    "abbreviation": "P",
+                    "type": "points",
+                    "value": 47,
+                    "displayValue": "47"
+                  },
+                  {
+                    "name": "ties",
+                    "displayName": "Draws",
+                    "shortDisplayName": "D",
+                    "description": "Draws",
+                    "abbreviation": "D",
+                    "type": "ties",
+                    "value": 14,
+                    "displayValue": "14"
+                  },
+                  {
+                    "name": "wins",
+                    "displayName": "Wins",
+                    "shortDisplayName": "W",
+                    "description": "Wins",
+                    "abbreviation": "W",
+                    "type": "wins",
+                    "value": 11,
+                    "displayValue": "11"
+                  },
+                  {
+                    "name": "rank",
+                    "displayName": "Rank",
+                    "shortDisplayName": "Rank",
+                    "description": "Rank",
+                    "abbreviation": "R",
+                    "type": "rank",
+                    "value": 11,
+                    "displayValue": "11"
+                  },
+                  {
+                    "id": "0",
+                    "name": "overall",
+                    "abbreviation": "Total",
+                    "displayName": "Overall",
+                    "shortDisplayName": "OVER",
+                    "description": "Overall Record",
+                    "type": "total",
+                    "summary": "11-14-9",
+                    "displayValue": "11-14-9"
+                  }
+                ],
+                "logo": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/17313.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              },
+              {
+                "team": "Londrina",
+                "link": "https://www.espn.com/soccer/club/_/id/17333/londrina",
+                "id": "17333",
+                "uid": "s:600~t:17333",
+                "stats": [
+                  {
+                    "name": "gamesPlayed",
+                    "displayName": "Games Played",
+                    "shortDisplayName": "GP",
+                    "description": "Number of Games Played",
+                    "abbreviation": "GP",
+                    "type": "gamesplayed",
+                    "value": 34,
+                    "displayValue": "34"
+                  },
+                  {
+                    "name": "losses",
+                    "displayName": "Losses",
+                    "shortDisplayName": "L",
+                    "description": "Losses",
+                    "abbreviation": "L",
+                    "type": "losses",
+                    "value": 18,
+                    "displayValue": "18"
+                  },
+                  {
+                    "name": "pointDifferential",
+                    "displayName": "Goal Difference",
+                    "shortDisplayName": "GD",
+                    "description": "Goal Difference",
+                    "abbreviation": "GD",
+                    "type": "pointdifferential",
+                    "value": -6,
+                    "displayValue": "-6"
+                  },
+                  {
+                    "name": "points",
+                    "displayName": "Points",
+                    "shortDisplayName": "P",
+                    "description": "Points",
+                    "abbreviation": "P",
+                    "type": "points",
+                    "value": 32,
+                    "displayValue": "32"
+                  },
+                  {
+                    "name": "ties",
+                    "displayName": "Draws",
+                    "shortDisplayName": "D",
+                    "description": "Draws",
+                    "abbreviation": "D",
+                    "type": "ties",
+                    "value": 8,
+                    "displayValue": "8"
+                  },
+                  {
+                    "name": "wins",
+                    "displayName": "Wins",
+                    "shortDisplayName": "W",
+                    "description": "Wins",
+                    "abbreviation": "W",
+                    "type": "wins",
+                    "value": 8,
+                    "displayValue": "8"
+                  },
+                  {
+                    "name": "rank",
+                    "displayName": "Rank",
+                    "shortDisplayName": "Rank",
+                    "description": "Rank",
+                    "abbreviation": "R",
+                    "type": "rank",
+                    "value": 18,
+                    "displayValue": "18"
+                  },
+                  {
+                    "id": "0",
+                    "name": "overall",
+                    "abbreviation": "Total",
+                    "displayName": "Overall",
+                    "shortDisplayName": "OVER",
+                    "description": "Overall Record",
+                    "type": "total",
+                    "summary": "8-8-18",
+                    "displayValue": "8-8-18"
+                  }
+                ],
+                "logo": [
+                  {
+                    "href": "https://a.espncdn.com/i/teamlogos/soccer/500/17333.png",
+                    "width": 500,
+                    "height": 500,
+                    "alt": "",
+                    "rel": [
+                      "full",
+                      "default"
+                    ],
+                    "lastUpdated": "2019-05-08T16:07Z"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "libertadoresSecondLegScoreboardCompetition": {
+    "leg": {
+      "value": 2,
+      "displayValue": "2nd Leg"
+    },
+    "series": {
+      "competitors": [
+        {
+          "id": "819",
+          "uid": "s:600~t:819",
+          "winner": false,
+          "aggregateScore": 0
+        },
+        {
+          "id": "8",
+          "uid": "s:600~t:8",
+          "winner": false,
+          "aggregateScore": 0
+        }
+      ],
+      "completed": false,
+      "title": "Semifinals",
+      "totalCompetitions": 2
+    },
+    "competitors": [
+      {
+        "id": "819",
+        "homeAway": "home",
+        "aggregateScore": 0,
+        "team": {
+          "id": "819",
+          "displayName": "Flamengo"
+        }
+      },
+      {
+        "id": "8",
+        "homeAway": "away",
+        "aggregateScore": 0,
+        "team": {
+          "id": "8",
+          "displayName": "Estudiantes de La Plata"
+        }
+      }
+    ]
+  },
+  "paulistaFinalSecondLegSummary": {
+    "header": {
+      "id": "401863164",
+      "competitions": [
+        {
+          "id": "401863164",
+          "leg": {
+            "value": 2,
+            "displayValue": "2nd Leg"
+          },
+          "series": [
+            {
+              "title": "Finals",
+              "completed": true,
+              "leg": 2,
+              "totalCompetitions": 2,
+              "competitors": [
+                {
+                  "id": "18127",
+                  "uid": "s:600~l:4007~t:18127",
+                  "aggregateScore": 1,
+                  "winner": false,
+                  "team": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.2/seasons/2026/teams/18127?lang=en&region=us"
+                  }
+                },
+                {
+                  "id": "2029",
+                  "uid": "s:600~l:630~t:2029",
+                  "aggregateScore": 3,
+                  "winner": true,
+                  "team": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/2029?lang=en&region=us"
+                  }
+                }
+              ],
+              "events": [
+                {
+                  "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.camp.paulista/events/401863163?lang=en&region=us",
+                  "id": "401863163"
+                },
+                {
+                  "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.camp.paulista/events/401863164?lang=en&region=us",
+                  "id": "401863164"
+                }
+              ]
+            }
+          ],
+          "notes": [
+            {
+              "type": "event",
+              "headline": "2nd Leg - Palmeiras win 3-1 on aggregate"
+            },
+            {
+              "type": "event-ingest-note",
+              "date": "2026-03-13T18:45Z",
+              "text": "Palmeiras wins.",
+              "source": "38"
+            }
+          ],
+          "status": {
+            "type": {
+              "id": "28",
+              "name": "STATUS_FULL_TIME",
+              "state": "post",
+              "completed": true,
+              "description": "Full Time",
+              "detail": "FT",
+              "shortDetail": "FT"
+            }
+          },
+          "competitors": [
+            {
+              "id": "18127",
+              "homeAway": "home",
+              "winner": false,
+              "score": "1",
+              "aggregateScore": 1,
+              "team": {
+                "id": "18127",
+                "displayName": "Novorizontino"
+              }
+            },
+            {
+              "id": "2029",
+              "homeAway": "away",
+              "winner": true,
+              "score": "2",
+              "aggregateScore": 3,
+              "team": {
+                "id": "2029",
+                "displayName": "Palmeiras"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "mineiroSideTrophyFinalSummary": {
+    "header": {
+      "id": "401863459",
+      "competitions": [
+        {
+          "id": "401863459",
+          "leg": {
+            "value": 2,
+            "displayValue": "2nd Leg"
+          },
+          "series": [
+            {
+              "title": "Troféu Inconfidência - Finals",
+              "completed": true,
+              "leg": 2,
+              "totalCompetitions": 2,
+              "competitors": [
+                {
+                  "id": "131565",
+                  "uid": "s:600~l:10872~t:131565",
+                  "aggregateScore": 3,
+                  "winner": true,
+                  "team": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.camp.mineiro/seasons/2026/teams/131565?lang=en&region=us"
+                  }
+                },
+                {
+                  "id": "18399",
+                  "uid": "s:600~l:10872~t:18399",
+                  "aggregateScore": 1,
+                  "winner": false,
+                  "team": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.camp.mineiro/seasons/2026/teams/18399?lang=en&region=us"
+                  }
+                }
+              ],
+              "events": [
+                {
+                  "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.camp.mineiro/events/401863458?lang=en&region=us",
+                  "id": "401863458"
+                },
+                {
+                  "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.camp.mineiro/events/401863459?lang=en&region=us",
+                  "id": "401863459"
+                }
+              ]
+            }
+          ],
+          "notes": [
+            {
+              "type": "event",
+              "headline": "2nd Leg - North EC win 3-1 on aggregate"
+            },
+            {
+              "type": "event-ingest-note",
+              "date": "2026-03-30T23:55Z",
+              "text": "North EC advances.",
+              "source": "38"
+            }
+          ],
+          "status": {
+            "type": {
+              "id": "28",
+              "name": "STATUS_FULL_TIME",
+              "state": "post",
+              "completed": true,
+              "description": "Full Time",
+              "detail": "FT",
+              "shortDetail": "FT"
+            }
+          },
+          "competitors": [
+            {
+              "id": "131565",
+              "homeAway": "home",
+              "winner": true,
+              "score": "1",
+              "aggregateScore": 3,
+              "team": {
+                "id": "131565",
+                "displayName": "North EC"
+              }
+            },
+            {
+              "id": "18399",
+              "homeAway": "away",
+              "winner": false,
+              "score": "0",
+              "aggregateScore": 1,
+              "team": {
+                "id": "18399",
+                "displayName": "URT"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "cariocaTacaGuanabaraSemiSummary": {
+    "header": {
+      "id": "401861658",
+      "competitions": [
+        {
+          "id": "401861658",
+          "leg": {
+            "value": 2,
+            "displayValue": "2nd Leg"
+          },
+          "series": [
+            {
+              "title": "Taça Guanabara - Semifinals",
+              "completed": true,
+              "leg": 2,
+              "totalCompetitions": 2,
+              "competitors": [
+                {
+                  "id": "3445",
+                  "uid": "s:600~l:630~t:3445",
+                  "aggregateScore": 2,
+                  "winner": true,
+                  "team": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/3445?lang=en&region=us"
+                  }
+                },
+                {
+                  "id": "3454",
+                  "uid": "s:600~l:630~t:3454",
+                  "aggregateScore": 1,
+                  "winner": false,
+                  "team": {
+                    "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/3454?lang=en&region=us"
+                  }
+                }
+              ],
+              "events": [
+                {
+                  "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.camp.carioca/events/401861655?lang=en&region=us",
+                  "id": "401861655"
+                },
+                {
+                  "$ref": "http://sports.core.api.espn.pvt/v2/sports/soccer/leagues/bra.camp.carioca/events/401861658?lang=en&region=us",
+                  "id": "401861658"
+                }
+              ]
+            }
+          ],
+          "notes": [
+            {
+              "type": "event",
+              "headline": "2nd Leg - Fluminense advance 2-1 on aggregate"
+            },
+            {
+              "type": "event-ingest-note",
+              "date": "2026-03-04T23:28Z",
+              "text": "Fluminense advances.",
+              "source": "38"
+            }
+          ],
+          "status": {
+            "type": {
+              "id": "28",
+              "name": "STATUS_FULL_TIME",
+              "state": "post",
+              "completed": true,
+              "description": "Full Time",
+              "detail": "FT",
+              "shortDetail": "FT"
+            }
+          },
+          "competitors": [
+            {
+              "id": "3445",
+              "homeAway": "home",
+              "winner": true,
+              "score": "1",
+              "aggregateScore": 2,
+              "team": {
+                "id": "3445",
+                "displayName": "Fluminense"
+              }
+            },
+            {
+              "id": "3454",
+              "homeAway": "away",
+              "winner": false,
+              "score": "1",
+              "aggregateScore": 1,
+              "team": {
+                "id": "3454",
+                "displayName": "Vasco da Gama"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
