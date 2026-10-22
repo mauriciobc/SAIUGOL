@@ -258,6 +258,9 @@ export function markExistingEventsAsSeen(matchId, events) {
         const eventId = isMatchDelayCategory(category)
             ? getMatchDelayEventId(matchId, category, event.minute)
             : generateEventId(matchId, event);
+        // A goal, penalty or stoppage restored mid-confirmation already has its "pending" post out:
+        // leave it to its lifecycle, or the confirming reply would never be posted after a restart.
+        if (getPendingGoal(eventId) || getPendingPenalty(eventId) || getPendingDelayStart(eventId)) continue;
         markEventPosted(eventId);
     }
 }
