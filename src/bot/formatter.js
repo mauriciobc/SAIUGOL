@@ -22,6 +22,19 @@ function eventDescription(event) {
 }
 
 /**
+ * Name of the team an event belongs to. Live events from getLiveEvents carry only teamId (no team
+ * object), so resolve it against the match; falls back to the home team when ESPN gives no team.
+ */
+function eventTeamName(event, match) {
+    const teamId = event?.teamId ?? event?.team?.id;
+    if (teamId != null) {
+        if (String(teamId) === String(match.homeTeam?.id)) return match.homeTeam.name;
+        if (String(teamId) === String(match.awayTeam?.id)) return match.awayTeam.name;
+    }
+    return event?.team?.name || match.homeTeam?.name;
+}
+
+/**
  * Format a goal event as a Mastodon post
  * @param {Object} event - Goal event data
  * @param {Object} match - Match data
@@ -61,7 +74,7 @@ export function formatGoal(event, match, options = {}) {
     const desc = eventDescription(event);
     if (desc) text += `\n\n📝 ${desc}`;
 
-    text += `\n\n${getTeamHashtag(event.team?.name || homeTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+    text += `\n\n${getTeamHashtag(eventTeamName(event, match))} ${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }
@@ -140,7 +153,7 @@ export function formatPenaltyMissed(event, match, options = {}) {
     const desc = eventDescription(event);
     if (desc) text += `\n\n📝 ${desc}`;
 
-    text += `\n\n${getTeamHashtag(event.team?.name || homeTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+    text += `\n\n${getTeamHashtag(eventTeamName(event, match))} ${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }

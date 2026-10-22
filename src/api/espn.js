@@ -474,13 +474,14 @@ export async function getMatchDetails(matchId, leagueCode) {
                     homeTeam: {
                         id: home.team?.id,
                         name: home.team?.displayName || 'Casa',
-                        logo: home.team?.logo,
+                        // The summary header lists crests under `logos[]`; only the scoreboard has `logo`.
+                        logo: home.team?.logo ?? home.team?.logos?.[0]?.href,
                         standing: homeStanding,
                     },
                     awayTeam: {
                         id: away.team?.id,
                         name: away.team?.displayName || 'Visitante',
-                        logo: away.team?.logo,
+                        logo: away.team?.logo ?? away.team?.logos?.[0]?.href,
                         standing: awayStanding,
                     },
                     homeScore: parseInt(home.score, 10) || 0,

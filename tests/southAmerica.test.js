@@ -229,3 +229,18 @@ describe('getMatchPlays pagination', () => {
         assert.ok(!requested.some((u) => u.includes('900002') && u.includes('limit=5000')));
     });
 });
+
+describe('getMatchDetails crests', () => {
+    it('reads crests from the summary header `logos[]` so goal posts can attach them', async () => {
+        const summary = structuredClone(fixture.bra2SummaryWithStandings);
+        summary.header.id = '900010';
+        for (const c of comp(summary).competitors) {
+            c.team.logos = [{ href: `https://a.espncdn.com/i/teamlogos/soccer/500/${c.team.id}.png` }];
+        }
+        routes.set('summary?event=900010', summary);
+
+        const details = await getMatchDetails('900010', 'bra.2');
+        assert.match(details.homeTeam.logo, /teamlogos\/soccer\/500\/\d+\.png$/);
+        assert.match(details.awayTeam.logo, /teamlogos\/soccer\/500\/\d+\.png$/);
+    });
+});
