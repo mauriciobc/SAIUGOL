@@ -252,6 +252,8 @@ describe('Goal confirmation lifecycle', () => {
         assert.strictEqual(postedWith.length, 1);
 
         config.delays.goalConfirmationTimeoutMs = 0;
+        // The timeout check is strict (elapsed > timeout), so let at least 1 ms pass or it flakes.
+        await new Promise((resolve) => setTimeout(resolve, 2));
         const count = await processEvents([placeholderEvent], match);
 
         assert.strictEqual(count, 1, 'should force-post once the timeout has elapsed');
