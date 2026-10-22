@@ -4,12 +4,19 @@ import { config } from '../config.js';
 import { retryWithBackoff, isRetryableError } from '../utils/retry.js';
 import { mastodonLogger } from '../utils/logger.js';
 import { recordMastodonPost } from '../utils/metrics.js';
-import { Readable } from 'stream';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
+
+const ESPN_MEDIA_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': '*/*',
+    'Accept-Language': 'en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7',
+    'Connection': 'keep-alive',
+    'Referer': 'https://www.espn.com.br/',
+};
 
 let client = null;
 let lastPostTime = 0;
@@ -37,23 +44,37 @@ let _uploadFn = null;
 /** Override uploadMediaFromUrl for testing. Pass null to restore the real implementation. */
 export function __setUploadFn(fn) { _uploadFn = fn; }
 
+function isCurlMissingError(err) {
+    return err?.code === 'ENOENT' || err?.message?.includes('ENOENT');
+}
+
 /**
- * Helper to download a file using native curl (to bypass Node.js WAF blocking)
+ * Download via Node fetch (fallback when curl is not installed).
+ */
+async function downloadWithFetch(url, destPath) {
+    const response = await fetch(url, {
+        headers: ESPN_MEDIA_HEADERS,
+        redirect: 'follow',
+    });
+    if (!response.ok) {
+        throw new Error(`fetch HTTP error: ${response.status}`);
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    fs.writeFileSync(destPath, buffer);
+}
+
+/**
+ * Download via native curl (preferred — bypasses Akamai WAF blocks on some hosts).
  */
 function downloadWithCurl(url, destPath) {
     return new Promise((resolve, reject) => {
-        // Skip Akamai 403 blocks for standard curl by adding a more complex header set
-        const curl = spawn('curl', [
-            '-s', '-L',
-            '-w', '%{http_code}',
-            '-o', destPath,
-            '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            '-H', 'Accept: */*',
-            '-H', 'Accept-Language: en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7',
-            '-H', 'Connection: keep-alive',
-            '-H', 'Referer: https://www.espn.com.br/',
-            url
-        ]);
+        const curlArgs = ['-s', '-L', '-w', '%{http_code}', '-o', destPath];
+        for (const [key, value] of Object.entries(ESPN_MEDIA_HEADERS)) {
+            curlArgs.push('-H', `${key}: ${value}`);
+        }
+        curlArgs.push(url);
+
+        const curl = spawn('curl', curlArgs);
 
         let output = '';
         curl.stdout.on('data', (data) => {
@@ -84,6 +105,18 @@ function downloadWithCurl(url, destPath) {
     });
 }
 
+async function downloadMedia(url, destPath) {
+    try {
+        await downloadWithCurl(url, destPath);
+    } catch (err) {
+        if (!isCurlMissingError(err)) {
+            throw err;
+        }
+        mastodonLogger.info({ url }, 'curl não disponível, baixando mídia via fetch');
+        await downloadWithFetch(url, destPath);
+    }
+}
+
 /**
  * Upload media from a URL to Mastodon
  * @param {string} url - The URL of the media to upload
@@ -103,12 +136,12 @@ export async function uploadMediaFromUrl(url, options = {}) {
     
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            mastodonLogger.info({ attempt, url }, 'Tentando baixar mídia via curl');
+            mastodonLogger.info({ attempt, url }, 'Tentando baixar mídia');
             
             const tempFileName = `saiugol-media-${crypto.randomBytes(8).toString('hex')}${options.type === 'video' ? '.mp4' : '.jpg'}`;
             const tempFilePath = path.join(os.tmpdir(), tempFileName);
             
-            await downloadWithCurl(url, tempFilePath);
+            await downloadMedia(url, tempFilePath);
 
             // verify the file was created and has size
             const stats = fs.statSync(tempFilePath);
