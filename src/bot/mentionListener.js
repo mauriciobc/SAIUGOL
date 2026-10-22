@@ -2,6 +2,9 @@ import { config } from '../config.js';
 import { getMentions, postStatus, getAccountId } from '../api/mastodon.js';
 import { getLastNotificationId, setLastNotificationId } from '../state/matchState.js';
 import { formatDailyDigest } from './formatter.js';
+import { createChild } from '../utils/logger.js';
+
+const mentionLogger = createChild({ component: 'mentionListener' });
 
 /**
  * Per-account cooldown: Map<accountId, lastReplyTimestampMs>
@@ -103,16 +106,16 @@ export async function processMentions(mentions, botAccountId, leagueMatches) {
                 if (!(await handler(notification, leagueMatches))) throw new Error('resposta não publicada');
                 cooldowns.set(account.id, Date.now());
                 failedReplies.delete(id);
-                console.log(`[MentionListener] Respondido "${keyword}" para @${account.acct}`);
+                mentionLogger.info({ keyword, acct: account.acct }, 'Respondido');
             } catch (err) {
                 const attempts = (failedReplies.get(id) ?? 0) + 1;
                 if (attempts < MAX_REPLY_ATTEMPTS) {
                     failedReplies.set(id, attempts);
-                    console.error(`[MentionListener] Erro ao responder menção de @${account.acct} (tentativa ${attempts}/${MAX_REPLY_ATTEMPTS}, nova tentativa no próximo ciclo):`, err.message);
+                    mentionLogger.error({ acct: account.acct, attempt: attempts, maxAttempts: MAX_REPLY_ATTEMPTS, error: err.message }, 'Erro ao responder menção; nova tentativa no próximo ciclo');
                     break;
                 }
                 failedReplies.delete(id);
-                console.error(`[MentionListener] Menção de @${account.acct} ignorada após ${MAX_REPLY_ATTEMPTS} tentativas:`, err.message);
+                mentionLogger.error({ acct: account.acct, attempts: MAX_REPLY_ATTEMPTS, error: err.message }, 'Menção ignorada após várias tentativas');
             }
         }
         highestId = id;
@@ -145,7 +148,7 @@ export async function pollMentions(botAccountId, leagueMatches) {
  */
 export function startMentionListener(leagueMatchesProvider) {
     if (!config.mentions.enabled) {
-        console.log('[MentionListener] Desativado pela configuração');
+        mentionLogger.info('Desativado pela configuração');
         return { stop: () => {} };
     }
 
@@ -165,19 +168,19 @@ export function startMentionListener(leagueMatchesProvider) {
             const leagueMatches = _leagueMatchesProvider ? _leagueMatchesProvider() : [];
             await pollMentions(botAccountId, leagueMatches);
         } catch (err) {
-            console.error('[MentionListener] Erro no tick:', err.message);
+            mentionLogger.error({ error: err.message }, 'Erro no tick');
         } finally {
             ticking = false;
         }
     };
 
     timer = setInterval(tick, config.mentions.pollIntervalMs);
-    console.log(`[MentionListener] Iniciado (intervalo: ${config.mentions.pollIntervalMs}ms)`);
+    mentionLogger.info({ pollIntervalMs: config.mentions.pollIntervalMs }, 'Iniciado');
 
     return {
         stop: () => {
             if (timer) { clearInterval(timer); timer = null; }
-            console.log('[MentionListener] Parado');
+            mentionLogger.info('Parado');
         },
     };
 }

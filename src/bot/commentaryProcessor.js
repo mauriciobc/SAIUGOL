@@ -4,6 +4,9 @@ import { formatCommentary } from './formatter.js';
 import { postMatchStatus } from './matchThread.js';
 import { processEvents as defaultProcessEvents, isKeyEventTypeId } from './eventProcessor.js';
 import { canPost, TIER } from './postPlanner.js';
+import { createChild } from '../utils/logger.js';
+
+const commentaryLogger = createChild({ component: 'commentary' });
 
 /**
  * Dedup key for a commentary entry. Uses the `${matchId}-` prefix so clearMatchState cleans it up.
@@ -100,7 +103,7 @@ export async function processCommentaryWithEvents(commentary, events, match, dep
         counts.events += await processEvents(events, match);
     }
     if (counts.dropped > 0) {
-        console.warn(`[Commentary] ${counts.dropped} comentários descartados na partida ${matchId}: agenda do dia cheia`);
+        commentaryLogger.warn({ matchId, dropped: counts.dropped }, 'Comentários descartados: agenda do dia cheia');
     }
     return counts;
 }

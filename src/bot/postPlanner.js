@@ -2,6 +2,9 @@ import { config } from '../config.js';
 import { getRecentStatusCount, getRecentStatusTimes, STATUS_LIMIT_PER_3H } from '../api/mastodon.js';
 import { getActiveMatches } from '../state/matchState.js';
 import { getDateStringFor } from '../utils/dateUtils.js';
+import { createChild } from '../utils/logger.js';
+
+const plannerLogger = createChild({ component: 'planner' });
 import { matchesToSnapshotMap } from '../state/snapshotContract.js';
 
 /**
@@ -182,7 +185,7 @@ export function updateDayPlan(leagueMatches, { now = Date.now(), recentPostTimes
         .sort(([a], [b]) => b - a)
         .map(([level, n]) => `${n} ${TIER_LABELS[level]}`)
         .join(', ');
-    console.log(`[Planner] ${day}: ${plan.levels.size} jogos, pico previsto ${plan.peak}/${config.planner.budgetPer3h} posts em 3h${plan.fits ? '' : ' (acima do orçamento mesmo só com essenciais)'}: ${summary}`);
+    plannerLogger.info({ day, matches: plan.levels.size, peak: plan.peak, budget: config.planner.budgetPer3h, fits: plan.fits, levels: summary }, 'Plano do dia');
     return plan;
 }
 

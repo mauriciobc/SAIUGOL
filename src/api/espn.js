@@ -13,15 +13,6 @@ const CDN_URL = 'https://cdn.espn.com/core/soccer';
 const CORE_BASE_URL = 'https://sports.core.api.espn.com/v2/sports/soccer/leagues';
 const DEBUG_API = process.env.DEBUG_API === 'true';
 
-const ESPN_DOCUMENTED_ENDPOINTS = [
-    { path: '/scoreboard', method: 'GET', documented: true },
-    { path: '/summary', method: 'GET', documented: false },
-];
-
-const ESPN_CDN_ENDPOINTS = [
-    { path: '/scoreboard', method: 'GET' },
-];
-
 let useCdnFallback = false;
 let cdnHealthy = true;
 
