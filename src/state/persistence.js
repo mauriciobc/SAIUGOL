@@ -27,9 +27,30 @@ async function ensureStateDir() {
     }
 }
 
+/** Keyed state saved as plain objects in state.json (Maps in memory). */
+const KEYED_STATE = ['matchSnapshots', 'pendingGoals', 'pendingPenalties', 'pendingDelayStarts', 'matchThreads'];
+
+/** Map → plain object for JSON; a plain object passes through; anything else → {}. */
+function toPlainObject(value) {
+    if (value instanceof Map) return Object.fromEntries(value);
+    return value && typeof value === 'object' ? value : {};
+}
+
+function emptyState() {
+    return {
+        postedEventIds: new Set(),
+        activeMatchKeys: [],
+        lastDigestDate: null,
+        lastNotificationId: null,
+        ...Object.fromEntries(KEYED_STATE.map((key) => [key, {}])),
+    };
+}
+
 /**
  * Load state from disk
- * @returns {Promise<Object>} State object with postedEventIds and matchSnapshots
+ * @returns {Promise<Object>} State with postedEventIds (Set), activeMatchKeys, lastDigestDate,
+ *   lastNotificationId and the keyed state (matchSnapshots, pendingGoals, pendingPenalties,
+ *   pendingDelayStarts, matchThreads) as plain objects
  */
 export async function loadState() {
     try {
@@ -44,72 +65,55 @@ export async function loadState() {
         return {
             postedEventIds: new Set(state.postedEventIds || []),
             lastSaveTime: state.lastSaveTime,
-            matchSnapshots: state.matchSnapshots || {},
             activeMatchKeys: Array.isArray(state.activeMatchKeys) ? state.activeMatchKeys : [],
             lastDigestDate: state.lastDigestDate || null,
             lastNotificationId: state.lastNotificationId || null,
-            pendingGoals: state.pendingGoals && typeof state.pendingGoals === 'object' ? state.pendingGoals : {},
-            pendingPenalties: state.pendingPenalties && typeof state.pendingPenalties === 'object' ? state.pendingPenalties : {},
-            matchThreads: state.matchThreads && typeof state.matchThreads === 'object' ? state.matchThreads : {},
+            ...Object.fromEntries(KEYED_STATE.map((key) => [key, toPlainObject(state[key])])),
         };
     } catch (error) {
         if (error.code === 'ENOENT') {
             persistenceLogger.info('Nenhum estado anterior encontrado, iniciando novo');
-            return { postedEventIds: new Set(), matchSnapshots: {}, activeMatchKeys: [], lastDigestDate: null, lastNotificationId: null, pendingGoals: {}, pendingPenalties: {}, matchThreads: {} };
+        } else {
+            persistenceLogger.error({ error: error.message }, 'Erro ao carregar estado');
         }
-        persistenceLogger.error({ error: error.message }, 'Erro ao carregar estado');
-        return { postedEventIds: new Set(), matchSnapshots: {}, activeMatchKeys: [], lastDigestDate: null, lastNotificationId: null, pendingGoals: {}, pendingPenalties: {}, matchThreads: {} };
+        return emptyState();
     }
 }
 
 /**
  * Save state to disk
  * @param {Set<string>} postedEventIds - Set of posted event IDs
- * @param {Map<string, import('./snapshotContract.js').MatchSnapshot>} [matchSnapshots] - Snapshot cache (key: leagueCode:matchId)
- * @param {string[]} [activeMatchKeys] - Composite keys (leagueCode:matchId) of matches that were live at save
- * @param {string} [lastDigestDate]
- * @param {string} [lastNotificationId]
- * @param {Map<string, Object>} [pendingGoals] - Goals awaiting ESPN confirmation (key: eventId)
- * @param {Map<string, Object>} [pendingPenalties] - Penalties awaiting ESPN confirmation (key: eventId)
- * @param {Map<string, string>} [matchThreads] - Latest status id posted per match (key: matchId)
+ * @param {Object} [state] - Everything else, by name (all optional)
+ * @param {Map<string, import('./snapshotContract.js').MatchSnapshot>} [state.matchSnapshots] - Snapshot cache (key: leagueCode:matchId)
+ * @param {string[]} [state.activeMatchKeys] - Composite keys (leagueCode:matchId) of matches that were live at save
+ * @param {string} [state.lastDigestDate]
+ * @param {string} [state.lastNotificationId]
+ * @param {Map<string, Object>} [state.pendingGoals] - Goals awaiting ESPN confirmation (key: eventId)
+ * @param {Map<string, Object>} [state.pendingPenalties] - Penalties awaiting ESPN confirmation (key: eventId)
+ * @param {Map<string, Object>} [state.pendingDelayStarts] - Stoppages awaiting ESPN's description (key: eventId)
+ * @param {Map<string, string>} [state.matchThreads] - Latest status id posted per match (key: matchId)
  * @returns {Promise<boolean>} Success status
  */
-export async function saveState(postedEventIds, matchSnapshots = null, activeMatchKeys = null, lastDigestDate = null, lastNotificationId = null, pendingGoals = null, pendingPenalties = null, matchThreads = null) {
+export async function saveState(postedEventIds, state = {}) {
     try {
         await ensureStateDir();
-        const snapshotObj = matchSnapshots instanceof Map
-            ? Object.fromEntries(matchSnapshots)
-            : (matchSnapshots && typeof matchSnapshots === 'object' ? matchSnapshots : {});
-        const pendingGoalsObj = pendingGoals instanceof Map
-            ? Object.fromEntries(pendingGoals)
-            : (pendingGoals && typeof pendingGoals === 'object' ? pendingGoals : {});
-        const pendingPenaltiesObj = pendingPenalties instanceof Map
-            ? Object.fromEntries(pendingPenalties)
-            : (pendingPenalties && typeof pendingPenalties === 'object' ? pendingPenalties : {});
-        const matchThreadsObj = matchThreads instanceof Map
-            ? Object.fromEntries(matchThreads)
-            : (matchThreads && typeof matchThreads === 'object' ? matchThreads : {});
-        const state = {
+        const toSave = {
             postedEventIds: Array.from(postedEventIds),
             lastSaveTime: new Date().toISOString(),
-            version: '1.1',
-            matchSnapshots: snapshotObj,
-            activeMatchKeys: Array.isArray(activeMatchKeys) ? activeMatchKeys : [],
-            lastDigestDate: lastDigestDate || null,
-            lastNotificationId: lastNotificationId || null,
-            pendingGoals: pendingGoalsObj,
-            pendingPenalties: pendingPenaltiesObj,
-            matchThreads: matchThreadsObj,
+            version: '1.2',
+            activeMatchKeys: Array.isArray(state.activeMatchKeys) ? state.activeMatchKeys : [],
+            lastDigestDate: state.lastDigestDate || null,
+            lastNotificationId: state.lastNotificationId || null,
+            ...Object.fromEntries(KEYED_STATE.map((key) => [key, toPlainObject(state[key])])),
         };
 
         // Write to temp file first, then rename for atomic write
         const tempFile = `${getStateFile()}.tmp`;
-        await fs.writeFile(tempFile, JSON.stringify(state, null, 2), 'utf-8');
+        await fs.writeFile(tempFile, JSON.stringify(toSave, null, 2), 'utf-8');
         await fs.rename(tempFile, getStateFile());
 
-        const snapshotCount = Object.keys(snapshotObj).length;
         persistenceLogger.info(
-            { eventCount: state.postedEventIds.length, snapshotCount },
+            { eventCount: toSave.postedEventIds.length, snapshotCount: Object.keys(toSave.matchSnapshots).length },
             'Estado salvo'
         );
         return true;

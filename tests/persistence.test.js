@@ -36,7 +36,7 @@ describe('persistence', () => {
             ['bra.1:m1', { id: 'm1', score: { home: 1, away: 0 }, status: 'in', gameTime: "45'" }],
         ]);
 
-        const saved = await saveState(postedIds, snapshots);
+        const saved = await saveState(postedIds, { matchSnapshots: snapshots });
         assert.strictEqual(saved, true);
 
         const loaded = await loadState();
@@ -51,7 +51,7 @@ describe('persistence', () => {
         const postedIds = new Set();
         const snapshots = { 'league:1': { id: '1', score: { home: 0, away: 0 }, status: 'pre', gameTime: '-' } };
 
-        const saved = await saveState(postedIds, snapshots);
+        const saved = await saveState(postedIds, { matchSnapshots: snapshots });
         assert.strictEqual(saved, true);
 
         const loaded = await loadState();
@@ -63,7 +63,7 @@ describe('persistence', () => {
         const snapshots = new Map();
         const activeMatchKeys = ['bra.1:123', 'bra.1:456'];
 
-        const saved = await saveState(postedIds, snapshots, activeMatchKeys);
+        const saved = await saveState(postedIds, { matchSnapshots: snapshots, activeMatchKeys });
         assert.strictEqual(saved, true);
 
         const loaded = await loadState();
@@ -82,7 +82,7 @@ describe('persistence', () => {
     });
 
     it('getStateStats deve retornar exists e size após save', async () => {
-        await saveState(new Set(), new Map());
+        await saveState(new Set(), { matchSnapshots: new Map() });
         const stats = await getStateStats();
         assert.strictEqual(stats.exists, true);
         assert.ok(typeof stats.size === 'number');
@@ -91,7 +91,7 @@ describe('persistence', () => {
 
     it('saveState deve persistir lastDigestDate e loadState deve restaurá-la', async () => {
         const date = '2026-07-04';
-        await saveState(new Set(), new Map(), [], date);
+        await saveState(new Set(), { matchSnapshots: new Map(), activeMatchKeys: [], lastDigestDate: date });
         const loaded = await loadState();
         assert.strictEqual(loaded.lastDigestDate, date);
     });
@@ -108,7 +108,7 @@ describe('persistence', () => {
             ['m1-49723876', { matchId: 'm1', statusId: '123', firstSeenAt: 1751765766000 }],
         ]);
 
-        await saveState(new Set(), new Map(), [], null, null, pendingGoals);
+        await saveState(new Set(), { matchSnapshots: new Map(), pendingGoals });
         const loaded = await loadState();
 
         assert.strictEqual(Object.keys(loaded.pendingGoals).length, 1);
@@ -125,10 +125,20 @@ describe('persistence', () => {
 
     it('saveState deve gravar e loadState deve restaurar o fio de cada partida', async () => {
         const matchThreads = new Map([['401841269', '115012345678901234']]);
-        const saved = await saveState(new Set(), null, null, null, null, null, null, matchThreads);
+        const saved = await saveState(new Set(), { matchThreads });
         assert.strictEqual(saved, true);
 
         const loaded = await loadState();
         assert.deepStrictEqual(loaded.matchThreads, { '401841269': '115012345678901234' });
+    });
+
+    it('saveState guarda atrasos pendentes e fios em campos separados', async () => {
+        const pendingDelayStarts = new Map([['m1-delay-start-30', { matchId: 'm1', firstSeenAt: 1 }]]);
+        const matchThreads = new Map([['m1', '99']]);
+        await saveState(new Set(), { pendingDelayStarts, matchThreads });
+
+        const loaded = await loadState();
+        assert.deepStrictEqual(loaded.pendingDelayStarts, { 'm1-delay-start-30': { matchId: 'm1', firstSeenAt: 1 } });
+        assert.deepStrictEqual(loaded.matchThreads, { m1: '99' });
     });
 });

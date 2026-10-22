@@ -55,6 +55,17 @@ let saveTimer = null;
 let initialized = false;
 
 /**
+ * Copy a persisted plain object into a Map, skipping empty values.
+ * @returns {number} Entries in the Map afterwards
+ */
+function restoreInto(map, persisted) {
+    for (const [key, value] of Object.entries(persisted || {})) {
+        if (value) map.set(key, value);
+    }
+    return map.size;
+}
+
+/**
  * Initialize state from persistence
  */
 async function initializeState() {
@@ -86,23 +97,13 @@ async function initializeState() {
     if (state.lastNotificationId) {
         lastNotificationId = state.lastNotificationId;
     }
-    if (state.pendingGoals && typeof state.pendingGoals === 'object') {
-        for (const [eventId, data] of Object.entries(state.pendingGoals)) {
-            if (data) pendingGoals.set(eventId, data);
-        }
-        stateLogger.info({ count: pendingGoals.size }, 'Gols pendentes restaurados');
-    }
-    if (state.pendingPenalties && typeof state.pendingPenalties === 'object') {
-        for (const [eventId, data] of Object.entries(state.pendingPenalties)) {
-            if (data) pendingPenalties.set(eventId, data);
-        }
-        stateLogger.info({ count: pendingPenalties.size }, 'Pênaltis pendentes restaurados');
-    }
-    if (state.matchThreads && typeof state.matchThreads === 'object') {
-        for (const [matchId, statusId] of Object.entries(state.matchThreads)) {
-            if (statusId) matchThreadTails.set(matchId, statusId);
-        }
-    }
+    const restored = {
+        pendingGoals: restoreInto(pendingGoals, state.pendingGoals),
+        pendingPenalties: restoreInto(pendingPenalties, state.pendingPenalties),
+        pendingDelayStarts: restoreInto(pendingDelayStarts, state.pendingDelayStarts),
+        matchThreads: restoreInto(matchThreadTails, state.matchThreads),
+    };
+    stateLogger.info(restored, 'Confirmações pendentes e fios restaurados');
 
     // Start periodic save timer (skip in test to avoid keeping process alive)
     if (process.env.NODE_ENV !== 'test') {
@@ -133,7 +134,16 @@ export async function saveStateNow() {
     for (const [key, snap] of previousSnapshots) {
         if (snap && snap.status === 'in') activeMatchKeys.push(key);
     }
-    return await persistState(postedEventIds, previousSnapshots, activeMatchKeys, lastDigestDate, lastNotificationId, pendingGoals, pendingPenalties, matchThreadTails);
+    return await persistState(postedEventIds, {
+        matchSnapshots: previousSnapshots,
+        activeMatchKeys,
+        lastDigestDate,
+        lastNotificationId,
+        pendingGoals,
+        pendingPenalties,
+        pendingDelayStarts,
+        matchThreads: matchThreadTails,
+    });
 }
 
 export function getLastDigestDate() { return lastDigestDate; }
