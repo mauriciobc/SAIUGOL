@@ -1,0 +1,215 @@
+{
+  "match": {
+    "id": "401841269",
+    "home": "Bahia",
+    "away": "Flamengo"
+  },
+  "commentary": [
+    {
+      "sequence": 0,
+      "time": {
+        "value": 0.0,
+        "displayValue": ""
+      },
+      "text": "Escalações são anunciadas e os jogadores já estão se aquecendo"
+    },
+    {
+      "sequence": 3,
+      "time": {
+        "value": 101.0,
+        "displayValue": "2'"
+      },
+      "text": "Cristian Olivera (Bahia) sofre uma falta na lateral direita.",
+      "play": {
+        "id": "53942533",
+        "type": {
+          "id": "66",
+          "text": "Falta",
+          "type": "foul"
+        },
+        "period": {
+          "number": 1
+        },
+        "clock": {
+          "value": 101.0,
+          "displayValue": "2'"
+        }
+      }
+    },
+    {
+      "sequence": 4,
+      "time": {
+        "value": 101.0,
+        "displayValue": "2'"
+      },
+      "text": "Falta cometida por Emerson Royal (Flamengo).",
+      "play": {
+        "id": "53942533",
+        "type": {
+          "id": "66",
+          "text": "Falta",
+          "type": "foul"
+        },
+        "period": {
+          "number": 1
+        },
+        "clock": {
+          "value": 101.0,
+          "displayValue": "2'"
+        }
+      }
+    },
+    {
+      "sequence": 7,
+      "time": {
+        "value": 163.0,
+        "displayValue": "3'"
+      },
+      "text": "Erick Pulgar (Flamengo) recebe cartão amarelo por uma entrada perigosa.",
+      "play": {
+        "id": "53942558",
+        "type": {
+          "id": "94",
+          "text": "Cartão amarelo",
+          "type": "yellow-card"
+        },
+        "period": {
+          "number": 1
+        },
+        "clock": {
+          "value": 163.0,
+          "displayValue": "3'"
+        }
+      }
+    },
+    {
+      "sequence": 9,
+      "time": {
+        "value": 240.0,
+        "displayValue": "4'"
+      },
+      "text": "Escanteio, Bahia. Cedido por Gonzalo Plata.",
+      "play": {
+        "id": "53942680",
+        "type": {
+          "id": "95",
+          "text": "Escanteio dado",
+          "type": "corner-awarded"
+        },
+        "period": {
+          "number": 1
+        },
+        "clock": {
+          "value": 240.0,
+          "displayValue": "4'"
+        }
+      }
+    },
+    {
+      "sequence": 13,
+      "time": {
+        "value": 554.0,
+        "displayValue": "10'"
+      },
+      "text": "Finalização defendida em direção ao centro do gol. Jorge Carrascal (Flamengo) finalização com o pé direito do lado esquerdo da área. Assistência de Samuel Lino.",
+      "play": {
+        "id": "53943135",
+        "type": {
+          "id": "106",
+          "text": "Chute no gol",
+          "type": "shot-on-target"
+        },
+        "period": {
+          "number": 1
+        },
+        "clock": {
+          "value": 554.0,
+          "displayValue": "10'"
+        }
+      }
+    },
+    {
+      "sequence": 43,
+      "time": {
+        "value": 2700.0,
+        "displayValue": "45'"
+      },
+      "text": "O quarto árbitro anunciou 3 minutos de acréscimo."
+    },
+    {
+      "sequence": 68,
+      "time": {
+        "value": 3795.0,
+        "displayValue": "64'"
+      },
+      "text": "Gol!!! Bahia 0, Flamengo 1. Jorginho (Flamengo) converte o pênalti com um finalização com o pé direito para o centro do gol.",
+      "play": {
+        "id": "53949368",
+        "type": {
+          "id": "98",
+          "text": "Gol de pênalti",
+          "type": "penalty---scored"
+        },
+        "period": {
+          "number": 2
+        },
+        "clock": {
+          "value": 3795.0,
+          "displayValue": "64'"
+        }
+      }
+    },
+    {
+      "sequence": 116,
+      "time": {
+        "value": 0.0,
+        "displayValue": ""
+      },
+      "text": "Fim do Jogo, Bahia 0, Flamengo 3."
+    }
+  ],
+  "keyEvents": [
+    {
+      "id": "53942558",
+      "type": {
+        "id": "94",
+        "text": "Cartão amarelo",
+        "type": "yellow-card"
+      },
+      "text": "Erick Pulgar (Flamengo) recebe cartão amarelo por uma entrada perigosa.",
+      "period": {
+        "number": 1
+      },
+      "clock": {
+        "value": 163.0,
+        "displayValue": "3'"
+      },
+      "team": {
+        "id": "819",
+        "displayName": "Flamengo"
+      },
+      "scoringPlay": false
+    },
+    {
+      "id": "53949368",
+      "type": {
+        "id": "98",
+        "text": "Gol de pênalti",
+        "type": "penalty---scored"
+      },
+      "text": "Gol!!! Bahia 0, Flamengo 1. Jorginho (Flamengo) converte o pênalti com um finalização com o pé direito para o centro do gol.",
+      "period": {
+        "number": 2
+      },
+      "clock": {
+        "value": 3795.0,
+        "displayValue": "64'"
+      },
+      "team": {
+        "id": "819",
+        "displayName": "Flamengo"
+      },
+      "scoringPlay": true
+    }
+  ]
+}

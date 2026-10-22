@@ -22,6 +22,19 @@ function eventDescription(event) {
 }
 
 /**
+ * Name of the team an event belongs to. Live events from getLiveEvents carry only teamId (no team
+ * object), so resolve it against the match; falls back to the home team when ESPN gives no team.
+ */
+function eventTeamName(event, match) {
+    const teamId = event?.teamId ?? event?.team?.id;
+    if (teamId != null) {
+        if (String(teamId) === String(match.homeTeam?.id)) return match.homeTeam.name;
+        if (String(teamId) === String(match.awayTeam?.id)) return match.awayTeam.name;
+    }
+    return event?.team?.name || match.homeTeam?.name;
+}
+
+/**
  * Format a goal event as a Mastodon post
  * @param {Object} event - Goal event data
  * @param {Object} match - Match data
@@ -61,7 +74,7 @@ export function formatGoal(event, match, options = {}) {
     const desc = eventDescription(event);
     if (desc) text += `\n\n📝 ${desc}`;
 
-    text += `\n\n${getTeamHashtag(event.team?.name || homeTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+    text += `\n\n${getTeamHashtag(eventTeamName(event, match))} ${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }
@@ -140,7 +153,7 @@ export function formatPenaltyMissed(event, match, options = {}) {
     const desc = eventDescription(event);
     if (desc) text += `\n\n📝 ${desc}`;
 
-    text += `\n\n${getTeamHashtag(event.team?.name || homeTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
+    text += `\n\n${getTeamHashtag(eventTeamName(event, match))} ${(match.league?.hashtags || []).join(' ')}`;
 
     return text;
 }
@@ -339,6 +352,56 @@ function standingAnnotation(standing) {
 }
 
 /**
+ * Two-legged tie line, e.g. "🔁 Jogo de volta · Agregado: 2 x 3\n". The aggregate is only shown from
+ * the 2nd leg on (ESPN leaves it empty on the 1st leg, where it would just repeat the score).
+ * Returns '' for single-match fixtures.
+ */
+function tieLine(tie) {
+    if (!tie) return '';
+    const parts = [];
+    if (tie.leg === 1) parts.push(translate('ui.first_leg'));
+    else if (tie.leg === 2) parts.push(translate('ui.second_leg'));
+    if (tie.leg > 1 && tie.homeAggregate != null && tie.awayAggregate != null) {
+        parts.push(`${translate('ui.aggregate')}: ${tie.homeAggregate} x ${tie.awayAggregate}`);
+    }
+    return parts.length ? `🔁 ${parts.join(' · ')}\n` : '';
+}
+
+/**
+ * Team that won a two-legged tie, once its final leg is over. Prefers ESPN's series winner flag,
+ * then the aggregate, then the shootout. Returns null for single matches or undecided ties.
+ */
+function tieWinner(match) {
+    const { tie, homeTeam, awayTeam, homeShootoutScore, awayShootoutScore } = match;
+    if (!tie || tie.leg < tie.totalLegs) return null;
+    if (tie.winnerTeamId != null) {
+        if (String(homeTeam.id) === tie.winnerTeamId) return homeTeam;
+        if (String(awayTeam.id) === tie.winnerTeamId) return awayTeam;
+    }
+    if (tie.homeAggregate != null && tie.awayAggregate != null && tie.homeAggregate !== tie.awayAggregate) {
+        return tie.homeAggregate > tie.awayAggregate ? homeTeam : awayTeam;
+    }
+    if (homeShootoutScore != null && awayShootoutScore != null && homeShootoutScore !== awayShootoutScore) {
+        return homeShootoutScore > awayShootoutScore ? homeTeam : awayTeam;
+    }
+    return null;
+}
+
+/**
+ * Closing line for a decided tie. ESPN titles deciding rounds "Final"/"Finals", or "<trophy> - Finals"
+ * for state-championship side trophies (e.g. "Troféu Inconfidência - Finals"), which get the trophy
+ * named so it doesn't read as the state title. Anything else (e.g. "Taça Guanabara - Semifinals")
+ * means the team just goes through.
+ */
+function tieOutcome(title, team) {
+    const final = /^(?:(.+?)\s+-\s+)?finals?$/i.exec((title || '').trim());
+    if (!final) return translate('ui.team_advances', { team });
+    return final[1]
+        ? translate('ui.team_wins_trophy', { team, trophy: final[1] })
+        : translate('ui.team_champion', { team });
+}
+
+/**
  * Format match start announcement
  * @param {Object} match - Match data
  * @returns {string} Formatted post text
@@ -348,6 +411,7 @@ export function formatMatchStart(match) {
 
     let text = `${translate('ui.match_start')}\n\n`;
     text += `🏟️ ${homeTeam.name}${standingAnnotation(homeTeam.standing)} x ${awayTeam.name}${standingAnnotation(awayTeam.standing)}\n`;
+    text += tieLine(match.tie);
 
     if (venue) {
         text += `📍 ${venue}\n`;
@@ -444,7 +508,14 @@ export function formatMatchEnd(match) {
     if (hasShootout) {
         text += ` (${homeShootoutScore} x ${awayShootoutScore} ${translate('ui.penalties')})`;
     }
+    const tieInfo = tieLine(match.tie);
+    if (tieInfo) text += `\n${tieInfo.trimEnd()}`;
     text += `\n\n${result}`;
+
+    const advancing = tieWinner(match);
+    if (advancing) {
+        text += `\n${tieOutcome(match.tie.title, advancing.name)}`;
+    }
 
     text += `\n\n${getTeamHashtag(homeTeam.name)} ${getTeamHashtag(awayTeam.name)} ${(match.league?.hashtags || []).join(' ')}`;
 
@@ -547,6 +618,141 @@ export function formatDailyDigest(leagueMatches) {
 }
 
 /**
+ * Map ESPN official position to a short i18n label.
+ * @param {{ positionId?: string, positionName?: string }} official
+ * @param {number} assistantIndex - 1-based index among assistants (0 if not assistant)
+ * @returns {string}
+ */
+function officialPositionLabel(official, assistantIndex = 0) {
+    const id = official?.positionId != null ? String(official.positionId) : '';
+    const name = (official?.positionName || '').toLowerCase();
+    if (id === '1' || /\breferee\b/.test(name) && !/assistant|fourth|var/.test(name)) {
+        return translate('ui.official_referee');
+    }
+    if (/var/.test(name)) {
+        return translate('ui.official_var');
+    }
+    if (/fourth/.test(name)) {
+        return translate('ui.official_fourth');
+    }
+    if (/assistant/.test(name) || id === '2' || id === '3') {
+        const base = translate('ui.official_assistant');
+        return assistantIndex > 0 ? `${base} ${assistantIndex}` : base;
+    }
+    if (official?.positionName) return official.positionName;
+    return translate('ui.official_referee');
+}
+
+const ENHANCED_PLAY_TITLE_KEYS = {
+    SHOT_ON_TARGET: 'ui.shot_on_target',
+    SHOT_OFF_TARGET: 'ui.shot_off_target',
+    SAVE: 'ui.save',
+};
+
+/**
+ * Format an enhanced play-by-play event (shot/save). Stays within 500 characters.
+ * @param {string} category - SHOT_ON_TARGET | SHOT_OFF_TARGET | SAVE
+ * @param {{ minute?: string, playerName?: string|null, description?: string }} play
+ * @param {Object} match
+ * @returns {string}
+ */
+export function formatEnhancedPlay(category, play, match) {
+    const titleKey = ENHANCED_PLAY_TITLE_KEYS[category];
+    if (!titleKey) return '';
+
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const minute = displayMinute(play?.minute);
+    const player = play?.playerName || translate('common.unknown_player');
+    const hashtags = `${getTeamHashtag(homeTeam?.name)} ${getTeamHashtag(awayTeam?.name)} ${(match.league?.hashtags || []).join(' ')}`.trim();
+
+    let head = `${translate(titleKey)}\n\n`;
+    head += `🏟️ ${homeTeam?.name || ''} ${homeScore ?? 0} x ${awayScore ?? 0} ${awayTeam?.name || ''}\n`;
+    head += `⏱️ ${minute}'\n`;
+    head += `👤 ${player}`;
+
+    const tail = `\n\n${hashtags}`;
+    const desc = (play?.description || '').trim();
+    let text;
+    if (desc) {
+        const budget = 500 - head.length - tail.length - 4; // \n\n📝 
+        let body = desc;
+        if (budget < 8) {
+            text = head + tail;
+        } else {
+            if (body.length > budget) {
+                body = body.slice(0, Math.max(0, budget - 1)) + '…';
+            }
+            text = `${head}\n\n📝 ${body}${tail}`;
+        }
+    } else {
+        text = head + tail;
+    }
+
+    if (text.length > 500) {
+        text = text.slice(0, 499) + '…';
+    }
+    return text;
+}
+
+/**
+ * One line of ESPN's live commentary as a short post, e.g. "🎙️ 34' · Bahia 0 x 0 Flamengo" + the line.
+ * No hashtags: ~90 of these per match would flood the team tags, and the match thread already has them.
+ * @param {{ minute?: string, text?: string }} entry - Normalized commentary entry
+ * @param {Object} match
+ * @returns {string} Post text (≤ 500 characters), or '' when the entry has no text
+ */
+export function formatCommentary(entry, match) {
+    const body = (entry?.text || '').trim();
+    if (!body) return '';
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const head = `🎙️ ${displayMinute(entry.minute)}' · ${homeTeam?.name || ''} ${homeScore ?? 0} x ${awayScore ?? 0} ${awayTeam?.name || ''}\n\n`;
+    const budget = 500 - head.length;
+    return head + (body.length > budget ? `${body.slice(0, budget - 1)}…` : body);
+}
+
+/**
+ * Format pre-match officials (referee) announcement.
+ * Drops lower-order officials if needed to stay within 500 characters.
+ * @param {Object} match
+ * @param {Array<{ name: string, positionName?: string, positionId?: string, order?: number }>} officials
+ * @returns {string}
+ */
+export function formatMatchOfficials(match, officials) {
+    if (!Array.isArray(officials) || officials.length === 0) return '';
+
+    const { homeTeam, awayTeam, venue } = match;
+    const sorted = [...officials].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    const build = (list) => {
+        let assistantCount = 0;
+        let text = `${translate('ui.match_officials')}\n\n`;
+        text += `⚽ ${homeTeam?.name || ''} x ${awayTeam?.name || ''}\n`;
+        if (venue) text += `📍 ${venue}\n`;
+        text += '\n';
+        for (const o of list) {
+            const nameLower = (o.positionName || '').toLowerCase();
+            const isAssistant = /assistant/.test(nameLower) || o.positionId === '2' || o.positionId === '3';
+            if (isAssistant) assistantCount += 1;
+            const label = officialPositionLabel(o, isAssistant ? assistantCount : 0);
+            text += `👤 ${label}: ${o.name}\n`;
+        }
+        text += `\n${getTeamHashtag(homeTeam?.name)} ${getTeamHashtag(awayTeam?.name)} ${(match.league?.hashtags || []).join(' ')}`;
+        return text.trimEnd();
+    };
+
+    let list = sorted;
+    let text = build(list);
+    while (text.length > 500 && list.length > 1) {
+        list = list.slice(0, -1);
+        text = build(list);
+    }
+    if (text.length > 500) {
+        text = text.slice(0, 499) + '…';
+    }
+    return text;
+}
+
+/**
  * Format a pre-match preview for a single match (form, record, venue city).
  * @param {Object} match - Match data (with homeTeam.form, homeTeam.record, venueCity)
  * @returns {string} Formatted post text
@@ -559,6 +765,7 @@ export function formatMatchPreview(match) {
     text += `⚽ ${homeTeam.name} x ${awayTeam.name}`;
     if (kickoff) text += ` — ${kickoff}`;
     text += '\n';
+    text += tieLine(match.tie);
     if (venueCity) text += `📍 ${venueCity}\n`;
     text += '\n';
 

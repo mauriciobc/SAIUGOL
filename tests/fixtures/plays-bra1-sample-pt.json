@@ -1,0 +1,210 @@
+[
+  {
+    "id": "53942268",
+    "type": {
+      "id": "118",
+      "text": "Passe",
+      "type": "pass"
+    },
+    "text": "Pedro (Flamengo) Passe aos 0'",
+    "period": {
+      "number": 1
+    },
+    "clock": {
+      "value": 0.0,
+      "displayValue": ""
+    },
+    "scoringPlay": false,
+    "priority": false,
+    "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/819?lang=pt&region=br"
+    },
+    "wallclock": "2026-10-18T21:30:15Z",
+    "redCard": false,
+    "yellowCard": false,
+    "penaltyKick": false,
+    "ownGoal": false
+  },
+  {
+    "id": "53943135",
+    "type": {
+      "id": "106",
+      "text": "Chute no gol",
+      "type": "shot-on-target"
+    },
+    "text": "Finalização defendida em direção ao centro do gol. Jorge Carrascal (Flamengo) finalização com o pé direito do lado esquerdo da área. Assistência de Samuel Lino.",
+    "period": {
+      "number": 1
+    },
+    "clock": {
+      "value": 554.0,
+      "displayValue": "10'"
+    },
+    "scoringPlay": false,
+    "priority": true,
+    "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/819?lang=pt&region=br"
+    },
+    "wallclock": "2026-10-18T21:39:29Z",
+    "redCard": false,
+    "yellowCard": false,
+    "penaltyKick": false,
+    "ownGoal": false
+  },
+  {
+    "id": "53943945",
+    "type": {
+      "id": "117",
+      "text": "Chute para fora",
+      "type": "shot-off-target"
+    },
+    "text": "Oportunidade perdida Luciano Juba (Bahia), finalização com o pé esquerdo do lado esquerdo da área. Assistência de Nicolás Acevedo.",
+    "period": {
+      "number": 1
+    },
+    "clock": {
+      "value": 1019.0,
+      "displayValue": "17'"
+    },
+    "scoringPlay": false,
+    "priority": true,
+    "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/9967?lang=pt&region=br"
+    },
+    "wallclock": "2026-10-18T21:47:14Z",
+    "redCard": false,
+    "yellowCard": false,
+    "penaltyKick": false,
+    "ownGoal": false
+  },
+  {
+    "id": "53942347",
+    "type": {
+      "id": "135",
+      "text": "Chute bloqueado",
+      "type": "shot-blocked"
+    },
+    "text": "Finalização bloqueada, Pedro (Flamengo) finalização com o pé direito de um ângulo dificil da direita. Assistência de Jorginho.",
+    "period": {
+      "number": 1
+    },
+    "clock": {
+      "value": 55.0,
+      "displayValue": "1'"
+    },
+    "scoringPlay": false,
+    "priority": true,
+    "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/819?lang=pt&region=br"
+    },
+    "wallclock": "2026-10-18T21:31:10Z",
+    "redCard": false,
+    "yellowCard": false,
+    "penaltyKick": false,
+    "ownGoal": false
+  },
+  {
+    "id": "53942348",
+    "type": {
+      "id": "77",
+      "text": "Defesa",
+      "type": "save"
+    },
+    "text": "David Duarte (Bahia) Defesa aos 1'",
+    "period": {
+      "number": 1
+    },
+    "clock": {
+      "value": 55.0,
+      "displayValue": "1'"
+    },
+    "scoringPlay": false,
+    "priority": false,
+    "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/9967?lang=pt&region=br"
+    },
+    "wallclock": "2026-10-18T21:31:11Z",
+    "redCard": false,
+    "yellowCard": false,
+    "penaltyKick": false,
+    "ownGoal": false
+  },
+  {
+    "id": "53942792",
+    "type": {
+      "id": "77",
+      "text": "Defesa",
+      "type": "save"
+    },
+    "text": "Pedro (Flamengo) Limpar aos 5'",
+    "period": {
+      "number": 1
+    },
+    "clock": {
+      "value": 272.0,
+      "displayValue": "5'"
+    },
+    "scoringPlay": false,
+    "priority": false,
+    "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/819?lang=pt&region=br"
+    },
+    "wallclock": "2026-10-18T21:34:47Z",
+    "redCard": false,
+    "yellowCard": false,
+    "penaltyKick": false,
+    "ownGoal": false
+  },
+  {
+    "id": "53942873",
+    "type": {
+      "id": "68",
+      "text": "Impedimento",
+      "type": "offside"
+    },
+    "text": "Impedimento, Bahia. Marcos Victor tentou um passe em profundidade que encontrou Cristian Olivera em posição irregular.",
+    "period": {
+      "number": 1
+    },
+    "clock": {
+      "value": 355.0,
+      "displayValue": "6'"
+    },
+    "scoringPlay": false,
+    "priority": false,
+    "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/9967?lang=pt&region=br"
+    },
+    "wallclock": "2026-10-18T21:36:10Z",
+    "redCard": false,
+    "yellowCard": false,
+    "penaltyKick": false,
+    "ownGoal": false
+  },
+  {
+    "id": "53949368",
+    "type": {
+      "id": "98",
+      "text": "Gol de pênalti",
+      "type": "penalty---scored"
+    },
+    "text": "Gol!!! Bahia 0, Flamengo 1. Jorginho (Flamengo) converte o pênalti com um finalização com o pé direito para o centro do gol.",
+    "period": {
+      "number": 2
+    },
+    "clock": {
+      "value": 3795.0,
+      "displayValue": "64'"
+    },
+    "scoringPlay": true,
+    "priority": true,
+    "team": {
+      "$ref": "http://sports.core.api.espn.com/v2/sports/soccer/leagues/bra.1/seasons/2026/teams/819?lang=pt&region=br"
+    },
+    "wallclock": "2026-10-18T22:56:10Z",
+    "redCard": false,
+    "yellowCard": false,
+    "penaltyKick": true,
+    "ownGoal": false
+  }
+]

@@ -41,6 +41,13 @@ let lastDigestDate = null;
 // Last processed notification ID for the mention listener; persisted to avoid re-answering old mentions on restart
 let lastNotificationId = null;
 
+// Enhanced play-by-play posts made this process lifetime per match: Map<matchId, number>
+const enhancedPlayPostCounts = new Map();
+
+// Latest status posted about each match, which the next post replies to (THREAD_MATCH_POSTS);
+// persisted so a restart keeps extending the same thread: Map<matchId, statusId>
+const matchThreadTails = new Map();
+
 // Periodic save timer
 let saveTimer = null;
 
@@ -91,6 +98,11 @@ async function initializeState() {
         }
         console.log(`[State] ${pendingPenalties.size} pênaltis pendentes restaurados`);
     }
+    if (state.matchThreads && typeof state.matchThreads === 'object') {
+        for (const [matchId, statusId] of Object.entries(state.matchThreads)) {
+            if (statusId) matchThreadTails.set(matchId, statusId);
+        }
+    }
 
     // Start periodic save timer (skip in test to avoid keeping process alive)
     if (process.env.NODE_ENV !== 'test') {
@@ -121,7 +133,7 @@ export async function saveStateNow() {
     for (const [key, snap] of previousSnapshots) {
         if (snap && snap.status === 'in') activeMatchKeys.push(key);
     }
-    return await persistState(postedEventIds, previousSnapshots, activeMatchKeys, lastDigestDate, lastNotificationId, pendingGoals, pendingPenalties);
+    return await persistState(postedEventIds, previousSnapshots, activeMatchKeys, lastDigestDate, lastNotificationId, pendingGoals, pendingPenalties, matchThreadTails);
 }
 
 export function getLastDigestDate() { return lastDigestDate; }
@@ -177,6 +189,8 @@ export function resetStateForTesting() {
     lastScores.clear();
     previousSnapshots.clear();
     recoveredActiveKeys.clear();
+    enhancedPlayPostCounts.clear();
+    matchThreadTails.clear();
     lastDigestDate = null;
     lastNotificationId = null;
     stopPeriodicSave();
@@ -358,12 +372,14 @@ export function updateLastScore(matchId, home, away) {
  * @param {number|string} matchId - Match ID
  */
 function cleanupMatchEvents(matchId) {
-    const prefix = `${mid(matchId)}-`;
+    const key = mid(matchId);
+    const prefix = `${key}-`;
+    const playPrefix = `play-${key}-`;
     let cleanedCount = 0;
     let cleanedPendingCount = 0;
 
     for (const eventId of postedEventIds) {
-        if (eventId.startsWith(prefix)) {
+        if (eventId.startsWith(prefix) || eventId.startsWith(playPrefix)) {
             postedEventIds.delete(eventId);
             cleanedCount++;
         }
@@ -403,7 +419,48 @@ export function clearMatchState(matchId) {
     const key = mid(matchId);
     activeMatches.delete(key);
     lastScores.delete(key);
+    enhancedPlayPostCounts.delete(key);
+    matchThreadTails.delete(key);
     cleanupMatchEvents(matchId);
+}
+
+/**
+ * Latest status posted about a match (the one the next match post should reply to).
+ * @param {number|string} matchId
+ * @returns {string|null}
+ */
+export function getMatchThreadTail(matchId) {
+    return matchThreadTails.get(mid(matchId)) || null;
+}
+
+/**
+ * Record the latest status posted about a match.
+ * @param {number|string} matchId
+ * @param {string} statusId
+ */
+export function setMatchThreadTail(matchId, statusId) {
+    matchThreadTails.set(mid(matchId), String(statusId));
+}
+
+/**
+ * How many enhanced play posts were made for this match in this process.
+ * @param {number|string} matchId
+ * @returns {number}
+ */
+export function getEnhancedPlayPostCount(matchId) {
+    return enhancedPlayPostCounts.get(mid(matchId)) || 0;
+}
+
+/**
+ * Increment enhanced play post counter for a match.
+ * @param {number|string} matchId
+ * @returns {number} New count
+ */
+export function incrementEnhancedPlayPostCount(matchId) {
+    const key = mid(matchId);
+    const next = (enhancedPlayPostCounts.get(key) || 0) + 1;
+    enhancedPlayPostCounts.set(key, next);
+    return next;
 }
 
 /**

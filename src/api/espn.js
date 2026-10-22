@@ -10,6 +10,7 @@ const BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
 /** Web API with lang/region support (e.g. lang=pt&region=br for Brazilian Portuguese) */
 const WEB_BASE_URL = 'https://site.web.api.espn.com/apis/site/v2/sports/soccer';
 const CDN_URL = 'https://cdn.espn.com/core/soccer';
+const CORE_BASE_URL = 'https://sports.core.api.espn.com/v2/sports/soccer/leagues';
 const DEBUG_API = process.env.DEBUG_API === 'true';
 
 const ESPN_DOCUMENTED_ENDPOINTS = [
@@ -32,6 +33,128 @@ const scoreboardCache = new NodeCache({ stdTTL: config.cache.scoreboardTtlMs / 1
 const detailsCache = new NodeCache({ stdTTL: config.cache.detailsTtlMs / 1000 });
 const eventsCache = new NodeCache({ stdTTL: config.cache.eventsTtlMs / 1000 });
 const highlightsCache = new NodeCache({ stdTTL: config.cache.highlightsTtlMs / 1000 });
+const officialsCache = new NodeCache({ stdTTL: config.cache.detailsTtlMs / 1000 });
+const playsCache = new NodeCache({ stdTTL: config.cache.eventsTtlMs / 1000 });
+const commentaryCache = new NodeCache({ stdTTL: config.cache.eventsTtlMs / 1000 });
+
+/** Whether ESPN narratives should be requested in Portuguese (lang=pt&region=br) for this bot language. */
+function wantsPortuguese(language) {
+    return /^pt\b/i.test(language || '');
+}
+
+/**
+ * Extract team id from ESPN core API team $ref URL.
+ * @param {string|null|undefined} ref
+ * @returns {string|null}
+ */
+export function parseTeamIdFromRef(ref) {
+    if (!ref || typeof ref !== 'string') return null;
+    const m = ref.match(/\/teams\/(\d+)/);
+    return m ? m[1] : null;
+}
+
+const PLAYER_NAME = String.raw`(\p{L}[\p{L}.\s'-]+?)`;
+
+/**
+ * Play narratives that name the acting player. The core API serves the same Opta templates in
+ * English (default) or Portuguese (lang=pt&region=br); the PT ones rearrange the sentence, e.g.
+ * "Attempt missed. X (Team) …" becomes "Oportunidade perdida X (Team), …".
+ */
+const PLAY_PLAYER_PATTERNS = [
+    String.raw`Attempt\s+(?:missed|saved|blocked)\.\s*${PLAYER_NAME}\s*\(`,
+    String.raw`^${PLAYER_NAME}\s*\([^)]+\)\s+Save\s+at\b`,
+    String.raw`Offside,\s*[^.]+\.\s*${PLAYER_NAME}\s+is\s+caught`,
+    String.raw`Finaliza[çc][ãa]o\s+(?:defendida[^.]*\.|bloqueada,)\s*${PLAYER_NAME}\s*\(`,
+    String.raw`Oportunidade\s+perdida\s+${PLAYER_NAME}\s*\(`,
+    // Type 77 is "Defesa", but ESPN sometimes mistranslates it as "Limpar" (Clearance).
+    String.raw`^${PLAYER_NAME}\s*\([^)]+\)\s+(?:Defesa|Limpar)\s`,
+    String.raw`encontrou\s+${PLAYER_NAME}\s+em\s+posi[çc][ãa]o\s+irregular`,
+].map((source) => new RegExp(source, 'iu'));
+
+/**
+ * Parse player name from ESPN play-by-play text narratives (English or Portuguese).
+ * @param {string|null|undefined} text
+ * @returns {string|null}
+ */
+export function parsePlayerFromPlayText(text) {
+    if (!text || typeof text !== 'string') return null;
+    for (const pattern of PLAY_PLAYER_PATTERNS) {
+        const m = text.match(pattern);
+        if (m) return m[1].trim();
+    }
+    return parsePlayerFromEventDescription(text);
+}
+
+/**
+ * Normalize a single core API play item.
+ * @param {Object|null} raw
+ * @returns {{ id: string, typeId: string, typeText: string, description: string, minute: string, period: number|null, priority: boolean, scoringPlay: boolean, teamId: string|null, playerName: string|null, wallclock: string|null, clockValue: number, flags: object }}
+ */
+export function normalizePlay(raw) {
+    if (!raw || typeof raw !== 'object') {
+        return {
+            id: '',
+            typeId: '',
+            typeText: '',
+            description: '',
+            minute: '',
+            period: null,
+            priority: false,
+            scoringPlay: false,
+            teamId: null,
+            playerName: null,
+            wallclock: null,
+            clockValue: 0,
+            flags: { yellowCard: false, redCard: false, penaltyKick: false, ownGoal: false },
+        };
+    }
+    const description = (raw.text || raw.alternativeText || '').trim();
+    const clockValue = typeof raw.clock?.value === 'number' ? raw.clock.value : 0;
+    return {
+        id: raw.id != null ? String(raw.id) : '',
+        typeId: raw.type?.id != null ? String(raw.type.id) : '',
+        typeText: raw.type?.text || raw.type?.type || '',
+        description,
+        minute: raw.clock?.displayValue || '',
+        period: raw.period?.number ?? null,
+        priority: Boolean(raw.priority),
+        scoringPlay: Boolean(raw.scoringPlay),
+        teamId: parseTeamIdFromRef(raw.team?.$ref) || (raw.team?.id != null ? String(raw.team.id) : null),
+        playerName: parsePlayerFromPlayText(description),
+        wallclock: raw.wallclock || raw.modified || null,
+        clockValue,
+        flags: {
+            yellowCard: Boolean(raw.yellowCard),
+            redCard: Boolean(raw.redCard),
+            penaltyKick: Boolean(raw.penaltyKick),
+            ownGoal: Boolean(raw.ownGoal),
+        },
+    };
+}
+
+/**
+ * Normalize ESPN officials list (summary gameInfo.officials or core API items).
+ * @param {Array|*} rawList
+ * @returns {{ id?: string, name: string, positionName: string, positionId: string, order: number }[]}
+ */
+export function normalizeOfficials(rawList) {
+    if (!Array.isArray(rawList)) return [];
+    return rawList
+        .map((o, i) => {
+            if (!o || typeof o !== 'object') return null;
+            const name = o.displayName || o.fullName || '';
+            if (!name) return null;
+            return {
+                id: o.id != null ? String(o.id) : undefined,
+                name,
+                positionName: o.position?.displayName || o.position?.name || '',
+                positionId: o.position?.id != null ? String(o.position.id) : '',
+                order: typeof o.order === 'number' ? o.order : i + 1,
+            };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.order - b.order);
+}
 
 /** Base URL for summary when usePortugueseDescriptions: web API with lang=pt&region=br. */
 function getSummaryUrl(leagueCode, matchId) {
@@ -116,12 +239,12 @@ export async function getTodayMatches(leagueCode) {
                 const latencyMs = Date.now() - startTime;
                 recordEspnRequest(true, latencyMs, false);
 
-                if (!hasProps(response, ['data.events'])) {
-                    espnLogger.warn({ response }, 'Resposta inesperada da API (sem events)');
+                // Site API returns `events` at the top level; the CDN (?xhr=1) nests them under content.sbData.
+                const events = response.data?.events ?? response.data?.content?.sbData?.events;
+                if (!Array.isArray(events)) {
+                    espnLogger.warn({ url }, 'Resposta inesperada da API (sem events)');
                     return [];
                 }
-
-                const events = response.data.events || [];
 
                 if (DEBUG_API) {
                     espnLogger.debug({ eventCount: events.length }, 'ESPN API response received');
@@ -145,6 +268,7 @@ export async function getTodayMatches(leagueCode) {
                     const venueAddr = competition.venue?.address;
                     return {
                         id: event.id,
+                        tie: parseTie(competition),
                         homeTeam: {
                             id: home.team?.id,
                             name: home.team?.displayName || 'Casa',
@@ -200,9 +324,11 @@ export async function getTodayMatches(leagueCode) {
  */
 function parseStandingForTeam(standings, teamId) {
     if (!standings || !teamId) return undefined;
-    const entries = standings.groups?.[0]?.standings?.entries;
-    if (!entries?.length) return undefined;
-    const entry = entries.find(e => String(e.team?.id) === String(teamId));
+    const entries = (standings.groups || []).flatMap(g => g.standings?.entries || []);
+    if (!entries.length) return undefined;
+    // Summary entries carry `team` as a display-name string with the id alongside it
+    // ({ team: "Juventus", id: "111" }); the /apis/v2 standings endpoint nests it as team.id.
+    const entry = entries.find(e => String(e.team?.id ?? e.id) === String(teamId));
     if (!entry) return undefined;
     const stat = (name) => {
         const s = entry.stats?.find(s => s.name === name);
@@ -248,6 +374,45 @@ function parseBoxscore(rawBoxscore) {
         };
     }
     return (result.home || result.away) ? result : undefined;
+}
+
+/**
+ * Parse two-legged tie info (Copa do Brasil, Libertadores/Sul-Americana knockouts) from a scoreboard
+ * competition or summary header competition. Returns undefined for single-match fixtures.
+ * `series` is an object on the scoreboard and a one-element array in the summary header. ESPN only
+ * fills aggregateScore from the 2nd leg on, and marks the tie winner once series.completed is true.
+ * @param {Object|undefined} competition
+ * @returns {{ leg: number, totalLegs: number, title?: string, homeAggregate?: number, awayAggregate?: number, completed: boolean, winnerTeamId?: string }|undefined}
+ */
+export function parseTie(competition) {
+    if (!competition) return undefined;
+    const series = Array.isArray(competition.series) ? competition.series[0] : competition.series;
+    const leg = parseInt(competition.leg?.value ?? series?.leg, 10);
+    if (!Number.isFinite(leg) || leg < 1) return undefined;
+    const totalLegs = parseInt(series?.totalCompetitions, 10) || leg;
+    if (totalLegs < 2) return undefined;
+
+    const toInt = (v) => {
+        const n = parseInt(v, 10);
+        return Number.isFinite(n) ? n : undefined;
+    };
+    const seriesEntry = (id) => series?.competitors?.find(c => String(c.id) === String(id));
+    const aggregateFor = (side) => {
+        const c = competition.competitors?.find(x => x.homeAway === side);
+        if (!c) return undefined;
+        return toInt(seriesEntry(c.id ?? c.team?.id)?.aggregateScore ?? c.aggregateScore);
+    };
+    const winner = series?.completed ? series.competitors?.find(c => c.winner === true) : undefined;
+
+    return {
+        leg,
+        totalLegs,
+        title: series?.title || undefined,
+        homeAggregate: aggregateFor('home'),
+        awayAggregate: aggregateFor('away'),
+        completed: Boolean(series?.completed),
+        winnerTeamId: winner?.id != null ? String(winner.id) : undefined,
+    };
 }
 
 /**
@@ -315,24 +480,27 @@ export async function getMatchDetails(matchId, leagueCode) {
                     homeTeam: {
                         id: home.team?.id,
                         name: home.team?.displayName || 'Casa',
-                        logo: home.team?.logo,
+                        // The summary header lists crests under `logos[]`; only the scoreboard has `logo`.
+                        logo: home.team?.logo ?? home.team?.logos?.[0]?.href,
                         standing: homeStanding,
                     },
                     awayTeam: {
                         id: away.team?.id,
                         name: away.team?.displayName || 'Visitante',
-                        logo: away.team?.logo,
+                        logo: away.team?.logo ?? away.team?.logos?.[0]?.href,
                         standing: awayStanding,
                     },
                     homeScore: parseInt(home.score, 10) || 0,
                     awayScore: parseInt(away.score, 10) || 0,
                     homeShootoutScore,
                     awayShootoutScore,
+                    tie: parseTie(competition),
                     status: competition.status?.type?.name || 'unknown',
                     venue: competition.venue?.fullName,
                     startTime: header.date,
                     minute: competition.status?.displayClock,
                     boxscore,
+                    officials: normalizeOfficials(response.data.gameInfo?.officials),
                 };
             } catch (error) {
                 const latencyMs = Date.now() - startTime;
@@ -530,6 +698,225 @@ export async function getLiveEvents(matchId, leagueCode) {
  */
 export async function getBrasileiraoLeagueId() {
     return 'bra.1';
+}
+
+/**
+ * Get match officials (referee, assistants, etc.).
+ * Prefers summary gameInfo.officials via getMatchDetails cache; falls back to core API.
+ * Empty results are not cached so pre-match polls can retry until ESPN publishes them.
+ * @param {string} matchId
+ * @param {string} leagueCode
+ * @returns {Promise<Array<{ id?: string, name: string, positionName: string, positionId: string, order: number }>>}
+ */
+export async function getMatchOfficials(matchId, leagueCode) {
+    const officialsKey = `officials:${leagueCode}:${matchId}`;
+    const cachedOfficials = officialsCache.get(officialsKey);
+    if (cachedOfficials !== undefined) {
+        recordEspnRequest(true, 0, true);
+        return cachedOfficials;
+    }
+
+    const detailsKey = `details:${leagueCode}:${matchId}`;
+    const cachedDetails = detailsCache.get(detailsKey);
+    if (cachedDetails?.officials?.length) {
+        officialsCache.set(officialsKey, cachedDetails.officials);
+        recordEspnRequest(true, 0, true);
+        return cachedDetails.officials;
+    }
+
+    const details = await getMatchDetails(matchId, leagueCode);
+    if (details?.officials?.length) {
+        officialsCache.set(officialsKey, details.officials);
+        return details.officials;
+    }
+
+    const startTime = Date.now();
+    return await retryWithBackoff(
+        async () => {
+            try {
+                const url = `${CORE_BASE_URL}/${leagueCode}/events/${matchId}/competitions/${matchId}/officials`;
+                if (DEBUG_API) {
+                    espnLogger.debug({ url }, 'ESPN core officials request');
+                }
+                const response = await httpClient.get(url);
+                const latencyMs = Date.now() - startTime;
+                recordEspnRequest(true, latencyMs, false);
+                return normalizeOfficials(response.data?.items);
+            } catch (error) {
+                const latencyMs = Date.now() - startTime;
+                recordEspnRequest(false, latencyMs, false);
+                espnLogger.error({ matchId, error: error.message }, 'Erro ao buscar árbitros');
+                throw error;
+            }
+        },
+        {
+            shouldRetry: isRetryableError,
+            operationName: `ESPN getMatchOfficials(${matchId})`,
+        }
+    ).then((result) => {
+        if (result.length > 0) {
+            officialsCache.set(officialsKey, result);
+            espnLogger.debug({ matchId, count: result.length }, 'Officials cached');
+        }
+        return result;
+    }).catch(() => {
+        recordEspnRequest(false, Date.now() - startTime, false);
+        return [];
+    });
+}
+
+/** Largest page size the core API honors; above this it silently falls back to 25 per page. */
+const MAX_PLAYS_PAGE_SIZE = 1000;
+
+/**
+ * Core plays page URL. Narratives are requested in Portuguese when the bot posts in Portuguese;
+ * play ids are the same in every language, so switching does not affect dedup.
+ * @param {string} leagueCode
+ * @param {string} matchId
+ * @param {{ page: number, pageSize: number, language?: string }} options
+ * @returns {string}
+ */
+export function getPlaysUrl(leagueCode, matchId, { page, pageSize, language = config.i18n.defaultLanguage }) {
+    const lang = wantsPortuguese(language) ? '&lang=pt&region=br' : '';
+    return `${CORE_BASE_URL}/${leagueCode}/events/${matchId}/competitions/${matchId}/plays?limit=${pageSize}&page=${page}${lang}`;
+}
+
+/**
+ * Get play-by-play items from ESPN core API (shots, saves, passes, etc.).
+ * The endpoint is paginated in ascending order and a full match has ~1500 plays, so every page
+ * is fetched — reading only page 1 would freeze the feed partway through the first half.
+ * @param {string} matchId
+ * @param {string} leagueCode
+ * @param {{ limit?: number }} [options] - Page size (capped at MAX_PLAYS_PAGE_SIZE)
+ * @returns {Promise<ReturnType<typeof normalizePlay>[]>}
+ */
+export async function getMatchPlays(matchId, leagueCode, { limit = MAX_PLAYS_PAGE_SIZE } = {}) {
+    const cacheKey = `plays:${leagueCode}:${matchId}`;
+    const cached = playsCache.get(cacheKey);
+    if (cached !== undefined) {
+        recordEspnRequest(true, 0, true);
+        if (DEBUG_API) {
+            espnLogger.debug({ matchId, playCount: cached.length }, 'Plays cache hit');
+        }
+        return cached;
+    }
+
+    const startTime = Date.now();
+    return await retryWithBackoff(
+        async () => {
+            try {
+                const pageSize = Math.min(Math.max(1, limit), MAX_PLAYS_PAGE_SIZE);
+                const pageUrl = (page) => getPlaysUrl(leagueCode, matchId, { page, pageSize });
+                if (DEBUG_API) {
+                    espnLogger.debug({ url: pageUrl(1) }, 'ESPN core plays request');
+                }
+                const first = await httpClient.get(pageUrl(1));
+                const pageCount = parseInt(first.data?.pageCount, 10) || 1;
+                const rest = await Promise.all(
+                    Array.from({ length: pageCount - 1 }, (_, i) => httpClient.get(pageUrl(i + 2)))
+                );
+                const latencyMs = Date.now() - startTime;
+                recordEspnRequest(true, latencyMs, false);
+                const items = [first, ...rest].flatMap((r) => (Array.isArray(r.data?.items) ? r.data.items : []));
+                return items.map(normalizePlay).filter((p) => p.id);
+            } catch (error) {
+                const latencyMs = Date.now() - startTime;
+                recordEspnRequest(false, latencyMs, false);
+                espnLogger.error({ matchId, error: error.message }, 'Erro ao buscar plays');
+                throw error;
+            }
+        },
+        {
+            shouldRetry: isRetryableError,
+            operationName: `ESPN getMatchPlays(${matchId})`,
+        }
+    ).then((result) => {
+        playsCache.set(cacheKey, result);
+        espnLogger.debug({ matchId, playCount: result.length }, 'Plays cached');
+        return result;
+    }).catch(() => {
+        recordEspnRequest(false, Date.now() - startTime, false);
+        return [];
+    });
+}
+
+/**
+ * Summary URL for the live commentary feed. Like plays, it is requested in Portuguese whenever the bot
+ * posts in Portuguese, independent of ESPN_USE_PT_DESCRIPTIONS (which only governs keyEvents).
+ * @param {string} leagueCode
+ * @param {string} matchId
+ * @param {{ language?: string }} [options]
+ * @returns {string}
+ */
+export function getCommentaryUrl(leagueCode, matchId, { language = config.i18n.defaultLanguage } = {}) {
+    return wantsPortuguese(language)
+        ? `${WEB_BASE_URL}/${leagueCode}/summary?event=${matchId}&lang=pt&region=br`
+        : `${BASE_URL}/${leagueCode}/summary?event=${matchId}`;
+}
+
+/**
+ * Normalize one ESPN summary `commentary[]` entry. Most entries link to a play (same id space as the
+ * core plays feed and keyEvents); a few, like stoppage-time announcements, have no play.
+ * @param {Object|null} raw
+ * @returns {{ sequence: number|null, playId: string|null, typeId: string|null, minute: string, text: string }}
+ */
+export function normalizeCommentary(raw) {
+    const play = raw?.play;
+    return {
+        sequence: typeof raw?.sequence === 'number' ? raw.sequence : null,
+        playId: play?.id != null ? String(play.id) : null,
+        typeId: play?.type?.id != null ? String(play.type.id) : null,
+        minute: raw?.time?.displayValue || '',
+        text: (raw?.text || '').trim(),
+    };
+}
+
+/**
+ * Get ESPN's live commentary for a match (fouls, corners, shots, offsides… plus the key events).
+ * @param {string} matchId
+ * @param {string} leagueCode
+ * @returns {Promise<ReturnType<typeof normalizeCommentary>[]>} Entries in ESPN sequence order
+ */
+export async function getMatchCommentary(matchId, leagueCode) {
+    const cacheKey = `commentary:${leagueCode}:${matchId}`;
+    const cached = commentaryCache.get(cacheKey);
+    if (cached !== undefined) {
+        recordEspnRequest(true, 0, true);
+        return cached;
+    }
+
+    const startTime = Date.now();
+    return await retryWithBackoff(
+        async () => {
+            try {
+                const url = getCommentaryUrl(leagueCode, matchId);
+                if (DEBUG_API) {
+                    espnLogger.debug({ url }, 'ESPN commentary request');
+                }
+                const response = await httpClient.get(url);
+                recordEspnRequest(true, Date.now() - startTime, false);
+                const raw = Array.isArray(response.data?.commentary) ? response.data.commentary : [];
+                return raw
+                    .map(normalizeCommentary)
+                    .filter((e) => e.text)
+                    .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+            } catch (error) {
+                recordEspnRequest(false, Date.now() - startTime, false);
+                espnLogger.error({ matchId, error: error.message }, 'Erro ao buscar comentários');
+                throw error;
+            }
+        },
+        {
+            shouldRetry: isRetryableError,
+            operationName: `ESPN getMatchCommentary(${matchId})`,
+        }
+    ).then((result) => {
+        commentaryCache.set(cacheKey, result);
+        return result;
+    }).catch(() => {
+        recordEspnRequest(false, Date.now() - startTime, false);
+        return [];
+    });
 }
 
 /**

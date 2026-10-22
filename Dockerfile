@@ -8,6 +8,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
+# curl is required to download ESPN highlight media (Akamai WAF bypass)
+RUN apk add --no-cache curl
+
 # Install production dependencies only
 RUN npm ci --only=production
 

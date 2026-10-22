@@ -100,7 +100,7 @@ The bot automatically falls back to the CDN endpoint if the main API fails.
 | `rosters` | array | Starting lineups, formations, substitutes (see 1.2.2) |
 | `commentary` | array | Play-by-play commentary |
 | `standings` | object | Full current league table (see 1.2.3) — *verified live; not consumed by bot* |
-| `gameInfo` | object | Venue, attendance, match officials/referee (see 1.2.4) — *verified live; not consumed by bot* |
+| `gameInfo` | object | Venue, attendance, match officials/referee (see 1.2.4) — officials consumed by `getMatchOfficials` / pre-match post |
 | `format` | object | Competition format details |
 | `lastFiveGames` | object | Recent form for both teams |
 | `headToHeadGames` | object | Historical head-to-head results |
@@ -111,7 +111,7 @@ The bot automatically falls back to the CDN endpoint if the main API fails.
 | `wallclockAvailable` | boolean | Whether real-time clock data is available |
 | `meta` | object | Response metadata |
 
-**Usage in Code:** `src/api/espn.js:295,399,497` currently only reads `header`, `keyEvents`, and `videos` from this response — the rest (`standings`, `gameInfo`, `rosters`, `boxscore`) is fetched on every call already made but discarded before it reaches the normalizer.
+**Usage in Code:** `getMatchDetails` reads `header`, `standings`, `boxscore`, and `gameInfo.officials`; `getLiveEvents` reads `keyEvents`; `getHighlights` reads `videos`. Remaining keys (`rosters`, full `gameInfo` venue address, etc.) are still dropped by the normalizer.
 
 **Header Fields:**
 | Field | Type | Description |
@@ -204,7 +204,68 @@ Gives the full current table for the competition in one call — the same summar
 |-------|------|-------------|
 | `gameInfo.venue.fullName` / `.address.{city,country}` | string | Venue and location |
 | `gameInfo.attendance` | number | Attendance figure |
-| `gameInfo.officials[].displayName` | string | Match officials, referee first (`order: 1`) |
+| `gameInfo.officials[].displayName` / `.fullName` | string | Official name |
+| `gameInfo.officials[].position.{id,name,displayName}` | object | Role (id `1` = main referee) |
+| `gameInfo.officials[].order` | number | Display order (referee first) |
+
+**Consumed by:** `normalizeOfficials` → `getMatchDetails().officials` and `getMatchOfficials()`.
+
+**Pre-match post:** When `EVENT_MATCH_OFFICIALS` is enabled (default), `matchMonitor` posts once per match in the poll window (`{matchId}-officials` dedup). Empty lists are not marked posted so polls retry until ESPN publishes the referee. `bra.1` often returns only the main referee.
+
+**Core API fallback** (when summary has no officials):
+
+```
+GET https://sports.core.api.espn.com/v2/sports/soccer/leagues/{league}/events/{id}/competitions/{id}/officials
+→ items[] { id, displayName, fullName, position, order }
+```
+
+**Usage in Code:** `src/api/espn.js` — `normalizeOfficials()`, `getMatchOfficials()`; `src/bot/formatter.js` — `formatMatchOfficials()`; `src/bot/matchMonitor.js` pre-match block.
+
+---
+
+#### 1.2.4b Summary Commentary — Live Narration (verified live for bra.1)
+
+**Endpoint:** the summary (§1.2), `commentary[]` key. Requested from `site.web.api.espn.com` with `&lang=pt&region=br` when `DEFAULT_LANGUAGE` is pt-* (`getCommentaryUrl()`), independent of `ESPN_USE_PT_DESCRIPTIONS`.
+
+| Field | Use |
+|-------|-----|
+| `sequence` | Narrative order (ascending) |
+| `time.displayValue` | Minute (`''` for the pre-match lineup note and the final "Fim do Jogo" line) |
+| `text` | The narration (e.g. "Escanteio, Bahia. Cedido por Pedro.") |
+| `play.id` / `play.type.id` | Link to the play; key events (goals, cards, subs, period markers) share ids with `keyEvents[]` |
+
+A bra.1 match has ~115 entries: ~40 fouls, ~18 corners, ~27 shots, offsides, stoppage-time announcements (no `play`), plus ~23 that are key events.
+
+**Bot usage (opt-in, `EVENT_COMMENTARY=true`):** `processCommentaryWithEvents()` walks the commentary in sequence; key events go through `processEvents` at their place in the narration, everything else with a minute becomes a `formatCommentary()` post (no hashtags, `COMMENTARY_VISIBILITY`, default `unlisted`). Mastodon's per-account limit is **300 statuses / 3 h** (`app/lib/rate_limiter.rb`), shared by all matches. Commentary is the lowest content level of the smart schedule (`src/bot/postPlanner.js`): the daily plan only keeps it for matches whose overlapping window fits `POST_BUDGET_PER_3H`, and otherwise falls back to the shots feed.
+
+#### 1.2.5 Core Plays — Play-by-Play (verified live for bra.1)
+
+**Endpoint:**  
+`GET https://sports.core.api.espn.com/v2/sports/soccer/leagues/{league}/events/{id}/competitions/{id}/plays?limit=1000&page={n}`
+
+**Pagination:** items are in ascending order and paged (`count`, `pageIndex`, `pageCount`; `page` is 1-based). A full bra.2 / Libertadores / Sul-Americana match has ~1500 items. `limit` tops out at **1000** — any larger value silently falls back to 25 per page. `getMatchPlays()` reads `pageCount` from page 1 and fetches the rest, so a full match costs 2 requests.
+
+**Description:** Full play-by-play stream (passes, shots, saves, fouls, etc.). A single match can exceed **1 000** items — **do not** post unfiltered.
+
+**Language:** append `&lang=pt&region=br` for Portuguese `type.text` and `text` (e.g. "Chute no gol", "Oportunidade perdida X (Time), finalização com o pé esquerdo…"). Verified on bra.1, bra.2, conmebol.libertadores and eng.1 (2026-10). Play ids are identical in every language. `getPlaysUrl()` adds it whenever `DEFAULT_LANGUAGE` starts with `pt`. The PT templates are slightly terser than EN: shots on target omit the goalkeeper ("saved … by Ronaldo (Bahia)") and misses omit the direction ("high and wide to the left"). ESPN occasionally mistranslates type `77` (Save) as "Limpar".
+
+| Field | Type | Use |
+|-------|------|-----|
+| `items[].id` | string | Dedup |
+| `items[].type.id` / `.text` | string | Category allowlist |
+| `items[].text` | string | Narrative (EN by default, PT with `lang=pt&region=br`) |
+| `items[].clock.displayValue` / `.value` | string / number | Minute / sort |
+| `items[].period.number` | number | Half |
+| `items[].priority` | boolean | Prefer true |
+| `items[].scoringPlay` | boolean | Skip — goals via keyEvents |
+| `items[].team.$ref` | string | Team id via `/teams/{id}` |
+| `items[].yellowCard` / `redCard` | boolean | Skip if true |
+
+**Bot usage (opt-in):** When `EVENT_ENHANCED_PLAYS=true`, posts allowlisted types only (default `106` shot on target, `117` shot off target, `77` save), with `priority` filter and max **12** posts/match. Dedup key: `play-{matchId}-{playId}`. Restart catch-up marks existing plays as seen (no history dump).
+
+**Usage in Code:** `getMatchPlays()`, `normalizePlay()` in `src/api/espn.js`; `src/bot/playProcessor.js`; `formatEnhancedPlay()` in `formatter.js`.
+
+**Mastodon:** Default **off**. Unfiltered plays would violate rate limits (~300 req/5 min) and timeline quality. Always use `postStatus` (2s delay, 429 retry); status ≤ 500 chars; no media.
 
 ---
 
@@ -613,4 +674,4 @@ This normalization is implemented in:
 - `src/api/espn.js` - Normalization in `getTodayMatches()`, `getMatchDetails()`
 - `src/bot/matchMonitor.js` - `normalizeMatchData()`
 
-**Fields verified present in raw ESPN responses but currently dropped by normalization** (see 1.1 and 1.2.1–1.2.4 for details): `team.logo` (crest), `competitor.form`, `competitor.records[].summary`, `competitor.leaders[]` (top scorer), `standings`, `boxscore.teams[].statistics[]`, `rosters[]` (lineups/formation), `gameInfo` (attendance, officials, venue address). None of these require a new endpoint or extra request — they're part of responses the bot already fetches every poll or per live match.
+**Fields verified present in raw ESPN responses but currently dropped by normalization** (see 1.1 and 1.2.1–1.2.4 for details): `team.logo` (crest — partially used on goals), `competitor.form` / `records` (used on preview), `competitor.leaders[]` (top scorer), full `standings` table posts, expanded `boxscore` stats beyond post-match subset, `rosters[]` (lineups/formation), `gameInfo` attendance/venue address. Officials from `gameInfo.officials` are now consumed for the pre-match arbitragem post.

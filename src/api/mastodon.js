@@ -4,15 +4,89 @@ import { config } from '../config.js';
 import { retryWithBackoff, isRetryableError } from '../utils/retry.js';
 import { mastodonLogger } from '../utils/logger.js';
 import { recordMastodonPost } from '../utils/metrics.js';
-import { Readable } from 'stream';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
 
+const ESPN_MEDIA_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': '*/*',
+    'Accept-Language': 'en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7',
+    'Connection': 'keep-alive',
+    'Referer': 'https://www.espn.com.br/',
+};
+
 let client = null;
 let lastPostTime = 0;
+
+// Mastodon lets an account create 300 statuses per 3 hours (app/lib/rate_limiter.rb). Track what this
+// process posted so high-volume features (commentary) can back off before goals and cards get blocked.
+const STATUS_LIMIT_WINDOW_MS = 3 * 60 * 60 * 1000;
+/** Statuses an account may create per 3-hour window (hard-coded in Mastodon, not instance-configurable). */
+export const STATUS_LIMIT_PER_3H = 300;
+const recentStatusTimes = [];
+
+/**
+ * Statuses this process created in the last 3 hours (Mastodon's per-account status window).
+ * Counts only this process, so it starts at 0 after a restart and ignores posts made elsewhere.
+ * @param {number} [now]
+ * @returns {number}
+ */
+export function getRecentStatusCount(now = Date.now()) {
+    while (recentStatusTimes.length > 0 && recentStatusTimes[0] <= now - STATUS_LIMIT_WINDOW_MS) {
+        recentStatusTimes.shift();
+    }
+    return recentStatusTimes.length;
+}
+
+/**
+ * Timestamps (ms) of the statuses created in the last 3 hours, oldest first.
+ * @param {number} [now]
+ * @returns {number[]}
+ */
+export function getRecentStatusTimes(now = Date.now()) {
+    getRecentStatusCount(now);
+    return [...recentStatusTimes];
+}
+
+const STATUS_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+let lastStatusSyncAt = 0;
+
+/**
+ * Re-seed the 3-hour status window from the account's own timeline, so a restart or posts made outside
+ * the bot (by hand, other apps) still count against Mastodon's limit. Runs at most every 30 minutes and
+ * never in dry run. Keeps the local count if the timeline comes back shorter (a failed request, or
+ * deleted posts, which Mastodon still counts).
+ * @param {number} [now]
+ * @returns {Promise<boolean>} Whether a sync ran
+ */
+export async function syncRecentStatusesIfStale(now = Date.now()) {
+    if (config.bot.dryRun || now - lastStatusSyncAt < STATUS_SYNC_INTERVAL_MS) return false;
+    lastStatusSyncAt = now;
+    const accountId = await getAccountId();
+    if (!accountId) return false;
+
+    const since = now - STATUS_LIMIT_WINDOW_MS;
+    const times = [];
+    let maxId;
+    for (let page = 0; page < 8; page += 1) { // 8 × 40 covers the 300-status window
+        const statuses = await getAccountStatuses(accountId, { limit: 40, max_id: maxId });
+        if (statuses.length === 0) break;
+        for (const status of statuses) {
+            const createdAt = Date.parse(status.created_at);
+            if (createdAt > since) times.push(createdAt);
+        }
+        if (Date.parse(statuses.at(-1).created_at) <= since) break;
+        maxId = statuses.at(-1).id;
+    }
+    if (times.length >= getRecentStatusCount(now)) {
+        recentStatusTimes.splice(0, recentStatusTimes.length, ...times.sort((a, b) => a - b));
+    }
+    mastodonLogger.info({ statusesLast3h: getRecentStatusCount(now) }, 'Janela de posts sincronizada com a conta');
+    return true;
+}
 
 /**
  * Initialize or get the Mastodon client
@@ -37,23 +111,37 @@ let _uploadFn = null;
 /** Override uploadMediaFromUrl for testing. Pass null to restore the real implementation. */
 export function __setUploadFn(fn) { _uploadFn = fn; }
 
+function isCurlMissingError(err) {
+    return err?.code === 'ENOENT' || err?.message?.includes('ENOENT');
+}
+
 /**
- * Helper to download a file using native curl (to bypass Node.js WAF blocking)
+ * Download via Node fetch (fallback when curl is not installed).
+ */
+async function downloadWithFetch(url, destPath) {
+    const response = await fetch(url, {
+        headers: ESPN_MEDIA_HEADERS,
+        redirect: 'follow',
+    });
+    if (!response.ok) {
+        throw new Error(`fetch HTTP error: ${response.status}`);
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    fs.writeFileSync(destPath, buffer);
+}
+
+/**
+ * Download via native curl (preferred — bypasses Akamai WAF blocks on some hosts).
  */
 function downloadWithCurl(url, destPath) {
     return new Promise((resolve, reject) => {
-        // Skip Akamai 403 blocks for standard curl by adding a more complex header set
-        const curl = spawn('curl', [
-            '-s', '-L',
-            '-w', '%{http_code}',
-            '-o', destPath,
-            '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            '-H', 'Accept: */*',
-            '-H', 'Accept-Language: en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7',
-            '-H', 'Connection: keep-alive',
-            '-H', 'Referer: https://www.espn.com.br/',
-            url
-        ]);
+        const curlArgs = ['-s', '-L', '-w', '%{http_code}', '-o', destPath];
+        for (const [key, value] of Object.entries(ESPN_MEDIA_HEADERS)) {
+            curlArgs.push('-H', `${key}: ${value}`);
+        }
+        curlArgs.push(url);
+
+        const curl = spawn('curl', curlArgs);
 
         let output = '';
         curl.stdout.on('data', (data) => {
@@ -84,6 +172,18 @@ function downloadWithCurl(url, destPath) {
     });
 }
 
+async function downloadMedia(url, destPath) {
+    try {
+        await downloadWithCurl(url, destPath);
+    } catch (err) {
+        if (!isCurlMissingError(err)) {
+            throw err;
+        }
+        mastodonLogger.info({ url }, 'curl não disponível, baixando mídia via fetch');
+        await downloadWithFetch(url, destPath);
+    }
+}
+
 /**
  * Upload media from a URL to Mastodon
  * @param {string} url - The URL of the media to upload
@@ -103,12 +203,12 @@ export async function uploadMediaFromUrl(url, options = {}) {
     
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            mastodonLogger.info({ attempt, url }, 'Tentando baixar mídia via curl');
+            mastodonLogger.info({ attempt, url }, 'Tentando baixar mídia');
             
             const tempFileName = `saiugol-media-${crypto.randomBytes(8).toString('hex')}${options.type === 'video' ? '.mp4' : '.jpg'}`;
             const tempFilePath = path.join(os.tmpdir(), tempFileName);
             
-            await downloadWithCurl(url, tempFilePath);
+            await downloadMedia(url, tempFilePath);
 
             // verify the file was created and has size
             const stats = fs.statSync(tempFilePath);
@@ -199,12 +299,13 @@ export async function uploadMediaFromUrl(url, options = {}) {
  * @param {Object} options - Optional parameters
  * @param {string} options.visibility - Post visibility (public, unlisted, private, direct)
  * @param {string} options.inReplyToId - ID of status to reply to
+ * @param {boolean} options.fallbackToStandalone - If the replied-to status no longer exists (404), post without the reply instead of failing
  * @param {string[]} options.mediaIds - Array of media IDs to attach
  * @returns {Promise<Object|null>} Posted status or null on error
  */
 export async function postStatus(text, options = {}) {
     if (config.bot.dryRun) {
-        mastodonLogger.debug({ textLength: text.length }, '[DRY RUN] Postaria');
+        mastodonLogger.debug({ textLength: text.length, inReplyToId: options.inReplyToId }, '[DRY RUN] Postaria');
         return { id: 'dry-run', content: text };
     }
 
@@ -236,6 +337,7 @@ export async function postStatus(text, options = {}) {
                 const response = await mastodon.postStatus(text, postOptions);
 
                 lastPostTime = Date.now();
+                recentStatusTimes.push(lastPostTime);
                 const latencyMs = Date.now() - startTime;
                 recordMastodonPost(true, latencyMs);
                 mastodonLogger.info({ statusId: response.data.id, latencyMs }, 'Status postado com sucesso');
@@ -264,6 +366,12 @@ export async function postStatus(text, options = {}) {
             operationName: 'Mastodon postStatus',
         }
     ).catch((error) => {
+        // Mastodon answers 404 when the status being replied to was deleted; 4xx is never retried,
+        // so without this every later post replying to it would fail too.
+        if (options.inReplyToId && options.fallbackToStandalone && error.response?.status === 404) {
+            mastodonLogger.warn({ inReplyToId: options.inReplyToId }, 'Status respondido não existe mais; postando sem resposta');
+            return postStatus(text, { ...options, inReplyToId: undefined });
+        }
         mastodonLogger.error({ error: error.message }, 'Todas as tentativas falharam para postStatus');
         return null;
     });

@@ -48,6 +48,11 @@ describe('categorizeEvent — penalty missed', () => {
         assert.strictEqual(categorizeEvent('penalty - saved', '114'), 'PENALTY_MISSED');
     });
 
+    it('classifies ESPN typeIds 113 (missed) and 174 (saved) by id alone', () => {
+        assert.strictEqual(categorizeEvent('', '113'), 'PENALTY_MISSED');
+        assert.strictEqual(categorizeEvent('', '174'), 'PENALTY_MISSED');
+    });
+
     it('falls back to PENALTY_MISSED by PT text when typeId is missing', () => {
         assert.strictEqual(categorizeEvent('pênalti - defendido'), 'PENALTY_MISSED');
     });

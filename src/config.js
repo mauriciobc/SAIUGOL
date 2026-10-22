@@ -66,6 +66,19 @@ function parseEnvInt(value, defaultValue, min = 0, max = Infinity) {
     return Math.max(min, Math.min(parsed, max));
 }
 
+/**
+ * Parse comma-separated env into a Set of non-empty strings.
+ * @param {string|undefined} value
+ * @param {string[]} defaults
+ * @returns {Set<string>}
+ */
+function parseCsvSet(value, defaults) {
+    const raw = (value && String(value).trim()) || defaults.join(',');
+    return new Set(
+        raw.split(',').map((s) => s.trim()).filter(Boolean)
+    );
+}
+
 /** Resolved token for config (validated once). */
 let resolvedToken;
 
@@ -161,6 +174,8 @@ export const config = {
     bot: {
         pollIntervalMs: parseEnvInt(process.env.POLL_INTERVAL_MS, 60000, 10000),
         dryRun: process.env.DRY_RUN === 'true',
+        /** Chain every post about a match (preview → kickoff → events → end) into one Mastodon thread. */
+        threadMatchPosts: process.env.THREAD_MATCH_POSTS === 'true',
         pollIntervalLiveMs: parseEnvInt(process.env.POLL_INTERVAL_LIVE_MS, 60000, 10000),
         pollIntervalAlertMs: parseEnvInt(process.env.POLL_INTERVAL_ALERT_MS, 120000, 30000),
         pollIntervalHibernationMs: parseEnvInt(process.env.POLL_INTERVAL_HIBERNATION_MS, 1800000, 300000),
@@ -215,6 +230,30 @@ export const config = {
         matchStats: true,
         dailyDigest: process.env.DAILY_DIGEST !== 'false',
         matchPreview: process.env.MATCH_PREVIEW !== 'false',
+        matchOfficials: process.env.EVENT_MATCH_OFFICIALS !== 'false',
+        /** Opt-in play-by-play enhanced posts (shots/saves). Default off — rate-limit sensitive. */
+        enhancedPlays: process.env.EVENT_ENHANCED_PLAYS === 'true',
+        /** Opt-in full ESPN commentary (~90 extra posts per match). Replaces enhancedPlays when both are on. */
+        commentary: process.env.EVENT_COMMENTARY === 'true',
+    },
+    // Smart schedule: per-match content levels planned from the day's overlapping matches
+    planner: {
+        enabled: process.env.SMART_SCHEDULE !== 'false',
+        /** Posts per rolling 3 h the plan aims for; Mastodon rejects past 300. Lower it if the account also posts by hand. */
+        budgetPer3h: parseEnvInt(process.env.POST_BUDGET_PER_3H, 270, 50, 300),
+    },
+    // Full ESPN commentary (only used when events.commentary is true)
+    commentary: {
+        /** unlisted keeps commentary out of public and hashtag timelines; it still shows in the match thread. */
+        visibility: ['public', 'unlisted', 'private'].includes(process.env.COMMENTARY_VISIBILITY)
+            ? process.env.COMMENTARY_VISIBILITY
+            : 'unlisted',
+    },
+    // Play-by-play enhanced events (only used when events.enhancedPlays is true)
+    enhancedPlays: {
+        requirePriority: process.env.ENHANCED_PLAYS_REQUIRE_PRIORITY !== 'false',
+        maxPerMatch: parseEnvInt(process.env.ENHANCED_PLAYS_MAX_PER_MATCH, 12, 1, 50),
+        typeIds: parseCsvSet(process.env.ENHANCED_PLAY_TYPE_IDS, ['106', '117', '77']),
     },
     // Internationalization configuration (valid values: docs/linguagens-validas.md)
     i18n: {

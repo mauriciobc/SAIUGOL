@@ -4,6 +4,44 @@ export const leagues = {
         countryCode: 'BR',
         hashtags: ['#Brasileirão', '#SerieA', '#FutebolBrasileiro'],
     },
+    'bra.2': {
+        name: 'Brasileirão Série B',
+        countryCode: 'BR',
+        hashtags: ['#SérieB', '#BrasileirãoSérieB', '#FutebolBrasileiro'],
+    },
+    'bra.copa_do_brazil': {
+        name: 'Copa do Brasil',
+        countryCode: 'BR',
+        hashtags: ['#CopaDoBrasil', '#FutebolBrasileiro'],
+    },
+    // State championships and Supercopa: in ESPN's live league list (sports.core.api.espn.com
+    // /v2/sports/soccer/leagues) but not in the Public-ESPN-API soccer.md table. Paulista has full
+    // live coverage; the others only carry goals/cards/subs (no kickoff/halftime events, no boxscore).
+    'bra.camp.paulista': {
+        name: 'Campeonato Paulista',
+        countryCode: 'BR',
+        hashtags: ['#Paulistão', '#FutebolPaulista'],
+    },
+    'bra.camp.carioca': {
+        name: 'Campeonato Carioca',
+        countryCode: 'BR',
+        hashtags: ['#Cariocão', '#FutebolCarioca'],
+    },
+    'bra.camp.mineiro': {
+        name: 'Campeonato Mineiro',
+        countryCode: 'BR',
+        hashtags: ['#CampeonatoMineiro', '#FutebolMineiro'],
+    },
+    'bra.camp.gaucho': {
+        name: 'Campeonato Gaúcho',
+        countryCode: 'BR',
+        hashtags: ['#Gauchão', '#FutebolGaúcho'],
+    },
+    'bra.supercopa_do_brazil': {
+        name: 'Supercopa do Brasil',
+        countryCode: 'BR',
+        hashtags: ['#SupercopaDoBrasil', '#FutebolBrasileiro'],
+    },
     'eng.1': {
         name: 'Premier League',
         countryCode: 'GB-ENG',
@@ -83,5 +121,10 @@ export const leagues = {
         name: 'CONMEBOL Libertadores',
         countryCode: 'SA',
         hashtags: ['#Libertadores', '#GloriaEterna'],
+    },
+    'conmebol.sudamericana': {
+        name: 'CONMEBOL Sul-Americana',
+        countryCode: 'SA',
+        hashtags: ['#SulAmericana', '#Sudamericana'],
     },
 };
