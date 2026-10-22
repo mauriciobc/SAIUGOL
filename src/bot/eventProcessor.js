@@ -58,7 +58,9 @@ const ID_TO_CATEGORY = {
     '70': 'GOAL',                    // Gol / Goal
     '97': 'GOAL',                    // Own Goal / Gol Contra
     '98': 'GOAL',                    // Penalty - Scored / Gol de pênalti
+    '113': 'PENALTY_MISSED',         // Penalty - Missed / Pênalti perdido
     '114': 'PENALTY_MISSED',         // Penalty - Saved / Pênalti defendido
+    '174': 'PENALTY_MISSED',         // Penalty - Saved (seen in bra.camp.carioca, 2026)
     '137': 'GOAL',                   // Goal - Header / Gol de cabeça
     '173': 'GOAL',                   // Goal - Volley
     '94': 'YELLOW_CARD',             // Yellow Card / Cartão amarelo
