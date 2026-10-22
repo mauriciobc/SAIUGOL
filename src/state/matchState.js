@@ -167,7 +167,8 @@ initPromise = initializeState().catch((error) => {
  * @returns {Promise<void>}
  */
 export function whenReady() {
-    if (initialized) return Promise.resolve();
+    // Always hand back the load promise: `initialized` flips to true as soon as loading starts (at import),
+    // so checking it here used to resolve before the persisted state was actually in memory.
     if (!initPromise) initPromise = initializeState();
     return initPromise;
 }
@@ -375,10 +376,14 @@ function cleanupMatchEvents(matchId) {
     const key = mid(matchId);
     const prefix = `${key}-`;
     const playPrefix = `play-${key}-`;
+    // Kept after the match: if ESPN briefly flips a finished match back to live, the bot would otherwise
+    // announce the kickoff and the final score again. Two ids per match is negligible growth.
+    const keep = new Set([`${key}-match-start`, `${key}-match-end`]);
     let cleanedCount = 0;
     let cleanedPendingCount = 0;
 
     for (const eventId of postedEventIds) {
+        if (keep.has(eventId)) continue;
         if (eventId.startsWith(prefix) || eventId.startsWith(playPrefix)) {
             postedEventIds.delete(eventId);
             cleanedCount++;

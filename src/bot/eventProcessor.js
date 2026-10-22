@@ -667,16 +667,20 @@ function formatEventPost(category, event, match, options = {}) {
 /**
  * Handle match end - post final score and highlights
  * @param {Object} match - Match data
+ * @returns {Promise<boolean>} Whether the full-time post is out (false: retry later, nothing was marked)
  */
 export async function handleMatchEnd(match) {
     const matchEndId = `${match.id}-match-end`;
 
     if (isEventPosted(matchEndId)) {
-        return;
+        return true;
     }
 
     const endText = formatMatchEnd(match);
-    await postMatchStatus(match.id, endText);
+    if (!(await postMatchStatus(match.id, endText))) {
+        console.error(`[EventProcessor] Fim da partida ${match.id} não publicado`);
+        return false;
+    }
     markEventPosted(matchEndId);
 
     console.log(`[EventProcessor] Partida ${match.id} finalizada`);
@@ -712,9 +716,12 @@ export async function handleMatchEnd(match) {
             }
 
             const postOptions = mediaIds.length > 0 ? { mediaIds } : {};
-            await postMatchStatus(match.id, highlightsText, postOptions);
-            markEventPosted(highlightsId);
-            console.log(`[EventProcessor] Highlights postados para partida ${match.id}`);
+            if (await postMatchStatus(match.id, highlightsText, postOptions)) {
+                markEventPosted(highlightsId);
+                console.log(`[EventProcessor] Highlights postados para partida ${match.id}`);
+            } else {
+                console.error(`[EventProcessor] Highlights da partida ${match.id} não publicados`);
+            }
         }
     }
 
@@ -723,10 +730,14 @@ export async function handleMatchEnd(match) {
         if (!isEventPosted(statsId) && canPost(match.id, TIER.STANDARD)) {
             const statsText = formatMatchStats(match);
             if (statsText) {
-                await postMatchStatus(match.id, statsText);
-                markEventPosted(statsId);
-                console.log(`[EventProcessor] Estatísticas postadas para partida ${match.id}`);
+                if (await postMatchStatus(match.id, statsText)) {
+                    markEventPosted(statsId);
+                    console.log(`[EventProcessor] Estatísticas postadas para partida ${match.id}`);
+                } else {
+                    console.error(`[EventProcessor] Estatísticas da partida ${match.id} não publicadas`);
+                }
             }
         }
     }
+    return true;
 }

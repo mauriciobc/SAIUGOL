@@ -113,6 +113,30 @@ describe('processMentions', () => {
         assert.strictEqual(highestId, null);
     });
 
+    it('stops at a failed reply so the next tick retries it, and skips it after 3 failures', async () => {
+        const failFor = 'status-notif-32';
+        __setClient({
+            postStatus: async (text, opts) => {
+                if (opts.in_reply_to_id === failFor) {
+                    throw Object.assign(new Error('Request failed with status code 422'), { response: { status: 422 } });
+                }
+                postedReplies.push({ text, opts });
+                return { data: { id: String(postedReplies.length) } };
+            },
+        });
+        const n1 = makeMention('notif-31', 'user-31', '<p>@bot jogos</p>');
+        const n2 = makeMention('notif-32', 'user-32', '<p>@bot jogos</p>');
+        const n3 = makeMention('notif-33', 'user-33', '<p>@bot jogos</p>');
+
+        // Delivered newest first, as Mastodon does; the failed one holds the cursor before it
+        assert.strictEqual(await processMentions([n3, n2, n1], BOT_ID, LEAGUE_MATCHES), 'notif-31');
+        assert.deepStrictEqual(postedReplies.map((r) => r.opts.in_reply_to_id), ['status-notif-31']);
+
+        assert.strictEqual(await processMentions([n3, n2], BOT_ID, LEAGUE_MATCHES), null); // 2nd failure
+        assert.strictEqual(await processMentions([n3, n2], BOT_ID, LEAGUE_MATCHES), 'notif-33'); // 3rd: skipped
+        assert.deepStrictEqual(postedReplies.map((r) => r.opts.in_reply_to_id), ['status-notif-31', 'status-notif-33']);
+    });
+
     it('returns the highest notification id seen', async () => {
         const mentions = [
             makeMention('notif-10', 'user-4', '<p>@bot jogos</p>'),
