@@ -605,6 +605,125 @@ export function formatDailyDigest(leagueMatches) {
 }
 
 /**
+ * Map ESPN official position to a short i18n label.
+ * @param {{ positionId?: string, positionName?: string }} official
+ * @param {number} assistantIndex - 1-based index among assistants (0 if not assistant)
+ * @returns {string}
+ */
+function officialPositionLabel(official, assistantIndex = 0) {
+    const id = official?.positionId != null ? String(official.positionId) : '';
+    const name = (official?.positionName || '').toLowerCase();
+    if (id === '1' || /\breferee\b/.test(name) && !/assistant|fourth|var/.test(name)) {
+        return translate('ui.official_referee');
+    }
+    if (/var/.test(name)) {
+        return translate('ui.official_var');
+    }
+    if (/fourth/.test(name)) {
+        return translate('ui.official_fourth');
+    }
+    if (/assistant/.test(name) || id === '2' || id === '3') {
+        const base = translate('ui.official_assistant');
+        return assistantIndex > 0 ? `${base} ${assistantIndex}` : base;
+    }
+    if (official?.positionName) return official.positionName;
+    return translate('ui.official_referee');
+}
+
+const ENHANCED_PLAY_TITLE_KEYS = {
+    SHOT_ON_TARGET: 'ui.shot_on_target',
+    SHOT_OFF_TARGET: 'ui.shot_off_target',
+    SAVE: 'ui.save',
+};
+
+/**
+ * Format an enhanced play-by-play event (shot/save). Stays within 500 characters.
+ * @param {string} category - SHOT_ON_TARGET | SHOT_OFF_TARGET | SAVE
+ * @param {{ minute?: string, playerName?: string|null, description?: string }} play
+ * @param {Object} match
+ * @returns {string}
+ */
+export function formatEnhancedPlay(category, play, match) {
+    const titleKey = ENHANCED_PLAY_TITLE_KEYS[category];
+    if (!titleKey) return '';
+
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const minute = displayMinute(play?.minute);
+    const player = play?.playerName || translate('common.unknown_player');
+    const hashtags = `${getTeamHashtag(homeTeam?.name)} ${getTeamHashtag(awayTeam?.name)} ${(match.league?.hashtags || []).join(' ')}`.trim();
+
+    let head = `${translate(titleKey)}\n\n`;
+    head += `🏟️ ${homeTeam?.name || ''} ${homeScore ?? 0} x ${awayScore ?? 0} ${awayTeam?.name || ''}\n`;
+    head += `⏱️ ${minute}'\n`;
+    head += `👤 ${player}`;
+
+    const tail = `\n\n${hashtags}`;
+    const desc = (play?.description || '').trim();
+    let text;
+    if (desc) {
+        const budget = 500 - head.length - tail.length - 4; // \n\n📝 
+        let body = desc;
+        if (budget < 8) {
+            text = head + tail;
+        } else {
+            if (body.length > budget) {
+                body = body.slice(0, Math.max(0, budget - 1)) + '…';
+            }
+            text = `${head}\n\n📝 ${body}${tail}`;
+        }
+    } else {
+        text = head + tail;
+    }
+
+    if (text.length > 500) {
+        text = text.slice(0, 499) + '…';
+    }
+    return text;
+}
+
+/**
+ * Format pre-match officials (referee) announcement.
+ * Drops lower-order officials if needed to stay within 500 characters.
+ * @param {Object} match
+ * @param {Array<{ name: string, positionName?: string, positionId?: string, order?: number }>} officials
+ * @returns {string}
+ */
+export function formatMatchOfficials(match, officials) {
+    if (!Array.isArray(officials) || officials.length === 0) return '';
+
+    const { homeTeam, awayTeam, venue } = match;
+    const sorted = [...officials].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    const build = (list) => {
+        let assistantCount = 0;
+        let text = `${translate('ui.match_officials')}\n\n`;
+        text += `⚽ ${homeTeam?.name || ''} x ${awayTeam?.name || ''}\n`;
+        if (venue) text += `📍 ${venue}\n`;
+        text += '\n';
+        for (const o of list) {
+            const nameLower = (o.positionName || '').toLowerCase();
+            const isAssistant = /assistant/.test(nameLower) || o.positionId === '2' || o.positionId === '3';
+            if (isAssistant) assistantCount += 1;
+            const label = officialPositionLabel(o, isAssistant ? assistantCount : 0);
+            text += `👤 ${label}: ${o.name}\n`;
+        }
+        text += `\n${getTeamHashtag(homeTeam?.name)} ${getTeamHashtag(awayTeam?.name)} ${(match.league?.hashtags || []).join(' ')}`;
+        return text.trimEnd();
+    };
+
+    let list = sorted;
+    let text = build(list);
+    while (text.length > 500 && list.length > 1) {
+        list = list.slice(0, -1);
+        text = build(list);
+    }
+    if (text.length > 500) {
+        text = text.slice(0, 499) + '…';
+    }
+    return text;
+}
+
+/**
  * Format a pre-match preview for a single match (form, record, venue city).
  * @param {Object} match - Match data (with homeTeam.form, homeTeam.record, venueCity)
  * @returns {string} Formatted post text

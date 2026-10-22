@@ -13,6 +13,10 @@ describe('Translation Service', () => {
             assert.strictEqual(translate('ui.match_start'), '🏁 COMEÇA O JOGO!');
             assert.strictEqual(translate('ui.match_end'), '🏁 FIM DE JOGO!');
             assert.strictEqual(translate('ui.draw'), '🤝 Empate!');
+            assert.strictEqual(translate('ui.match_officials'), '🧑‍⚖️ ARBITRAGEM');
+            assert.strictEqual(translate('ui.official_referee'), 'Árbitro');
+            assert.strictEqual(translate('ui.shot_on_target'), '🎯 CHUTE NO GOL');
+            assert.strictEqual(translate('ui.save'), '🧤 DEFESA');
         });
 
         it('should translate common terms correctly', () => {

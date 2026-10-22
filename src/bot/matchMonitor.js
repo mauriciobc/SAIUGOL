@@ -1,4 +1,4 @@
-import { getTodayMatches, getMatchDetails, getLiveEvents } from '../api/espn.js';
+import { getTodayMatches, getMatchDetails, getLiveEvents, getMatchOfficials, getMatchPlays } from '../api/espn.js';
 import { getDateStringFor } from '../utils/dateUtils.js';
 import { postStatus } from '../api/mastodon.js';
 import {
@@ -18,8 +18,18 @@ import {
 import { matchesToSnapshotMap } from '../state/snapshotContract.js';
 import { computeDiff } from '../state/diffEngine.js';
 import { processEvents, handleMatchEnd, markExistingEventsAsSeen, getMatchStartEventId } from './eventProcessor.js';
-import { formatMatchStart, formatDailyDigest, formatMatchPreview } from './formatter.js';
+import { markExistingPlaysAsSeen, processEnhancedPlays } from './playProcessor.js';
+import { formatMatchStart, formatDailyDigest, formatMatchPreview, formatMatchOfficials } from './formatter.js';
 import { config } from '../config.js';
+
+/**
+ * Pure gate for pre-match officials posts (testable without full poll).
+ * @param {{ inWindow: boolean, enabled: boolean, alreadyPosted: boolean, officialsCount: number }} opts
+ * @returns {boolean}
+ */
+export function shouldPostMatchOfficials({ inWindow, enabled, alreadyPosted, officialsCount }) {
+    return Boolean(inWindow && enabled && !alreadyPosted && officialsCount > 0);
+}
 
 /** Last successfully fetched league match list, updated every poll. */
 let _lastLeagueMatches = [];
@@ -98,19 +108,47 @@ export async function poll() {
                     const t = new Date(match.startTime).getTime();
                     if (!Number.isNaN(t)) preMatchStartTimestamps.push(t);
 
+                    const inWindow = t - Date.now() <= config.bot.pollWindowBeforeMatchMs;
+                    const matchData = inWindow ? normalizeMatchData({ ...match, league }) : null;
+
                     // Pre-match preview — fire once when the match enters the poll window
                     if (config.events.matchPreview) {
                         const previewId = `${matchId}-preview`;
-                        const inWindow = t - Date.now() <= config.bot.pollWindowBeforeMatchMs;
                         if (inWindow && !isEventPosted(previewId)) {
                             try {
-                                const matchData = normalizeMatchData({ ...match, league });
                                 const previewText = formatMatchPreview(matchData);
                                 await postStatus(previewText);
                                 markEventPosted(previewId);
                                 console.log(`[MatchMonitor] Preview pré-jogo postado para partida ${matchId}`);
                             } catch (err) {
                                 console.error(`[MatchMonitor] Erro ao postar preview da partida ${matchId}:`, err.message);
+                            }
+                        }
+                    }
+
+                    // Pre-match officials — once when ESPN publishes the referee list
+                    if (config.events.matchOfficials && inWindow) {
+                        const officialsId = `${matchId}-officials`;
+                        if (!isEventPosted(officialsId)) {
+                            try {
+                                const officials = await getMatchOfficials(matchId, league.code);
+                                if (shouldPostMatchOfficials({
+                                    inWindow: true,
+                                    enabled: true,
+                                    alreadyPosted: false,
+                                    officialsCount: officials.length,
+                                })) {
+                                    const text = formatMatchOfficials(matchData, officials);
+                                    if (text) {
+                                        const posted = await postStatus(text);
+                                        if (posted) {
+                                            markEventPosted(officialsId);
+                                            console.log(`[MatchMonitor] Árbitros postados para partida ${matchId}`);
+                                        }
+                                    }
+                                }
+                            } catch (err) {
+                                console.error(`[MatchMonitor] Erro ao postar árbitros da partida ${matchId}:`, err.message);
                             }
                         }
                     }
@@ -180,6 +218,10 @@ export async function poll() {
                         const currentEvents = await getLiveEvents(matchId, league.code);
                         if (currentEvents.length > 0) {
                             markExistingEventsAsSeen(matchId, currentEvents);
+                        }
+                        if (config.events.enhancedPlays) {
+                            const currentPlays = await getMatchPlays(matchId, league.code);
+                            markExistingPlaysAsSeen(matchId, currentPlays);
                         }
                     }
                 }
@@ -255,8 +297,11 @@ export function computeNextIntervalMs(hasLive, hasPre, preMatchStartTimestamps, 
  * @param {Object} league - League object
  */
 async function pollMatchEvents(matchId, league) {
-    const events = await getLiveEvents(matchId, league.code);
-    const details = await getMatchDetails(matchId, league.code);
+    const [events, details, plays] = await Promise.all([
+        getLiveEvents(matchId, league.code),
+        getMatchDetails(matchId, league.code),
+        config.events.enhancedPlays ? getMatchPlays(matchId, league.code) : Promise.resolve(null),
+    ]);
 
     if (!details) {
         console.warn(`[MatchMonitor] Não foi possível obter detalhes da partida ${matchId}`);
@@ -270,6 +315,13 @@ async function pollMatchEvents(matchId, league) {
         const postedCount = await processEvents(events, matchData);
         if (postedCount > 0) {
             console.log(`[MatchMonitor] ${postedCount} eventos postados para partida ${matchId}`);
+        }
+    }
+
+    if (plays && plays.length > 0) {
+        const enhancedCount = await processEnhancedPlays(plays, matchData);
+        if (enhancedCount > 0) {
+            console.log(`[MatchMonitor] ${enhancedCount} plays aprimorados postados para partida ${matchId}`);
         }
     }
 }

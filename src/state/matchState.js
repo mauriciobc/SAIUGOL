@@ -41,6 +41,9 @@ let lastDigestDate = null;
 // Last processed notification ID for the mention listener; persisted to avoid re-answering old mentions on restart
 let lastNotificationId = null;
 
+// Enhanced play-by-play posts made this process lifetime per match: Map<matchId, number>
+const enhancedPlayPostCounts = new Map();
+
 // Periodic save timer
 let saveTimer = null;
 
@@ -358,12 +361,14 @@ export function updateLastScore(matchId, home, away) {
  * @param {number|string} matchId - Match ID
  */
 function cleanupMatchEvents(matchId) {
-    const prefix = `${mid(matchId)}-`;
+    const key = mid(matchId);
+    const prefix = `${key}-`;
+    const playPrefix = `play-${key}-`;
     let cleanedCount = 0;
     let cleanedPendingCount = 0;
 
     for (const eventId of postedEventIds) {
-        if (eventId.startsWith(prefix)) {
+        if (eventId.startsWith(prefix) || eventId.startsWith(playPrefix)) {
             postedEventIds.delete(eventId);
             cleanedCount++;
         }
@@ -403,7 +408,29 @@ export function clearMatchState(matchId) {
     const key = mid(matchId);
     activeMatches.delete(key);
     lastScores.delete(key);
+    enhancedPlayPostCounts.delete(key);
     cleanupMatchEvents(matchId);
+}
+
+/**
+ * How many enhanced play posts were made for this match in this process.
+ * @param {number|string} matchId
+ * @returns {number}
+ */
+export function getEnhancedPlayPostCount(matchId) {
+    return enhancedPlayPostCounts.get(mid(matchId)) || 0;
+}
+
+/**
+ * Increment enhanced play post counter for a match.
+ * @param {number|string} matchId
+ * @returns {number} New count
+ */
+export function incrementEnhancedPlayPostCount(matchId) {
+    const key = mid(matchId);
+    const next = (enhancedPlayPostCounts.get(key) || 0) + 1;
+    enhancedPlayPostCounts.set(key, next);
+    return next;
 }
 
 /**

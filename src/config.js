@@ -66,6 +66,19 @@ function parseEnvInt(value, defaultValue, min = 0, max = Infinity) {
     return Math.max(min, Math.min(parsed, max));
 }
 
+/**
+ * Parse comma-separated env into a Set of non-empty strings.
+ * @param {string|undefined} value
+ * @param {string[]} defaults
+ * @returns {Set<string>}
+ */
+function parseCsvSet(value, defaults) {
+    const raw = (value && String(value).trim()) || defaults.join(',');
+    return new Set(
+        raw.split(',').map((s) => s.trim()).filter(Boolean)
+    );
+}
+
 /** Resolved token for config (validated once). */
 let resolvedToken;
 
@@ -215,6 +228,15 @@ export const config = {
         matchStats: true,
         dailyDigest: process.env.DAILY_DIGEST !== 'false',
         matchPreview: process.env.MATCH_PREVIEW !== 'false',
+        matchOfficials: process.env.EVENT_MATCH_OFFICIALS !== 'false',
+        /** Opt-in play-by-play enhanced posts (shots/saves). Default off — rate-limit sensitive. */
+        enhancedPlays: process.env.EVENT_ENHANCED_PLAYS === 'true',
+    },
+    // Play-by-play enhanced events (only used when events.enhancedPlays is true)
+    enhancedPlays: {
+        requirePriority: process.env.ENHANCED_PLAYS_REQUIRE_PRIORITY !== 'false',
+        maxPerMatch: parseEnvInt(process.env.ENHANCED_PLAYS_MAX_PER_MATCH, 12, 1, 50),
+        typeIds: parseCsvSet(process.env.ENHANCED_PLAY_TYPE_IDS, ['106', '117', '77']),
     },
     // Internationalization configuration (valid values: docs/linguagens-validas.md)
     i18n: {

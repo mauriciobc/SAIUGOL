@@ -24,7 +24,7 @@ mock.method(axios, 'create', () => ({
     },
 }));
 
-const { getMatchDetails, getTodayMatches, parseTie } = await import('../src/api/espn.js');
+const { getMatchDetails, getMatchPlays, getTodayMatches, parseTie } = await import('../src/api/espn.js');
 const { formatMatchEnd, formatMatchStart, formatMatchPreview } = await import('../src/bot/formatter.js');
 const { leagues } = await import('../src/data/leagues.js');
 
@@ -209,5 +209,23 @@ describe('formatMatchEnd tie outcomes', () => {
         const text = formatMatchEnd(base);
         assert.ok(!text.includes('🔁'), text);
         assert.ok(!text.includes('se classifica'), text);
+    });
+});
+
+describe('getMatchPlays pagination', () => {
+    const play = (id, minute) => ({ id, type: { id: '117', text: 'Shot Off Target' }, text: 'x', clock: { value: minute * 60, displayValue: `${minute}'` }, period: { number: 1 } });
+
+    it('fetches every page so plays after the first page are not missed', async () => {
+        routes.set('events/900001/competitions/900001/plays?limit=1000&page=1', { count: 3, pageCount: 2, items: [play('1', 1), play('2', 2)] });
+        routes.set('events/900001/competitions/900001/plays?limit=1000&page=2', { count: 3, pageCount: 2, items: [play('3', 80)] });
+        const plays = await getMatchPlays('900001', 'bra.2');
+        assert.deepStrictEqual(plays.map((p) => p.id), ['1', '2', '3']);
+    });
+
+    it('caps the page size at 1000, above which ESPN falls back to 25 per page', async () => {
+        routes.set('events/900002/competitions/900002/plays?limit=1000&page=1', { count: 1, pageCount: 1, items: [play('9', 5)] });
+        const plays = await getMatchPlays('900002', 'bra.2', { limit: 5000 });
+        assert.strictEqual(plays.length, 1);
+        assert.ok(!requested.some((u) => u.includes('900002') && u.includes('limit=5000')));
     });
 });
