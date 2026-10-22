@@ -174,6 +174,8 @@ export const config = {
     bot: {
         pollIntervalMs: parseEnvInt(process.env.POLL_INTERVAL_MS, 60000, 10000),
         dryRun: process.env.DRY_RUN === 'true',
+        /** Chain every post about a match (preview → kickoff → events → end) into one Mastodon thread. */
+        threadMatchPosts: process.env.THREAD_MATCH_POSTS === 'true',
         pollIntervalLiveMs: parseEnvInt(process.env.POLL_INTERVAL_LIVE_MS, 60000, 10000),
         pollIntervalAlertMs: parseEnvInt(process.env.POLL_INTERVAL_ALERT_MS, 120000, 30000),
         pollIntervalHibernationMs: parseEnvInt(process.env.POLL_INTERVAL_HIBERNATION_MS, 1800000, 300000),

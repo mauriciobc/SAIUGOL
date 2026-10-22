@@ -1,6 +1,7 @@
 import { config } from '../config.js';
 import { eventProcessorLogger } from '../utils/logger.js';
-import { postStatus, uploadMediaFromUrl } from '../api/mastodon.js';
+import { uploadMediaFromUrl } from '../api/mastodon.js';
+import { postMatchStatus } from './matchThread.js';
 import { getHighlights } from '../api/espn.js';
 import {
     PENALTY_SCORED_KEYWORDS,
@@ -344,7 +345,7 @@ async function handleMatchDelayStartLifecycle(event, eventId, category, match) {
         }
 
         const text = formatMatchDelayStart(event, match);
-        const result = await postStatus(text);
+        const result = await postMatchStatus(match.id, text);
         if (!result) return { handled: true, posted: false };
         markEventPosted(eventId);
         resolvePendingDelayStart(eventId);
@@ -379,7 +380,7 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
 
     if (pending) {
         if (isDisallowedNow) {
-            const result = await postStatus(formatGoalDisallowed(event, match), { inReplyToId: pending.statusId });
+            const result = await postMatchStatus(match.id, formatGoalDisallowed(event, match), { inReplyToId: pending.statusId });
             if (!result) return { handled: true, posted: false };
             markEventPosted(eventId);
             resolvePendingGoal(eventId);
@@ -390,7 +391,7 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
         const timedOut = Date.now() - pending.firstSeenAt > config.delays.goalConfirmationTimeoutMs;
         if (!isPlaceholder || timedOut) {
             const isFavorite = isFavoriteTeam(event, match);
-            const result = await postStatus(formatGoal(event, match, { isFavoriteTeam: isFavorite }), { inReplyToId: pending.statusId });
+            const result = await postMatchStatus(match.id, formatGoal(event, match, { isFavoriteTeam: isFavorite }), { inReplyToId: pending.statusId });
             if (!result) return { handled: true, posted: false };
             markEventPosted(eventId);
             resolvePendingGoal(eventId);
@@ -402,7 +403,7 @@ async function handleGoalConfirmationLifecycle(event, eventId, category, match) 
     }
 
     if (category === 'GOAL' && !isDisallowedNow && isPlaceholder && shouldPostEvent('GOAL')) {
-        const result = await postStatus(formatGoalPending(event, match));
+        const result = await postMatchStatus(match.id, formatGoalPending(event, match));
         if (result) {
             markGoalPending(eventId, { matchId: String(match.id), statusId: result.id, firstSeenAt: Date.now() });
             console.log(`[EventProcessor] Gol aguardando confirmação (evento ${eventId}, partida ${match.id})`);
@@ -432,7 +433,8 @@ async function handlePenaltyConfirmationLifecycle(event, eventId, category, matc
         const timedOut = Date.now() - pending.firstSeenAt > config.delays.goalConfirmationTimeoutMs;
         if (!isPlaceholder || timedOut) {
             const isFavorite = isFavoriteTeam(event, match);
-            const result = await postStatus(
+            const result = await postMatchStatus(
+                match.id,
                 formatPenaltyMissed(event, match, { isFavoriteTeam: isFavorite }),
                 { inReplyToId: pending.statusId }
             );
@@ -447,7 +449,7 @@ async function handlePenaltyConfirmationLifecycle(event, eventId, category, matc
     }
 
     if (category === 'PENALTY_MISSED' && isPlaceholder && shouldPostEvent('PENALTY_MISSED')) {
-        const result = await postStatus(formatPenaltyMissedPending(event, match));
+        const result = await postMatchStatus(match.id, formatPenaltyMissedPending(event, match));
         if (result) {
             markPenaltyPending(eventId, { matchId: String(match.id), statusId: result.id, firstSeenAt: Date.now() });
             console.log(`[EventProcessor] Pênalti aguardando confirmação (evento ${eventId}, partida ${match.id})`);
@@ -577,7 +579,7 @@ export async function processEvents(events, match) {
                     if (mediaId) postOptions = { mediaIds: [mediaId] };
                 }
             }
-            const result = await postStatus(text, postOptions);
+            const result = await postMatchStatus(match.id, text, postOptions);
             if (result) {
                 markEventPosted(eventId);
                 postedCount++;
@@ -652,7 +654,7 @@ export async function handleMatchEnd(match) {
     }
 
     const endText = formatMatchEnd(match);
-    await postStatus(endText);
+    await postMatchStatus(match.id, endText);
     markEventPosted(matchEndId);
 
     console.log(`[EventProcessor] Partida ${match.id} finalizada`);
@@ -688,7 +690,7 @@ export async function handleMatchEnd(match) {
             }
 
             const postOptions = mediaIds.length > 0 ? { mediaIds } : {};
-            await postStatus(highlightsText, postOptions);
+            await postMatchStatus(match.id, highlightsText, postOptions);
             markEventPosted(highlightsId);
             console.log(`[EventProcessor] Highlights postados para partida ${match.id}`);
         }
@@ -699,7 +701,7 @@ export async function handleMatchEnd(match) {
         if (!isEventPosted(statsId)) {
             const statsText = formatMatchStats(match);
             if (statsText) {
-                await postStatus(statsText);
+                await postMatchStatus(match.id, statsText);
                 markEventPosted(statsId);
                 console.log(`[EventProcessor] Estatísticas postadas para partida ${match.id}`);
             }

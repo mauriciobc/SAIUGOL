@@ -122,4 +122,13 @@ describe('persistence', () => {
         const loaded = await loadState();
         assert.deepStrictEqual(loaded.pendingGoals, {});
     });
+
+    it('saveState deve gravar e loadState deve restaurar o fio de cada partida', async () => {
+        const matchThreads = new Map([['401841269', '115012345678901234']]);
+        const saved = await saveState(new Set(), null, null, null, null, null, null, matchThreads);
+        assert.strictEqual(saved, true);
+
+        const loaded = await loadState();
+        assert.deepStrictEqual(loaded.matchThreads, { '401841269': '115012345678901234' });
+    });
 });

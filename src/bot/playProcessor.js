@@ -6,7 +6,7 @@ import {
     incrementEnhancedPlayPostCount,
 } from '../state/matchState.js';
 import { formatEnhancedPlay } from './formatter.js';
-import { postStatus as defaultPostStatus } from '../api/mastodon.js';
+import { postMatchStatus } from './matchThread.js';
 
 const TYPE_TO_CATEGORY = {
     '106': 'SHOT_ON_TARGET',
@@ -103,11 +103,11 @@ export function markExistingPlaysAsSeen(matchId, plays, options = {}) {
  * @returns {Promise<number>} Number of posts made
  */
 export async function processEnhancedPlays(plays, match, deps = {}) {
-    const postStatus = deps.postStatus || defaultPostStatus;
     const typeIds = deps.typeIds || config.enhancedPlays.typeIds;
     const requirePriority = deps.requirePriority ?? config.enhancedPlays.requirePriority;
     const maxPerMatch = deps.maxPerMatch ?? config.enhancedPlays.maxPerMatch;
     const matchId = match?.id != null ? String(match.id) : '';
+    const postStatus = deps.postStatus || ((text) => postMatchStatus(matchId, text));
 
     const postedCountSoFar = getEnhancedPlayPostCount(matchId);
     const candidates = filterEnhancedPlays(plays, {

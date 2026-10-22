@@ -232,12 +232,13 @@ export async function uploadMediaFromUrl(url, options = {}) {
  * @param {Object} options - Optional parameters
  * @param {string} options.visibility - Post visibility (public, unlisted, private, direct)
  * @param {string} options.inReplyToId - ID of status to reply to
+ * @param {boolean} options.fallbackToStandalone - If the replied-to status no longer exists (404), post without the reply instead of failing
  * @param {string[]} options.mediaIds - Array of media IDs to attach
  * @returns {Promise<Object|null>} Posted status or null on error
  */
 export async function postStatus(text, options = {}) {
     if (config.bot.dryRun) {
-        mastodonLogger.debug({ textLength: text.length }, '[DRY RUN] Postaria');
+        mastodonLogger.debug({ textLength: text.length, inReplyToId: options.inReplyToId }, '[DRY RUN] Postaria');
         return { id: 'dry-run', content: text };
     }
 
@@ -297,6 +298,12 @@ export async function postStatus(text, options = {}) {
             operationName: 'Mastodon postStatus',
         }
     ).catch((error) => {
+        // Mastodon answers 404 when the status being replied to was deleted; 4xx is never retried,
+        // so without this every later post replying to it would fail too.
+        if (options.inReplyToId && options.fallbackToStandalone && error.response?.status === 404) {
+            mastodonLogger.warn({ inReplyToId: options.inReplyToId }, 'Status respondido não existe mais; postando sem resposta');
+            return postStatus(text, { ...options, inReplyToId: undefined });
+        }
         mastodonLogger.error({ error: error.message }, 'Todas as tentativas falharam para postStatus');
         return null;
     });

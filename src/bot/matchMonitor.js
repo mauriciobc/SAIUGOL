@@ -1,6 +1,7 @@
 import { getTodayMatches, getMatchDetails, getLiveEvents, getMatchOfficials, getMatchPlays } from '../api/espn.js';
 import { getDateStringFor } from '../utils/dateUtils.js';
 import { postStatus } from '../api/mastodon.js';
+import { postMatchStatus } from './matchThread.js';
 import {
     isMatchActive,
     addActiveMatch,
@@ -117,7 +118,7 @@ export async function poll() {
                         if (inWindow && !isEventPosted(previewId)) {
                             try {
                                 const previewText = formatMatchPreview(matchData);
-                                await postStatus(previewText);
+                                await postMatchStatus(matchId, previewText);
                                 markEventPosted(previewId);
                                 console.log(`[MatchMonitor] Preview pré-jogo postado para partida ${matchId}`);
                             } catch (err) {
@@ -140,7 +141,7 @@ export async function poll() {
                                 })) {
                                     const text = formatMatchOfficials(matchData, officials);
                                     if (text) {
-                                        const posted = await postStatus(text);
+                                        const posted = await postMatchStatus(matchId, text);
                                         if (posted) {
                                             markEventPosted(officialsId);
                                             console.log(`[MatchMonitor] Árbitros postados para partida ${matchId}`);
@@ -173,7 +174,7 @@ export async function poll() {
                         const matchStartEventId = getMatchStartEventId(matchId);
                         if (!isEventPosted(matchStartEventId) && config.events.matchStart) {
                             const matchData = normalizeMatchData(details);
-                            await postStatus(formatMatchStart(matchData));
+                            await postMatchStatus(matchId, formatMatchStart(matchData));
                             markEventPosted(matchStartEventId);
                         }
                     }
@@ -212,7 +213,7 @@ export async function poll() {
                         const matchStartEventId = getMatchStartEventId(matchId);
                         if (!isEventPosted(matchStartEventId) && config.events.matchStart) {
                             const matchData = normalizeMatchData(details);
-                            await postStatus(formatMatchStart(matchData));
+                            await postMatchStatus(matchId, formatMatchStart(matchData));
                             markEventPosted(matchStartEventId);
                         }
                         const currentEvents = await getLiveEvents(matchId, league.code);
