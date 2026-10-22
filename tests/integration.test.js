@@ -2,6 +2,7 @@ import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { getTodayMatches, getMatchDetails, getLiveEvents, getHighlights } from '../src/api/espn.js';
 import { postStatus, postThread, verifyCredentials } from '../src/api/mastodon.js';
+import { config } from '../src/config.js';
 import { resetMetrics, getMetrics } from '../src/utils/metrics.js';
 import { resetAllBreakers, getAllBreakersState } from '../src/utils/circuitBreaker.js';
 
@@ -120,11 +121,15 @@ describe('Integration Tests', () => {
 });
 
 describe('Dry Run Mode', () => {
+    // Forces dry run: with DRY_RUN=false and a real token in .env this used to publish "Test message" on every `npm test`.
     it('should not post in dry run mode', async () => {
-        const result = await postStatus('Test message', { visibility: 'public' });
-
-        if (result && result.id === 'dry-run') {
-            assert.ok(true, 'Dry run mode is active');
+        const originalDryRun = config.bot.dryRun;
+        config.bot.dryRun = true;
+        try {
+            const result = await postStatus('Test message', { visibility: 'public' });
+            assert.strictEqual(result.id, 'dry-run');
+        } finally {
+            config.bot.dryRun = originalDryRun;
         }
     });
 });
