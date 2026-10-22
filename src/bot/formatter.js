@@ -695,6 +695,22 @@ export function formatEnhancedPlay(category, play, match) {
 }
 
 /**
+ * One line of ESPN's live commentary as a short post, e.g. "🎙️ 34' · Bahia 0 x 0 Flamengo" + the line.
+ * No hashtags: ~90 of these per match would flood the team tags, and the match thread already has them.
+ * @param {{ minute?: string, text?: string }} entry - Normalized commentary entry
+ * @param {Object} match
+ * @returns {string} Post text (≤ 500 characters), or '' when the entry has no text
+ */
+export function formatCommentary(entry, match) {
+    const body = (entry?.text || '').trim();
+    if (!body) return '';
+    const { homeTeam, awayTeam, homeScore, awayScore } = match;
+    const head = `🎙️ ${displayMinute(entry.minute)}' · ${homeTeam?.name || ''} ${homeScore ?? 0} x ${awayScore ?? 0} ${awayTeam?.name || ''}\n\n`;
+    const budget = 500 - head.length;
+    return head + (body.length > budget ? `${body.slice(0, budget - 1)}…` : body);
+}
+
+/**
  * Format pre-match officials (referee) announcement.
  * Drops lower-order officials if needed to stay within 500 characters.
  * @param {Object} match

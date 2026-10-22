@@ -50,6 +50,7 @@ SAIUGOL is a Mastodon bot that monitors soccer matches via the ESPN API and post
 - **Snapshot composite key**: `"leagueCode:matchId"` (e.g. `"bra.1:12345"`). All `previousSnapshots` and `recoveredActiveKeys` use this key, not bare matchId.
 - **ESPN event type IDs are preferred over text**: The `ID_TO_CATEGORY` map in `eventProcessor.js` takes priority. Text keyword fallback only runs when the ID is unrecognized. When adding support for new event types, add to `ID_TO_CATEGORY` first.
 - **Match posts go through `postMatchStatus(matchId, …)`** (`src/bot/matchThread.js`), not `postStatus` directly, so `THREAD_MATCH_POSTS` can chain them into one thread per match. Only posts not tied to a single match (daily digest, mention replies) call `postStatus`.
+- **Non-essential posts ask the planner first**: `canPost(matchId, tier)` (`src/bot/postPlanner.js`). Each day the planner picks a content level per match from the overlapping kickoffs so the account stays under Mastodon's 300 posts / 3 h; a new post type needs a tier (`tierForCategory`), and anything dropped is marked posted so it never goes out late.
 - **State is lazy-initialized**: `matchState.js` uses a `whenReady()` promise. Tests must await it or mock persistence.
 
 ### Configuration

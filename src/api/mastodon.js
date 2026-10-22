@@ -21,6 +21,73 @@ const ESPN_MEDIA_HEADERS = {
 let client = null;
 let lastPostTime = 0;
 
+// Mastodon lets an account create 300 statuses per 3 hours (app/lib/rate_limiter.rb). Track what this
+// process posted so high-volume features (commentary) can back off before goals and cards get blocked.
+const STATUS_LIMIT_WINDOW_MS = 3 * 60 * 60 * 1000;
+/** Statuses an account may create per 3-hour window (hard-coded in Mastodon, not instance-configurable). */
+export const STATUS_LIMIT_PER_3H = 300;
+const recentStatusTimes = [];
+
+/**
+ * Statuses this process created in the last 3 hours (Mastodon's per-account status window).
+ * Counts only this process, so it starts at 0 after a restart and ignores posts made elsewhere.
+ * @param {number} [now]
+ * @returns {number}
+ */
+export function getRecentStatusCount(now = Date.now()) {
+    while (recentStatusTimes.length > 0 && recentStatusTimes[0] <= now - STATUS_LIMIT_WINDOW_MS) {
+        recentStatusTimes.shift();
+    }
+    return recentStatusTimes.length;
+}
+
+/**
+ * Timestamps (ms) of the statuses created in the last 3 hours, oldest first.
+ * @param {number} [now]
+ * @returns {number[]}
+ */
+export function getRecentStatusTimes(now = Date.now()) {
+    getRecentStatusCount(now);
+    return [...recentStatusTimes];
+}
+
+const STATUS_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+let lastStatusSyncAt = 0;
+
+/**
+ * Re-seed the 3-hour status window from the account's own timeline, so a restart or posts made outside
+ * the bot (by hand, other apps) still count against Mastodon's limit. Runs at most every 30 minutes and
+ * never in dry run. Keeps the local count if the timeline comes back shorter (a failed request, or
+ * deleted posts, which Mastodon still counts).
+ * @param {number} [now]
+ * @returns {Promise<boolean>} Whether a sync ran
+ */
+export async function syncRecentStatusesIfStale(now = Date.now()) {
+    if (config.bot.dryRun || now - lastStatusSyncAt < STATUS_SYNC_INTERVAL_MS) return false;
+    lastStatusSyncAt = now;
+    const accountId = await getAccountId();
+    if (!accountId) return false;
+
+    const since = now - STATUS_LIMIT_WINDOW_MS;
+    const times = [];
+    let maxId;
+    for (let page = 0; page < 8; page += 1) { // 8 × 40 covers the 300-status window
+        const statuses = await getAccountStatuses(accountId, { limit: 40, max_id: maxId });
+        if (statuses.length === 0) break;
+        for (const status of statuses) {
+            const createdAt = Date.parse(status.created_at);
+            if (createdAt > since) times.push(createdAt);
+        }
+        if (Date.parse(statuses.at(-1).created_at) <= since) break;
+        maxId = statuses.at(-1).id;
+    }
+    if (times.length >= getRecentStatusCount(now)) {
+        recentStatusTimes.splice(0, recentStatusTimes.length, ...times.sort((a, b) => a - b));
+    }
+    mastodonLogger.info({ statusesLast3h: getRecentStatusCount(now) }, 'Janela de posts sincronizada com a conta');
+    return true;
+}
+
 /**
  * Initialize or get the Mastodon client
  * @returns {Object} Mastodon client instance
@@ -270,6 +337,7 @@ export async function postStatus(text, options = {}) {
                 const response = await mastodon.postStatus(text, postOptions);
 
                 lastPostTime = Date.now();
+                recentStatusTimes.push(lastPostTime);
                 const latencyMs = Date.now() - startTime;
                 recordMastodonPost(true, latencyMs);
                 mastodonLogger.info({ statusId: response.data.id, latencyMs }, 'Status postado com sucesso');

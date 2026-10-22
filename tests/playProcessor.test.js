@@ -167,6 +167,7 @@ describe('processEnhancedPlays', () => {
             typeIds: new Set(['106', '117', '77']),
             requirePriority: true,
             maxPerMatch: 12,
+            canPost: () => true,
         });
 
         assert.strictEqual(count, 2); // 117 and 106 priority; 77 not
@@ -191,8 +192,22 @@ describe('processEnhancedPlays', () => {
             typeIds: new Set(['117']),
             requirePriority: true,
             maxPerMatch: 12,
+            canPost: () => true,
         });
         assert.strictEqual(count, 0);
         assert.ok(!isEventPosted(getEnhancedPlayEventId('m-proc', '49824812')));
+    });
+
+    it('drops plays the day plan has no room for, without posting them late', async () => {
+        const postStatus = mock.fn(async () => ({ id: 'x' }));
+        const match = { id: 'm-crowded', homeTeam: { name: 'A' }, awayTeam: { name: 'B' }, homeScore: 0, awayScore: 0, league: { hashtags: [] } };
+        const deps = { postStatus, typeIds: new Set(['117']), requirePriority: true, maxPerMatch: 12, canPost: () => false };
+
+        assert.strictEqual(await processEnhancedPlays(samplePlays, match, deps), 0);
+        assert.strictEqual(postStatus.mock.callCount(), 0);
+        assert.ok(isEventPosted(getEnhancedPlayEventId('m-crowded', '49824812')));
+
+        deps.canPost = () => true;
+        assert.strictEqual(await processEnhancedPlays(samplePlays, match, deps), 0);
     });
 });

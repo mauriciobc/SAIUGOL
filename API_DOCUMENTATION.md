@@ -223,6 +223,21 @@ GET https://sports.core.api.espn.com/v2/sports/soccer/leagues/{league}/events/{i
 
 ---
 
+#### 1.2.4b Summary Commentary — Live Narration (verified live for bra.1)
+
+**Endpoint:** the summary (§1.2), `commentary[]` key. Requested from `site.web.api.espn.com` with `&lang=pt&region=br` when `DEFAULT_LANGUAGE` is pt-* (`getCommentaryUrl()`), independent of `ESPN_USE_PT_DESCRIPTIONS`.
+
+| Field | Use |
+|-------|-----|
+| `sequence` | Narrative order (ascending) |
+| `time.displayValue` | Minute (`''` for the pre-match lineup note and the final "Fim do Jogo" line) |
+| `text` | The narration (e.g. "Escanteio, Bahia. Cedido por Pedro.") |
+| `play.id` / `play.type.id` | Link to the play; key events (goals, cards, subs, period markers) share ids with `keyEvents[]` |
+
+A bra.1 match has ~115 entries: ~40 fouls, ~18 corners, ~27 shots, offsides, stoppage-time announcements (no `play`), plus ~23 that are key events.
+
+**Bot usage (opt-in, `EVENT_COMMENTARY=true`):** `processCommentaryWithEvents()` walks the commentary in sequence; key events go through `processEvents` at their place in the narration, everything else with a minute becomes a `formatCommentary()` post (no hashtags, `COMMENTARY_VISIBILITY`, default `unlisted`). Mastodon's per-account limit is **300 statuses / 3 h** (`app/lib/rate_limiter.rb`), shared by all matches. Commentary is the lowest content level of the smart schedule (`src/bot/postPlanner.js`): the daily plan only keeps it for matches whose overlapping window fits `POST_BUDGET_PER_3H`, and otherwise falls back to the shots feed.
+
 #### 1.2.5 Core Plays — Play-by-Play (verified live for bra.1)
 
 **Endpoint:**  

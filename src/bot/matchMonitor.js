@@ -1,6 +1,6 @@
-import { getTodayMatches, getMatchDetails, getLiveEvents, getMatchOfficials, getMatchPlays } from '../api/espn.js';
+import { getTodayMatches, getMatchDetails, getLiveEvents, getMatchOfficials, getMatchPlays, getMatchCommentary } from '../api/espn.js';
 import { getDateStringFor } from '../utils/dateUtils.js';
-import { postStatus } from '../api/mastodon.js';
+import { postStatus, syncRecentStatusesIfStale } from '../api/mastodon.js';
 import { postMatchStatus } from './matchThread.js';
 import {
     isMatchActive,
@@ -20,6 +20,8 @@ import { matchesToSnapshotMap } from '../state/snapshotContract.js';
 import { computeDiff } from '../state/diffEngine.js';
 import { processEvents, handleMatchEnd, markExistingEventsAsSeen, getMatchStartEventId } from './eventProcessor.js';
 import { markExistingPlaysAsSeen, processEnhancedPlays } from './playProcessor.js';
+import { markExistingCommentaryAsSeen, processCommentaryWithEvents } from './commentaryProcessor.js';
+import { updateDayPlan, getPlannedLevel, canPost, TIER } from './postPlanner.js';
 import { formatMatchStart, formatDailyDigest, formatMatchPreview, formatMatchOfficials } from './formatter.js';
 import { config } from '../config.js';
 
@@ -76,6 +78,14 @@ export async function poll() {
     }
     _lastLeagueMatches = allLeagueMatches;
 
+    // Smart schedule: plan the day's content levels from its overlapping matches (once per day)
+    if (config.planner.enabled) {
+        if (allLeagueMatches.some(({ matches }) => matches.length > 0)) {
+            await syncRecentStatusesIfStale();
+        }
+        updateDayPlan(allLeagueMatches);
+    }
+
     // Daily digest — fire once per calendar day across all leagues
     if (config.events.dailyDigest) {
         const today = getDateStringFor(new Date(), config.timezone);
@@ -115,7 +125,7 @@ export async function poll() {
                     // Pre-match preview — fire once when the match enters the poll window
                     if (config.events.matchPreview) {
                         const previewId = `${matchId}-preview`;
-                        if (inWindow && !isEventPosted(previewId)) {
+                        if (inWindow && !isEventPosted(previewId) && canPost(matchId, TIER.STANDARD)) {
                             try {
                                 const previewText = formatMatchPreview(matchData);
                                 await postMatchStatus(matchId, previewText);
@@ -128,7 +138,7 @@ export async function poll() {
                     }
 
                     // Pre-match officials — once when ESPN publishes the referee list
-                    if (config.events.matchOfficials && inWindow) {
+                    if (config.events.matchOfficials && inWindow && canPost(matchId, TIER.STANDARD)) {
                         const officialsId = `${matchId}-officials`;
                         if (!isEventPosted(officialsId)) {
                             try {
@@ -220,9 +230,12 @@ export async function poll() {
                         if (currentEvents.length > 0) {
                             markExistingEventsAsSeen(matchId, currentEvents);
                         }
-                        if (config.events.enhancedPlays) {
-                            const currentPlays = await getMatchPlays(matchId, league.code);
-                            markExistingPlaysAsSeen(matchId, currentPlays);
+                        // Skip what the planned live feed already published before the bot joined
+                        const level = getPlannedLevel(matchId);
+                        if (level === TIER.PLAYS) {
+                            markExistingPlaysAsSeen(matchId, await getMatchPlays(matchId, league.code));
+                        } else if (level >= TIER.COMMENTARY) {
+                            markExistingCommentaryAsSeen(matchId, await getMatchCommentary(matchId, league.code));
                         }
                     }
                 }
@@ -298,10 +311,15 @@ export function computeNextIntervalMs(hasLive, hasPre, preMatchStartTimestamps, 
  * @param {Object} league - League object
  */
 async function pollMatchEvents(matchId, league) {
-    const [events, details, plays] = await Promise.all([
+    // The day's plan picks the live feed: full commentary (which already narrates every shot), else the
+    // shots feed (also the fallback when commentary does not fit), else key events only.
+    const level = getPlannedLevel(matchId);
+    const feed = level >= TIER.COMMENTARY ? 'commentary' : level === TIER.PLAYS ? 'plays' : null;
+    const [events, details, plays, commentary] = await Promise.all([
         getLiveEvents(matchId, league.code),
         getMatchDetails(matchId, league.code),
-        config.events.enhancedPlays ? getMatchPlays(matchId, league.code) : Promise.resolve(null),
+        feed === 'plays' ? getMatchPlays(matchId, league.code) : Promise.resolve(null),
+        feed === 'commentary' ? getMatchCommentary(matchId, league.code) : Promise.resolve(null),
     ]);
 
     if (!details) {
@@ -312,7 +330,12 @@ async function pollMatchEvents(matchId, league) {
     details.league = league;
     const matchData = normalizeMatchData(details);
 
-    if (events.length > 0) {
+    if (commentary) {
+        const counts = await processCommentaryWithEvents(commentary, events, matchData);
+        if (counts.events + counts.commentary > 0) {
+            console.log(`[MatchMonitor] ${counts.events} eventos e ${counts.commentary} comentários postados para partida ${matchId}`);
+        }
+    } else if (events.length > 0) {
         const postedCount = await processEvents(events, matchData);
         if (postedCount > 0) {
             console.log(`[MatchMonitor] ${postedCount} eventos postados para partida ${matchId}`);

@@ -7,6 +7,7 @@ import {
 } from '../state/matchState.js';
 import { formatEnhancedPlay } from './formatter.js';
 import { postMatchStatus } from './matchThread.js';
+import { canPost, TIER } from './postPlanner.js';
 
 const TYPE_TO_CATEGORY = {
     '106': 'SHOT_ON_TARGET',
@@ -108,6 +109,7 @@ export async function processEnhancedPlays(plays, match, deps = {}) {
     const maxPerMatch = deps.maxPerMatch ?? config.enhancedPlays.maxPerMatch;
     const matchId = match?.id != null ? String(match.id) : '';
     const postStatus = deps.postStatus || ((text) => postMatchStatus(matchId, text));
+    const allowed = deps.canPost || (() => canPost(matchId, TIER.PLAYS));
 
     const postedCountSoFar = getEnhancedPlayPostCount(matchId);
     const candidates = filterEnhancedPlays(plays, {
@@ -125,6 +127,11 @@ export async function processEnhancedPlays(plays, match, deps = {}) {
         if (!category) continue;
         const text = formatEnhancedPlay(category, play, match);
         if (!text) continue;
+        if (!allowed()) {
+            // Crowded day: drop rather than post late (the cap counter is left alone)
+            markEventPosted(getEnhancedPlayEventId(matchId, play.id));
+            continue;
+        }
         const result = await postStatus(text);
         if (result) {
             markEventPosted(getEnhancedPlayEventId(matchId, play.id));

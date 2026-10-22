@@ -35,6 +35,12 @@ const eventsCache = new NodeCache({ stdTTL: config.cache.eventsTtlMs / 1000 });
 const highlightsCache = new NodeCache({ stdTTL: config.cache.highlightsTtlMs / 1000 });
 const officialsCache = new NodeCache({ stdTTL: config.cache.detailsTtlMs / 1000 });
 const playsCache = new NodeCache({ stdTTL: config.cache.eventsTtlMs / 1000 });
+const commentaryCache = new NodeCache({ stdTTL: config.cache.eventsTtlMs / 1000 });
+
+/** Whether ESPN narratives should be requested in Portuguese (lang=pt&region=br) for this bot language. */
+function wantsPortuguese(language) {
+    return /^pt\b/i.test(language || '');
+}
 
 /**
  * Extract team id from ESPN core API team $ref URL.
@@ -771,7 +777,7 @@ const MAX_PLAYS_PAGE_SIZE = 1000;
  * @returns {string}
  */
 export function getPlaysUrl(leagueCode, matchId, { page, pageSize, language = config.i18n.defaultLanguage }) {
-    const lang = /^pt\b/i.test(language || '') ? '&lang=pt&region=br' : '';
+    const lang = wantsPortuguese(language) ? '&lang=pt&region=br' : '';
     return `${CORE_BASE_URL}/${leagueCode}/events/${matchId}/competitions/${matchId}/plays?limit=${pageSize}&page=${page}${lang}`;
 }
 
@@ -827,6 +833,85 @@ export async function getMatchPlays(matchId, leagueCode, { limit = MAX_PLAYS_PAG
     ).then((result) => {
         playsCache.set(cacheKey, result);
         espnLogger.debug({ matchId, playCount: result.length }, 'Plays cached');
+        return result;
+    }).catch(() => {
+        recordEspnRequest(false, Date.now() - startTime, false);
+        return [];
+    });
+}
+
+/**
+ * Summary URL for the live commentary feed. Like plays, it is requested in Portuguese whenever the bot
+ * posts in Portuguese, independent of ESPN_USE_PT_DESCRIPTIONS (which only governs keyEvents).
+ * @param {string} leagueCode
+ * @param {string} matchId
+ * @param {{ language?: string }} [options]
+ * @returns {string}
+ */
+export function getCommentaryUrl(leagueCode, matchId, { language = config.i18n.defaultLanguage } = {}) {
+    return wantsPortuguese(language)
+        ? `${WEB_BASE_URL}/${leagueCode}/summary?event=${matchId}&lang=pt&region=br`
+        : `${BASE_URL}/${leagueCode}/summary?event=${matchId}`;
+}
+
+/**
+ * Normalize one ESPN summary `commentary[]` entry. Most entries link to a play (same id space as the
+ * core plays feed and keyEvents); a few, like stoppage-time announcements, have no play.
+ * @param {Object|null} raw
+ * @returns {{ sequence: number|null, playId: string|null, typeId: string|null, minute: string, text: string }}
+ */
+export function normalizeCommentary(raw) {
+    const play = raw?.play;
+    return {
+        sequence: typeof raw?.sequence === 'number' ? raw.sequence : null,
+        playId: play?.id != null ? String(play.id) : null,
+        typeId: play?.type?.id != null ? String(play.type.id) : null,
+        minute: raw?.time?.displayValue || '',
+        text: (raw?.text || '').trim(),
+    };
+}
+
+/**
+ * Get ESPN's live commentary for a match (fouls, corners, shots, offsides… plus the key events).
+ * @param {string} matchId
+ * @param {string} leagueCode
+ * @returns {Promise<ReturnType<typeof normalizeCommentary>[]>} Entries in ESPN sequence order
+ */
+export async function getMatchCommentary(matchId, leagueCode) {
+    const cacheKey = `commentary:${leagueCode}:${matchId}`;
+    const cached = commentaryCache.get(cacheKey);
+    if (cached !== undefined) {
+        recordEspnRequest(true, 0, true);
+        return cached;
+    }
+
+    const startTime = Date.now();
+    return await retryWithBackoff(
+        async () => {
+            try {
+                const url = getCommentaryUrl(leagueCode, matchId);
+                if (DEBUG_API) {
+                    espnLogger.debug({ url }, 'ESPN commentary request');
+                }
+                const response = await httpClient.get(url);
+                recordEspnRequest(true, Date.now() - startTime, false);
+                const raw = Array.isArray(response.data?.commentary) ? response.data.commentary : [];
+                return raw
+                    .map(normalizeCommentary)
+                    .filter((e) => e.text)
+                    .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+            } catch (error) {
+                recordEspnRequest(false, Date.now() - startTime, false);
+                espnLogger.error({ matchId, error: error.message }, 'Erro ao buscar comentários');
+                throw error;
+            }
+        },
+        {
+            shouldRetry: isRetryableError,
+            operationName: `ESPN getMatchCommentary(${matchId})`,
+        }
+    ).then((result) => {
+        commentaryCache.set(cacheKey, result);
         return result;
     }).catch(() => {
         recordEspnRequest(false, Date.now() - startTime, false);

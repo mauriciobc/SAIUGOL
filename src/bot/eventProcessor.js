@@ -2,6 +2,7 @@ import { config } from '../config.js';
 import { eventProcessorLogger } from '../utils/logger.js';
 import { uploadMediaFromUrl } from '../api/mastodon.js';
 import { postMatchStatus } from './matchThread.js';
+import { canPost, tierForCategory, TIER } from './postPlanner.js';
 import { getHighlights } from '../api/espn.js';
 import {
     PENALTY_SCORED_KEYWORDS,
@@ -180,6 +181,16 @@ function generateEventId(matchId, event) {
  * @param {string|number} matchId - Match ID
  * @returns {string}
  */
+/**
+ * Whether the keyEvents path posts this ESPN type id (goals, cards, subs, period markers…).
+ * Id-only on purpose: categorizeEvent's text fallback reads "Chute no gol" (106) as a goal.
+ * @param {string|number|null|undefined} typeId
+ * @returns {boolean}
+ */
+export function isKeyEventTypeId(typeId) {
+    return typeId != null && ID_TO_CATEGORY[String(typeId)] != null;
+}
+
 export function getMatchStartEventId(matchId) {
     return `${String(matchId)}-match-start`;
 }
@@ -334,6 +345,11 @@ async function handleMatchDelayStartLifecycle(event, eventId, category, match) {
     if (category !== 'MATCH_DELAY_START') return { handled: false, posted: false };
     if (isEventPosted(eventId)) return { handled: false, posted: false };
     if (!shouldPostEvent('MATCH_DELAY_START')) return { handled: false, posted: false };
+    if (!canPost(match.id, tierForCategory(category))) {
+        markEventPosted(eventId);
+        resolvePendingDelayStart(eventId);
+        return { handled: true, posted: false };
+    }
 
     const pending = getPendingDelayStart(eventId);
     const hasDesc = hasDelayDescription(event);
@@ -558,6 +574,12 @@ export async function processEvents(events, match) {
     postable.sort((a, b) => eventPriority(a.category) - eventPriority(b.category));
 
     for (const { event, eventId, category } of postable) {
+        // Smart schedule: on a crowded day lower-priority events are dropped, and marked so they never post late.
+        if (!canPost(match.id, tierForCategory(category))) {
+            markEventPosted(eventId);
+            console.log(`[EventProcessor] ${category} da partida ${match.id} não postado: agenda do dia cheia`);
+            continue;
+        }
         const isFavorite = isFavoriteTeam(event, match);
         const text = formatEventPost(category, event, match, { isFavoriteTeam: isFavorite });
         if (text) {
@@ -664,7 +686,7 @@ export async function handleMatchEnd(match) {
     const highlights = await getHighlights(match.id, match.league?.code);
     if (highlights.length > 0) {
         const highlightsId = `${match.id}-highlights`;
-        if (!isEventPosted(highlightsId)) {
+        if (!isEventPosted(highlightsId) && canPost(match.id, TIER.STANDARD)) {
             const highlightsText = formatHighlights(match, highlights);
 
             const firstHighlight = highlights[0];
@@ -698,7 +720,7 @@ export async function handleMatchEnd(match) {
 
     if (config.events.matchStats) {
         const statsId = `${match.id}-match-stats`;
-        if (!isEventPosted(statsId)) {
+        if (!isEventPosted(statsId) && canPost(match.id, TIER.STANDARD)) {
             const statsText = formatMatchStats(match);
             if (statsText) {
                 await postMatchStatus(match.id, statsText);
